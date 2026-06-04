@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """Оркестратор отчётов crypto_research."""
 
-import os
 import sys
 from pathlib import Path
 
-_RESEARCH_ROOT = Path(__file__).resolve().parent
-_CRYPTO_BOT_ROOT = Path(os.environ.get("CRYPTO_BOT_ROOT", _RESEARCH_ROOT.parent))
-sys.path.insert(0, str(_RESEARCH_ROOT.parent))
-sys.path.insert(0, str(_CRYPTO_BOT_ROOT))
+_REPO_PARENT = Path(__file__).resolve().parent.parent
+if str(_REPO_PARENT) not in sys.path:
+    sys.path.insert(0, str(_REPO_PARENT))
 
 from crypto_research.utils.cli import parse_report_args
 from crypto_research.utils.daily_pool import build_pooled_daily

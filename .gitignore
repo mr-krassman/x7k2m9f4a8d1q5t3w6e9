@@ -5,6 +5,8 @@ __pycache__/
 venv/
 .env
 .env.*
+data/
+!data/.gitkeep
 research_outputs/
 *.png
 *.log
