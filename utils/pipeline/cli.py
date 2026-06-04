@@ -1,11 +1,27 @@
 import argparse
 from pathlib import Path
 
-from crypto_research.utils.pipeline.paths import DEFAULT_DATA_DIR
+from crypto_research.utils.pipeline.paths import DEFAULT_DATA_DIR, TRAIN_MAX_PAIR_START, VAL_MAX_PAIR_START
 
 
 def parse_report_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Оркестратор отчётов crypto_research.")
+    split_group = parser.add_mutually_exclusive_group()
+    split_group.add_argument(
+        "--train",
+        action="store_true",
+        help=f"Train: пары с первой свечой не позже {TRAIN_MAX_PAIR_START} (UTC); суффикс _train",
+    )
+    split_group.add_argument(
+        "--val",
+        action="store_true",
+        help=f"Val: пары с первой свечой не позже {VAL_MAX_PAIR_START} (UTC); суффикс _val",
+    )
+    split_group.add_argument(
+        "--summary",
+        action="store_true",
+        help="Итог train→val: p-value на train, подтверждение на val; отдельный .log",
+    )
     parser.add_argument(
         "--data-dir",
         type=Path,

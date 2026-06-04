@@ -7,7 +7,7 @@ from collections.abc import Iterable
 
 import polars as pl
 
-from crypto_research.utils.pipeline.dates import datetime_to_ms
+from crypto_research.utils.pipeline.dates import datetime_to_ms, parse_iso_utc
 
 _BATCH = 65536
 _SCHEMA = {
@@ -92,7 +92,31 @@ def resolve_pairs(
             selected = [p for p in ex.map(task, paths) if p is not None]
     if not selected:
         raise RuntimeError("После фильтра max-pair-start не осталось ни одной пары")
-    return selected
+    return sorted(selected)
+
+
+def resolve_split_pairs(
+    data_dir: Path,
+    split: str,
+    pair_names: list[str] | None,
+    *,
+    workers: int = _DEFAULT_WORKERS,
+) -> list[str]:
+    """train: первая свеча ≤ 2022-01-01; val: пары пула 2023-01-01, не входящие в train."""
+    from crypto_research.utils.pipeline.paths import TRAIN_MAX_PAIR_START, VAL_MAX_PAIR_START
+
+    train_start = parse_iso_utc(TRAIN_MAX_PAIR_START)
+    val_start = parse_iso_utc(VAL_MAX_PAIR_START)
+    if split == "train":
+        return resolve_pairs(data_dir, pair_names, train_start, workers=workers)
+    if split == "val":
+        train_pairs = set(resolve_pairs(data_dir, pair_names, train_start, workers=workers))
+        pool = resolve_pairs(data_dir, pair_names, val_start, workers=workers)
+        val_pairs = sorted(p for p in pool if p not in train_pairs)
+        if not val_pairs:
+            raise RuntimeError("Val: нет пар вне train-cohort (2022)")
+        return val_pairs
+    raise ValueError(f"unknown split: {split}")
 
 
 def _cast_f32(lf: pl.LazyFrame) -> pl.LazyFrame:
@@ -139,9 +163,13 @@ def load_klines_for_period(
     pairs: list[str] | None,
     max_pair_start: datetime | None,
     *,
+    split: str | None = None,
     workers: int = _DEFAULT_WORKERS,
 ) -> dict[str, pl.DataFrame]:
-    resolved = resolve_pairs(data_dir, pairs, max_pair_start, workers=workers)
+    if split is not None:
+        resolved = resolve_split_pairs(data_dir, split, pairs, workers=workers)
+    else:
+        resolved = resolve_pairs(data_dir, pairs, max_pair_start, workers=workers)
     from_ms = datetime_to_ms(from_date)
     to_ms = datetime_to_ms(to_date)
     if from_ms > to_ms:

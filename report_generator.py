@@ -10,35 +10,36 @@ if str(_REPO_PARENT) not in sys.path:
 
 from crypto_research.utils.pipeline.cli import parse_report_args
 from crypto_research.utils.pipeline.daily_pool import build_pooled_daily
-from crypto_research.utils.pipeline.dates import parse_iso_utc
-from crypto_research.utils.pipeline.load_pairs import _DEFAULT_WORKERS, load_klines_for_period
 from crypto_research.utils.pipeline.load_summary import log_load_summary
 from crypto_research.utils.pipeline.pair_means import compute_pair_means
 from crypto_research.utils.pipeline.weekday_effects import run_weekday_effects
+from crypto_research.utils.pipeline.weekday_report import (
+    build_weekday_report_context,
+    load_report_klines,
+    load_train_val_dailies,
+)
+from crypto_research.utils.pipeline.weekday_train_val_summary import run_train_val_summary_report
 
 
 def run(args) -> None:
-    data_dir = args.data_dir.expanduser().resolve()
-    from_date = parse_iso_utc(args.from_date)
-    to_date = parse_iso_utc(args.to_date)
-    max_pair_start = parse_iso_utc(args.max_pair_start) if args.max_pair_start else None
+    ctx = build_weekday_report_context(args)
+    if ctx.summary:
+        train_daily, val_daily, train_pairs, val_pairs = load_train_val_dailies(ctx)
+        run_train_val_summary_report(ctx, train_daily, val_daily, train_pairs, val_pairs)
+        return
 
-    workers = args.workers if args.workers is not None else _DEFAULT_WORKERS
-    klines = load_klines_for_period(
-        data_dir, from_date, to_date, args.pairs, max_pair_start, workers=workers
-    )
+    klines = load_report_klines(ctx)
     log_load_summary(klines)
-
     daily = build_pooled_daily(klines)
     pair_bands = compute_pair_means(daily)
-
     run_weekday_effects(
         daily,
         pair_bands,
         pairs=sorted(klines.keys()),
-        from_date=from_date,
-        to_date=to_date,
-        max_pair_start=max_pair_start,
+        from_date=ctx.from_date,
+        to_date=ctx.to_date,
+        max_pair_start=ctx.max_pair_start,
+        split=ctx.split,
     )
 
 

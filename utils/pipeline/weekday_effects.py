@@ -4,7 +4,12 @@ from pathlib import Path
 import polars as pl
 
 from crypto_research.utils.pipeline.logger import get_logger
-from crypto_research.utils.pipeline.paths import weekday_plot_path, weekday_stats_log_path
+from crypto_research.utils.pipeline.paths import (
+    TRAIN_MAX_PAIR_START,
+    VAL_MAX_PAIR_START,
+    weekday_plot_path,
+    weekday_stats_log_path,
+)
 from crypto_research.utils.weekday.bands import MeanBands
 from crypto_research.utils.weekday.repeatability import MIN_YEAR_BASE_DAYS, MIN_YEAR_ROW_DAYS
 from crypto_research.utils.weekday.table import build_weekday_table
@@ -76,13 +81,23 @@ def build_report_header(
     from_date: datetime,
     to_date: datetime,
     max_pair_start: datetime | None = None,
+    split: str | None = None,
 ) -> list[str]:
     lines = [
         "=== Отчёт: эффекты дня недели ===",
         f"Пар: {len(pairs)}",
         f"Период теста (UTC): {from_date:%Y-%m-%d} .. {to_date:%Y-%m-%d}",
     ]
-    if max_pair_start is not None:
+    if split is not None:
+        lines.append(f"Split: {split}")
+    if split is not None:
+        lines.append(
+            f"Фильтр пар ({split}): "
+            f"train-cohort ≤ {TRAIN_MAX_PAIR_START}, val = пары пула {VAL_MAX_PAIR_START} вне train"
+            if split == "val"
+            else f"первая свеча не позже {TRAIN_MAX_PAIR_START} (UTC)"
+        )
+    elif max_pair_start is not None:
         lines.append(
             f"Фильтр пар: первая свеча не позже {max_pair_start:%Y-%m-%d} (UTC)"
         )
@@ -109,10 +124,11 @@ def assemble_weekday_report(
     to_date: datetime,
     table_lines: list[str],
     max_pair_start: datetime | None = None,
+    split: str | None = None,
 ) -> str:
-    plot_name = weekday_plot_path(len(pairs), from_date, to_date).name
+    plot_name = weekday_plot_path(len(pairs), from_date, to_date, split).name
     parts = (
-        build_report_header(pairs, from_date, to_date, max_pair_start)
+        build_report_header(pairs, from_date, to_date, max_pair_start, split)
         + table_lines
         + _REPORT_FOOTER
         + _graph_footer_lines(plot_name)
@@ -134,13 +150,29 @@ def run_weekday_effects(
     from_date: datetime,
     to_date: datetime,
     max_pair_start: datetime | None = None,
+    split: str | None = None,
 ) -> Path:
     from crypto_research.utils.pipeline.daily_pool import build_weekday_daily
     from crypto_research.utils.pipeline.weekday_plots import save_weekday_nav_plots
 
     n_pairs = len(pairs)
     table_lines = compute_weekday_effects(build_weekday_daily(daily), pair_bands)
-    text = assemble_weekday_report(pairs, from_date, to_date, table_lines, max_pair_start)
-    log_path = save_weekday_statistics(text, weekday_stats_log_path(n_pairs, from_date, to_date))
-    save_weekday_nav_plots(daily, pairs, from_date, to_date, weekday_plot_path(n_pairs, from_date, to_date))
+    text = assemble_weekday_report(
+        pairs,
+        from_date,
+        to_date,
+        table_lines,
+        max_pair_start,
+        split,
+    )
+    log_path = save_weekday_statistics(
+        text, weekday_stats_log_path(n_pairs, from_date, to_date, split)
+    )
+    save_weekday_nav_plots(
+        daily,
+        pairs,
+        from_date,
+        to_date,
+        weekday_plot_path(n_pairs, from_date, to_date, split),
+    )
     return log_path
