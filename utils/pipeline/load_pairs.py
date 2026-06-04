@@ -73,7 +73,10 @@ def resolve_pairs(
 ) -> list[str]:
     candidates = pair_names if pair_names else list_pair_names(data_dir)
     if not candidates:
-        raise FileNotFoundError(f"Нет пар в {data_dir}")
+        raise FileNotFoundError(
+            f"Нет *_klines_1m.jsonl в {data_dir}. "
+            "Укажите --data-dir или export CRYPTO_DATA_DIR=/path/to/jsonl"
+        )
     if max_pair_start is None:
         return candidates
     limit_ms = datetime_to_ms(max_pair_start)

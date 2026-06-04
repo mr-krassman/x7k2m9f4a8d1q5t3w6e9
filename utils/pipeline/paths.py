@@ -3,7 +3,22 @@ from datetime import datetime
 from pathlib import Path
 
 RESEARCH_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_DATA_DIR = Path(os.environ.get("CRYPTO_DATA_DIR", RESEARCH_ROOT / "data"))
+_JSONL_GLOB = "*_klines_1m.jsonl"
+_LEGACY_DATA_DIR = RESEARCH_ROOT.parent / "load_data_from_bybit" / "data"
+
+
+def resolve_default_data_dir() -> Path:
+    if os.environ.get("CRYPTO_DATA_DIR"):
+        return Path(os.environ["CRYPTO_DATA_DIR"]).expanduser().resolve()
+    local = RESEARCH_ROOT / "data"
+    if any(local.glob(_JSONL_GLOB)):
+        return local
+    if _LEGACY_DATA_DIR.is_dir() and any(_LEGACY_DATA_DIR.glob(_JSONL_GLOB)):
+        return _LEGACY_DATA_DIR
+    return local
+
+
+DEFAULT_DATA_DIR = resolve_default_data_dir()
 WEEKDAY_STATS_DIR = RESEARCH_ROOT / "research_outputs" / "day_of_week" / "statistics"
 WEEKDAY_PLOTS_DIR = WEEKDAY_STATS_DIR / "plots"
 

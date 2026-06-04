@@ -27,6 +27,9 @@ export CRYPTO_DATA_DIR=/path/to/jsonl_folder
 python3 report_generator.py --data-dir "$CRYPTO_DATA_DIR" ...
 ```
 
+Если `crypto_research` лежит внутри crypto_bot и `data/` пустая, по умолчанию берётся
+`../load_data_from_bybit/data` (когда там есть JSONL).
+
 ## Запуск
 
 ```bash
@@ -52,6 +55,8 @@ git push -u origin main
 
 ```
 report_generator.py
+docs/
+  journal.md        # хронология и планы
 utils/
   weekday/          # расчёт: returns, bands, table, repeatability
   pipeline/         # загрузка JSONL, графики, CLI, сборка отчёта
