@@ -35,7 +35,8 @@
 
 ### Дальше
 
-- [ ] Подключить `git remote` и `push` на GitHub.
+- [x] `git remote add origin git@github.com:mr-krassman/x7k2m9f4d1q5t3w6e9.git`
+- [ ] SSH-ключ на GitHub → `git push -u origin main`
 - [ ] Обновить README под общее описание репозитория (не только DOW).
 - [ ] Перенести из `load_jsonl.py`: transition tables, RSI, EMA, train/validate split.
 - [ ] Единый оркестратор отчётов или подкоманды CLI.

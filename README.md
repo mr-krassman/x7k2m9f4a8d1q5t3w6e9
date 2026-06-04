@@ -46,8 +46,10 @@ python3 report_generator.py \
 
 ## GitHub
 
+Репозиторий: https://github.com/mr-krassman/x7k2m9f4d1q5t3w6e9
+
 ```bash
-git remote add origin git@github.com:YOUR_USER/crypto_research.git
+git remote add origin git@github.com:mr-krassman/x7k2m9f4d1q5t3w6e9.git
 git push -u origin main
 ```
 
