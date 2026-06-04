@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-RESEARCH_ROOT = Path(__file__).resolve().parent.parent
+RESEARCH_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_DATA_DIR = Path(os.environ.get("CRYPTO_DATA_DIR", RESEARCH_ROOT / "data"))
 WEEKDAY_STATS_DIR = RESEARCH_ROOT / "research_outputs" / "day_of_week" / "statistics"
 WEEKDAY_PLOTS_DIR = WEEKDAY_STATS_DIR / "plots"

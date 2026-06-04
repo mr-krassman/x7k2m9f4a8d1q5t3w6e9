@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from crypto_research.utils.paths import DEFAULT_DATA_DIR
+from crypto_research.utils.pipeline.paths import DEFAULT_DATA_DIR
 
 
 def parse_report_args() -> argparse.Namespace:

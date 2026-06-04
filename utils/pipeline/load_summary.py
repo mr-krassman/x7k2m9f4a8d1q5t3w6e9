@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import polars as pl
 
-from crypto_research.utils.logger import get_logger
+from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("load")
 

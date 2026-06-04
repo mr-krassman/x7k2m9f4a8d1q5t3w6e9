@@ -12,7 +12,7 @@ from matplotlib.ticker import FuncFormatter, NullLocator
 import numpy as np
 import polars as pl
 
-from crypto_research.utils.logger import get_logger
+from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("weekday_plots")
 

@@ -7,7 +7,7 @@ from collections.abc import Iterable
 
 import polars as pl
 
-from crypto_research.utils.dates import datetime_to_ms
+from crypto_research.utils.pipeline.dates import datetime_to_ms
 
 _BATCH = 65536
 _SCHEMA = {

@@ -52,8 +52,9 @@ git push -u origin main
 
 ```
 report_generator.py
-weekday/            # расчёт: returns, bands, table, repeatability
-utils/              # загрузка JSONL, графики, CLI, сборка отчёта
+utils/
+  weekday/          # расчёт: returns, bands, table, repeatability
+  pipeline/         # загрузка JSONL, графики, CLI, сборка отчёта
 data/               # ваши JSONL (не в git)
 research_outputs/   # генерируется
 ```

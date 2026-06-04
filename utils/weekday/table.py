@@ -5,12 +5,12 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
-from crypto_research.weekday.bands import (
+from crypto_research.utils.weekday.bands import (
     STATS_COLS,
     MeanBands,
     classify_return_pct,
 )
-from crypto_research.weekday.repeatability import (
+from crypto_research.utils.weekday.repeatability import (
     annotations_for_columns,
     months_from_frame,
     years_from_frame,

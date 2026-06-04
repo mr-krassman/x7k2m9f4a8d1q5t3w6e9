@@ -8,13 +8,13 @@ _REPO_PARENT = Path(__file__).resolve().parent.parent
 if str(_REPO_PARENT) not in sys.path:
     sys.path.insert(0, str(_REPO_PARENT))
 
-from crypto_research.utils.cli import parse_report_args
-from crypto_research.utils.daily_pool import build_pooled_daily
-from crypto_research.utils.dates import parse_iso_utc
-from crypto_research.utils.load_pairs import _DEFAULT_WORKERS, load_klines_for_period
-from crypto_research.utils.load_summary import log_load_summary
-from crypto_research.utils.pair_means import compute_pair_means
-from crypto_research.utils.weekday_effects import run_weekday_effects
+from crypto_research.utils.pipeline.cli import parse_report_args
+from crypto_research.utils.pipeline.daily_pool import build_pooled_daily
+from crypto_research.utils.pipeline.dates import parse_iso_utc
+from crypto_research.utils.pipeline.load_pairs import _DEFAULT_WORKERS, load_klines_for_period
+from crypto_research.utils.pipeline.load_summary import log_load_summary
+from crypto_research.utils.pipeline.pair_means import compute_pair_means
+from crypto_research.utils.pipeline.weekday_effects import run_weekday_effects
 
 
 def run(args) -> None:

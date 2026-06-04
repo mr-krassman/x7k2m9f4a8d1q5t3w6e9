@@ -3,11 +3,11 @@ from pathlib import Path
 
 import polars as pl
 
-from crypto_research.weekday.bands import MeanBands
-from crypto_research.weekday.repeatability import MIN_YEAR_BASE_DAYS, MIN_YEAR_ROW_DAYS
-from crypto_research.weekday.table import build_weekday_table
-from crypto_research.utils.logger import get_logger
-from crypto_research.utils.paths import weekday_plot_path, weekday_stats_log_path
+from crypto_research.utils.pipeline.logger import get_logger
+from crypto_research.utils.pipeline.paths import weekday_plot_path, weekday_stats_log_path
+from crypto_research.utils.weekday.bands import MeanBands
+from crypto_research.utils.weekday.repeatability import MIN_YEAR_BASE_DAYS, MIN_YEAR_ROW_DAYS
+from crypto_research.utils.weekday.table import build_weekday_table
 
 log = get_logger("weekday_effects")
 _PAIRS_PER_LINE = 11
@@ -135,8 +135,8 @@ def run_weekday_effects(
     to_date: datetime,
     max_pair_start: datetime | None = None,
 ) -> Path:
-    from crypto_research.utils.daily_pool import build_weekday_daily
-    from crypto_research.utils.weekday_plots import save_weekday_nav_plots
+    from crypto_research.utils.pipeline.daily_pool import build_weekday_daily
+    from crypto_research.utils.pipeline.weekday_plots import save_weekday_nav_plots
 
     n_pairs = len(pairs)
     table_lines = compute_weekday_effects(build_weekday_daily(daily), pair_bands)
