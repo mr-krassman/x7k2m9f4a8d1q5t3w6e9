@@ -1,6 +1,6 @@
 import polars as pl
 
-from crypto_research.stats.day_return_stats import build_daily_returns
+from crypto_research.weekday.returns import build_daily_returns
 
 
 def build_pooled_daily(klines_by_pair: dict[str, pl.DataFrame]) -> pl.DataFrame:

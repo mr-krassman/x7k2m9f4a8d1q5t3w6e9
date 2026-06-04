@@ -3,8 +3,9 @@ from pathlib import Path
 
 import polars as pl
 
-from crypto_research.stats.day_return_stats import MeanBands, build_weekday_table
-from crypto_research.stats.year_repeatability import MIN_YEAR_BASE_DAYS, MIN_YEAR_ROW_DAYS
+from crypto_research.weekday.bands import MeanBands
+from crypto_research.weekday.repeatability import MIN_YEAR_BASE_DAYS, MIN_YEAR_ROW_DAYS
+from crypto_research.weekday.table import build_weekday_table
 from crypto_research.utils.logger import get_logger
 from crypto_research.utils.paths import weekday_plot_path, weekday_stats_log_path
 

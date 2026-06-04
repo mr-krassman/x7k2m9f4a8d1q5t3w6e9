@@ -1,6 +1,6 @@
 import polars as pl
 
-from crypto_research.stats.day_return_stats import MeanBands, build_pair_bands_map
+from crypto_research.weekday.bands import MeanBands, build_pair_bands_map
 from crypto_research.utils.logger import get_logger
 
 log = get_logger("pair_means")
