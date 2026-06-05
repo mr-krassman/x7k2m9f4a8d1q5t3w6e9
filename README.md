@@ -74,7 +74,7 @@ _Train: 2022-01-01 – 2024-04-01, val: 2024-04-01 – 2026-05-31 — одни �
 
 _Статус «значим» присвоен дням, которые прошли **оба** теста: универсальность среди пар (≥60% знаковых совпадений) и устойчивость во времени (≥60% совпадений)._
 
-![Накопленная доходность по дням недели (49 пар, 2022–2026)](crypto_research/research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20240401.png)
+![Накопленная доходность по дням недели (49 пар, 2022–2026)](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20240401.png)
 
 _Рис. 1. Простая накопленная доходность при входе на open и выходе на close. Без реинвестирования, равный вес пар._
 
@@ -97,15 +97,15 @@ _Рис. 1. Простая накопленная доходность при в
 
 #### Дополнительные материалы
 
-| Материал | Описание |
-| -------- | -------- |
-| [weekday_summary.log](research_outputs/day_of_week/statistics/weekday_summary.log) | Полный текст сводки: три таблицы значимости, списки пар train/val |
-| [weekday_statistics_49pairs_20220101_20260531.log](research_outputs/day_of_week/statistics/weekday_statistics_49pairs_20220101_20260531.log) | Детальный разбор: сила close (слабый/умеренный/сильный), High/Low, Δ к BASE, повторяемость по годам и парам |
-| [weekday_statistics_24pairs_…_train.log](research_outputs/day_of_week/statistics/weekday_statistics_24pairs_20220101_20260531_train.log) | Таблицы по 24 train-парам (проверка универсальности) |
-| [weekday_statistics_25pairs_…_val.log](research_outputs/day_of_week/statistics/weekday_statistics_25pairs_20220101_20260531_val.log) | Таблицы по 25 val-парам (проверка универсальности) |
-| [weekday_statistics_49pairs_20220101_20240401.log](research_outputs/day_of_week/statistics/weekday_statistics_49pairs_20220101_20240401.log) | Train-период out-of-time (2022 – 2024-04) |
-| [weekday_statistics_49pairs_20240401_20260531.log](research_outputs/day_of_week/statistics/weekday_statistics_49pairs_20240401_20260531.log) | Val-период out-of-time (2024-04 – 2026) |
-| [NAV, 49 пар, полный период](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20260531.png) | Накопленная доходность по дням недели (все пары) |
-| [NAV, 24 train / 25 val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_24pairs_20220101_20260531_train.png) · [val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_25pairs_20220101_20260531_val.png) | Графики по когортам универсальности |
-| [NAV, train/val периоды](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20240401.png) · [val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20240401_20260531.png) | Графики по временным окнам out-of-time |
-| [docs/journal.md](docs/journal.md) | Журнал исследований и методологические заметки |
+| Материал                                                                                                                                                                                                                                               | Описание                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| [weekday_summary.log](research_outputs/day_of_week/statistics/weekday_summary.log)                                                                                                                                                                     | Полный текст сводки: три таблицы значимости, списки пар train/val                                           |
+| [weekday_statistics_49pairs_20220101_20260531.log](research_outputs/day_of_week/statistics/weekday_statistics_49pairs_20220101_20260531.log)                                                                                                           | Детальный разбор: сила close (слабый/умеренный/сильный), High/Low, Δ к BASE, повторяемость по годам и парам |
+| [weekday*statistics_24pairs*…\_train.log](research_outputs/day_of_week/statistics/weekday_statistics_24pairs_20220101_20260531_train.log)                                                                                                              | Таблицы по 24 train-парам (проверка универсальности)                                                        |
+| [weekday*statistics_25pairs*…\_val.log](research_outputs/day_of_week/statistics/weekday_statistics_25pairs_20220101_20260531_val.log)                                                                                                                  | Таблицы по 25 val-парам (проверка универсальности)                                                          |
+| [weekday_statistics_49pairs_20220101_20240401.log](research_outputs/day_of_week/statistics/weekday_statistics_49pairs_20220101_20240401.log)                                                                                                           | Train-период out-of-time (2022 – 2024-04)                                                                   |
+| [weekday_statistics_49pairs_20240401_20260531.log](research_outputs/day_of_week/statistics/weekday_statistics_49pairs_20240401_20260531.log)                                                                                                           | Val-период out-of-time (2024-04 – 2026)                                                                     |
+| [NAV, 49 пар, полный период](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20260531.png)                                                                                                                     | Накопленная доходность по дням недели (все пары)                                                            |
+| [NAV, 24 train / 25 val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_24pairs_20220101_20260531_train.png) · [val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_25pairs_20220101_20260531_val.png) | Графики по когортам универсальности                                                                         |
+| [NAV, train/val периоды](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20240401.png) · [val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20240401_20260531.png)           | Графики по временным окнам out-of-time                                                                      |
+| [docs/journal.md](docs/journal.md)                                                                                                                                                                                                                     | Журнал исследований и методологические заметки                                                              |
