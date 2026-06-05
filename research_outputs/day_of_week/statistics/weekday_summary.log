@@ -1,0 +1,99 @@
+=== Отчёт: сводка дней недели ===
+
+Три блока (см. docs/journal.md):
+  1. Универсальность среди пар — train/val когорты на одном периоде
+  2. Устойчивость во времени — один пул пар, два периода
+  3. Полный пул — все пары, весь период, итог = пересечение статусов 1 и 2
+
+=== Универсальность среди пар ===
+
+Период (UTC): 2022-01-01 .. 2026-05-31
+Train: 24 пар (первая свеча ≤ 2022-01-01)
+Val: 25 пар (пул ≤ 2023-01-01, вне train-cohort)
+Пары train и val не пересекаются.
+
+Train: aaveusdt, adausdt, algousdt, aliceusdt, atomusdt, avaxusdt, bchusdt, bnbusdt, btcusdt, crvusdt, dogeusdt
+      dotusdt, dydxusdt, enjusdt, ethusdt, filusdt, galausdt, linkusdt, ltcusdt, nearusdt, solusdt, uniusdt
+      xrpusdt, zecusdt
+
+Val: 1000luncusdt, apeusdt, api3usdt, aptusdt, axsusdt, chzusdt, dashusdt, egldusdt, etcusdt, gmtusdt, hbarusdt
+      icpusdt, injusdt, ldousdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, storjusdt, stxusdt, trxusdt
+      xlmusdt, xmrusdt, zenusdt
+
+=== Сводная таблица: универсальность среди пар ===
+
+«Эффект (train), %» / «Эффект (val), %» — pooled средний intraday return (close−open)/open×100 по train / val.
+«Δ (val−train)» — разница val и train в процентных пунктах (п.п.).
+p-value (train) — permutation по средним return каждой train-единицы (sign-flip), H₀: mean=0.
+Поправка Бонферрони: α=0.05, порог «значим» p < 0.0071 (0.05/7).
+Подтверждение на val: val-пары с тем же знаком среднего return, что pooled train; ✅ ≥ 60%, иначе ❌.
+
+День | Эффект (train), % | Эффект (val), % | Δ (val−train) | p-value (train) | Подтверждение на val | Статус   
+---------------------------------------------------------------------------------------------------------------
+Пн   | -0.02%            | +0.09%          | +0.11 п.п.    | 0.7201          | 12/25 (48%) ❌        | не значим
+Вт   | -0.12%            | -0.15%          | -0.03 п.п.    | 0.0026          | 19/25 (76%) ✅        | значим   
+Ср   | +0.24%            | +0.30%          | +0.06 п.п.    | 0.0003          | 23/25 (92%) ✅        | значим   
+Чт   | -0.34%            | -0.47%          | -0.13 п.п.    | <0.0001         | 22/25 (88%) ✅        | значим   
+Пт   | +0.27%            | +0.53%          | +0.26 п.п.    | 0.0001          | 23/25 (92%) ✅        | значим   
+Сб   | +0.23%            | +0.32%          | +0.10 п.п.    | 0.0001          | 23/25 (92%) ✅        | значим   
+Вс   | -0.20%            | -0.18%          | +0.02 п.п.    | <0.0001         | 21/25 (84%) ✅        | значим   
+
+=== Устойчивость во времени ===
+
+Пул: 49 пар (первая свеча ≤ 2023-01-01)
+Train-период (UTC): 2022-01-01 .. 2024-04-01
+Val-период (UTC): 2024-04-01 .. 2026-05-31
+Одни и те же пары в обоих периодах.
+
+Пары: 1000luncusdt, aaveusdt, adausdt, algousdt, aliceusdt, apeusdt, api3usdt, aptusdt, atomusdt, avaxusdt, axsusdt
+      bchusdt, bnbusdt, btcusdt, chzusdt, crvusdt, dashusdt, dogeusdt, dotusdt, dydxusdt, egldusdt, enjusdt
+      etcusdt, ethusdt, filusdt, galausdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, linkusdt, ltcusdt
+      nearusdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, solusdt, storjusdt, stxusdt, trxusdt, uniusdt
+      xlmusdt, xmrusdt, xrpusdt, zecusdt, zenusdt
+
+=== Сводная таблица: устойчивость во времени ===
+
+«Эффект (train), %» / «Эффект (val), %» — pooled средний intraday return (close−open)/open×100 по train / val.
+«Δ (val−train)» — разница val и train в процентных пунктах (п.п.).
+p-value (train) — permutation по средним return каждой train-единицы (sign-flip), H₀: mean=0.
+Поправка Бонферрони: α=0.05, порог «значим» p < 0.0071 (0.05/7).
+Подтверждение на val: пары с тем же знаком среднего return во 2-м периоде, что в train-периоде; ✅ ≥ 60%, иначе ❌.
+
+День | Эффект (train), % | Эффект (val), % | Δ (val−train) | p-value (train) | Подтверждение на val | Статус   
+---------------------------------------------------------------------------------------------------------------
+Пн   | -0.03%            | +0.08%          | +0.11 п.п.    | 0.9085          | 29/49 (59%) ❌        | не значим
+Вт   | +0.03%            | -0.27%          | -0.30 п.п.    | 0.5649          | 24/49 (49%) ❌        | не значим
+Ср   | +0.10%            | +0.41%          | +0.32 п.п.    | 0.0348          | 28/49 (57%) ❌        | не значим
+Чт   | -0.19%            | -0.58%          | -0.39 п.п.    | 0.0001          | 36/49 (73%) ✅        | значим   
+Пт   | +0.51%            | +0.29%          | -0.22 п.п.    | <0.0001         | 39/49 (80%) ✅        | значим   
+Сб   | +0.20%            | +0.33%          | +0.13 п.п.    | 0.0022          | 34/49 (69%) ✅        | значим   
+Вс   | +0.24%            | -0.55%          | -0.79 п.п.    | 0.0001          | 15/49 (31%) ❌        | не значим
+
+=== Полный пул (все пары, весь период) ===
+
+Пар: 49 (первая свеча ≤ 2023-01-01)
+Период (UTC): 2022-01-01 .. 2026-05-31
+
+Пары: 1000luncusdt, aaveusdt, adausdt, algousdt, aliceusdt, apeusdt, api3usdt, aptusdt, atomusdt, avaxusdt, axsusdt
+      bchusdt, bnbusdt, btcusdt, chzusdt, crvusdt, dashusdt, dogeusdt, dotusdt, dydxusdt, egldusdt, enjusdt
+      etcusdt, ethusdt, filusdt, galausdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, linkusdt, ltcusdt
+      nearusdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, solusdt, storjusdt, stxusdt, trxusdt, uniusdt
+      xlmusdt, xmrusdt, xrpusdt, zecusdt, zenusdt
+
+=== Сводная таблица: полный пул (все пары, весь период) ===
+
+Среднее / медиана / волатильность — intraday return (close−open)/open×100 по всем дням weekday.
+Волатильность — стандартное отклонение return по дням выборки.
+Доля дней по знаку — % дней, закрывшихся в сторону среднего (рост при mean>0, падение при mean<0).
+Статус: пересечение статусов из таблиц «универсальность среди пар» и «устойчивость во времени».
+
+День | Среднее, % | Медиана, % | Волатильность, % | Доля дней по знаку | Кол-во наблюдений | Статус   
+------------------------------------------------------------------------------------------------------
+Пн   | +0.03%     | +0.07%     | 5.32%            | 50.7%              | 10145             | не значим
+Вт   | -0.13%     | -0.13%     | 4.70%            | 51.5%              | 10146             | не значим
+Ср   | +0.27%     | -0.05%     | 5.35%            | 49.3%              | 10147             | не значим
+Чт   | -0.40%     | -0.48%     | 4.79%            | 55.8%              | 10118             | значим   
+Пт   | +0.39%     | +0.37%     | 5.52%            | 54.8%              | 10119             | значим   
+Сб   | +0.27%     | +0.10%     | 4.50%            | 51.7%              | 10163             | значим   
+Вс   | -0.19%     | -0.36%     | 4.62%            | 55.0%              | 10163             | не значим
+

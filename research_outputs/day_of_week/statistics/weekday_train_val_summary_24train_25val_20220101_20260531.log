@@ -1,0 +1,34 @@
+=== Отчёт: train → val (дни недели) ===
+Train пар: 24 (первая свеча ≤ 2022-01-01 UTC)
+Val пар: 25 (пул ≤ 2023-01-01 UTC, вне train-cohort)
+Период теста (UTC): 2022-01-01 .. 2026-05-31
+
+Train (discovery): средний return (open→close) и p-value по train-парам.
+Val (confirmation): знак по val-парам и pooled эффект (val) vs train.
+
+Train: aaveusdt, adausdt, algousdt, aliceusdt, atomusdt, avaxusdt, bchusdt, bnbusdt, btcusdt, crvusdt, dogeusdt
+      dotusdt, dydxusdt, enjusdt, ethusdt, filusdt, galausdt, linkusdt, ltcusdt, nearusdt, solusdt, uniusdt
+      xrpusdt, zecusdt
+
+Val: 1000luncusdt, apeusdt, api3usdt, aptusdt, axsusdt, chzusdt, dashusdt, egldusdt, etcusdt, gmtusdt, hbarusdt
+      icpusdt, injusdt, ldousdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, storjusdt, stxusdt, trxusdt
+      xlmusdt, xmrusdt, zenusdt
+
+=== Итоговая таблица ===
+
+«Эффект (train), %» / «Эффект (val), %» — pooled средний intraday return (close−open)/open×100 по train / val (все пары когорты × все дни с этим weekday).
+«Δ (val−train)» — разница val и train в процентных пунктах (п.п.); отрицательное при том же знаке = эффект на val слабее по модулю.
+p-value (train) — permutation по средним return каждой train-пары (sign-flip), H₀: mean=0.
+Поправка Бонферрони: α=0.05, порог «значим» p < 0.0071 (0.05/7).
+Подтверждение на val: число пар с тем же знаком среднего return, что train; ✅ ≥ 80%, иначе ❓.
+
+День | Эффект (train), % | Эффект (val), % | Δ (val−train) | p-value (train) | Подтверждение на val | Статус          
+----------------------------------------------------------------------------------------------------------------------
+Пн   | -0.02%            | +0.09%          | +0.11 п.п.    | >0.05           | 12/25 ❓              | не значим       
+Вт   | -0.12%            | -0.15%          | -0.03 п.п.    | <0.01           | 19/25 ❓              | требует проверки
+Ср   | +0.24%            | +0.30%          | +0.06 п.п.    | <0.001          | 23/25 ✅              | значим          
+Чт   | -0.34%            | -0.47%          | -0.13 п.п.    | <0.001          | 22/25 ✅              | значим          
+Пт   | +0.27%            | +0.53%          | +0.26 п.п.    | <0.001          | 23/25 ✅              | значим          
+Сб   | +0.23%            | +0.32%          | +0.10 п.п.    | <0.001          | 23/25 ✅              | значим          
+Вс   | -0.20%            | -0.18%          | +0.02 п.п.    | <0.001          | 21/25 ✅              | значим          
+
