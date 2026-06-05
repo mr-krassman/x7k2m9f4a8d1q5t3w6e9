@@ -1,8 +1,9 @@
-"""Итоговая таблица train → val: p-value по дням недели и подтверждение на val-парах."""
+"""Сводные таблицы train → val: универсальность среди пар и устойчивость во времени."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 
 import numpy as np
 import polars as pl
@@ -12,9 +13,16 @@ WEEKDAYS: tuple[int, ...] = tuple(range(7))
 BONFERRONI_N = 7
 ALPHA = 0.05
 BONF_ALPHA = ALPHA / BONFERRONI_N
-VAL_CONFIRM_RATIO = 0.80
+VAL_CONFIRM_RATIO = 0.60
 _PERM_N = 20_000
 _PERM_RNG = np.random.default_rng(42)
+
+
+class ConfirmationMode(Enum):
+    """cohort — знак pooled train vs val-пары; per_pair — знак train vs val у каждой пары."""
+
+    COHORT = "cohort"
+    PER_PAIR = "per_pair"
 
 
 @dataclass(frozen=True)
@@ -97,13 +105,12 @@ def _permutation_p(values: np.ndarray) -> float:
 def _fmt_p(p: float) -> str:
     if p != p:
         return "n/a"
-    if p >= 0.05:
-        return ">0.05"
-    if p < 0.001:
-        return "<0.001"
-    if p < 0.01:
-        return "<0.01"
-    return f"{p:.3f}"
+    if p <= 0:
+        return "<0.0001"
+    text = f"{p:.4f}"
+    if text == "0.0000":
+        return "<0.0001"
+    return text
 
 
 def _fmt_effect(mean_ret: float | None) -> str:
@@ -124,21 +131,21 @@ def _status(p_value: float, val_agree: int | None, val_total: int) -> str:
     if p_value != p_value or p_value >= 0.05:
         return "не значим"
     if val_total == 0 or val_agree is None:
-        return "требует проверки"
-    ratio = val_agree / val_total
-    if p_value < BONF_ALPHA and ratio >= VAL_CONFIRM_RATIO:
+        return "не значим"
+    if p_value < BONF_ALPHA and val_agree / val_total >= VAL_CONFIRM_RATIO:
         return "значим"
-    return "требует проверки"
+    return "не значим"
 
 
 def _val_confirm_text(val_agree: int | None, val_total: int) -> str:
     if val_total == 0 or val_agree is None:
         return "—"
-    mark = "✅" if val_agree / val_total >= VAL_CONFIRM_RATIO else "❓"
-    return f"{val_agree}/{val_total} {mark}"
+    pct = round(val_agree / val_total * 100)
+    mark = "✅" if val_agree / val_total >= VAL_CONFIRM_RATIO else "❌"
+    return f"{val_agree}/{val_total} ({pct}%) {mark}"
 
 
-def _count_return_confirm(
+def _count_cohort_sign_confirm(
     train_mean: float,
     val_pair_means: dict[str, float],
 ) -> tuple[int | None, int]:
@@ -155,25 +162,59 @@ def _count_return_confirm(
     return agree, len(val_pair_means)
 
 
+def _count_per_pair_sign_confirm(
+    train_pair_means: dict[str, float],
+    val_pair_means: dict[str, float],
+) -> tuple[int | None, int]:
+    common = sorted(set(train_pair_means) & set(val_pair_means))
+    if not common:
+        return None, 0
+    agree = 0
+    for pair in common:
+        train_m = train_pair_means[pair]
+        val_m = val_pair_means[pair]
+        if train_m == 0 or val_m == 0:
+            continue
+        if (train_m > 0 and val_m > 0) or (train_m < 0 and val_m < 0):
+            agree += 1
+    return agree, len(common)
+
+
+def _count_confirm(
+    mode: ConfirmationMode,
+    train_mean: float,
+    train_pair_means: dict[str, float],
+    val_pair_means: dict[str, float],
+) -> tuple[int | None, int]:
+    if mode is ConfirmationMode.PER_PAIR:
+        return _count_per_pair_sign_confirm(train_pair_means, val_pair_means)
+    return _count_cohort_sign_confirm(train_mean, val_pair_means)
+
+
 def compute_weekday_summary(
     train_daily: pl.DataFrame,
     val_daily: pl.DataFrame | None,
+    *,
+    confirmation_mode: ConfirmationMode = ConfirmationMode.COHORT,
 ) -> list[WeekdaySummaryRow]:
     train = _with_weekday(train_daily)
     val = _with_weekday(val_daily) if val_daily is not None else None
 
     rows: list[WeekdaySummaryRow] = []
     for wd in WEEKDAYS:
-        pair_means = _per_pair_mean(train, wd)
+        train_pair_means = _per_pair_mean(train, wd)
         train_mean = _pooled_mean_return(train, wd)
-        p_value = _permutation_p(np.array(list(pair_means.values()), dtype=np.float64))
+        p_value = _permutation_p(np.array(list(train_pair_means.values()), dtype=np.float64))
 
         val_mean: float | None = None
         if val is not None:
+            val_pair_means = _per_pair_mean(val, wd)
             val_mean = _pooled_mean_return(val, wd)
-            val_agree, val_total = _count_return_confirm(
+            val_agree, val_total = _count_confirm(
+                confirmation_mode,
                 train_mean,
-                _per_pair_mean(val, wd),
+                train_pair_means,
+                val_pair_means,
             )
         else:
             val_agree, val_total = None, 0
@@ -193,7 +234,12 @@ def compute_weekday_summary(
     return rows
 
 
-def format_summary_table(rows: list[WeekdaySummaryRow]) -> list[str]:
+def format_summary_table(
+    rows: list[WeekdaySummaryRow],
+    *,
+    title: str,
+    val_confirm_hint: str,
+) -> list[str]:
     headers = (
         "День",
         "Эффект (train), %",
@@ -223,16 +269,132 @@ def format_summary_table(rows: list[WeekdaySummaryRow]) -> list[str]:
     header = " | ".join(f"{h:<{col_w[i]}}" for i, h in enumerate(headers))
     sep = "-" * len(header)
     lines = [
-        "=== Итоговая таблица ===",
+        title,
         "",
         "«Эффект (train), %» / «Эффект (val), %» — pooled средний intraday return "
-        "(close−open)/open×100 по train / val (все пары когорты × все дни с этим weekday).",
-        "«Δ (val−train)» — разница val и train в процентных пунктах (п.п.); "
-        "отрицательное при том же знаке = эффект на val слабее по модулю.",
-        "p-value (train) — permutation по средним return каждой train-пары (sign-flip), H₀: mean=0.",
+        "(close−open)/open×100 по train / val.",
+        "«Δ (val−train)» — разница val и train в процентных пунктах (п.п.).",
+        "p-value (train) — permutation по средним return каждой train-единицы (sign-flip), H₀: mean=0.",
         f"Поправка Бонферрони: α={ALPHA}, порог «значим» p < {BONF_ALPHA:.4f} ({ALPHA}/{BONFERRONI_N}).",
-        f"Подтверждение на val: число пар с тем же знаком среднего return, что train; "
-        f"✅ ≥ {VAL_CONFIRM_RATIO:.0%}, иначе ❓.",
+        val_confirm_hint,
+        "",
+        header,
+        sep,
+    ]
+    for cells in body:
+        lines.append(
+            " | ".join(f"{cell:<{col_w[i]}}" for i, cell in enumerate(cells))
+        )
+    lines.append("")
+    return lines
+
+
+@dataclass(frozen=True)
+class WeekdayPooledRow:
+    weekday: int
+    name: str
+    mean_pct: float
+    median_pct: float
+    volatility_pct: float
+    day_agree: int
+    day_total: int
+    status: str
+
+
+def _count_days_by_sign(mean_ret: float, returns: np.ndarray) -> tuple[int, int]:
+    total = int(returns.size)
+    if total == 0 or mean_ret != mean_ret or mean_ret == 0:
+        return 0, total
+    if mean_ret > 0:
+        agree = int(np.sum(returns > 0))
+    else:
+        agree = int(np.sum(returns < 0))
+    return agree, total
+
+
+def _day_sign_share_text(day_agree: int, day_total: int) -> str:
+    if day_total == 0:
+        return "—"
+    return f"{day_agree / day_total * 100:.1f}%"
+
+
+def _intersect_status(*statuses: str) -> str:
+    if statuses and all(s == "значим" for s in statuses):
+        return "значим"
+    return "не значим"
+
+
+def _fmt_volatility(std_pct: float) -> str:
+    if std_pct != std_pct:
+        return "n/a"
+    return f"{std_pct:.2f}%"
+
+
+def compute_weekday_pooled_summary(
+    daily: pl.DataFrame,
+    *,
+    status_by_weekday: dict[int, str],
+) -> list[WeekdayPooledRow]:
+    frame = _with_weekday(daily)
+    rows: list[WeekdayPooledRow] = []
+    for wd in WEEKDAYS:
+        sub = frame.filter(pl.col("weekday") == wd)
+        returns = sub["return_pct"].to_numpy().astype(np.float64, copy=False)
+        mean_ret = float(returns.mean()) if returns.size else float("nan")
+        median_ret = float(np.median(returns)) if returns.size else float("nan")
+        vol_ret = float(returns.std(ddof=1)) if returns.size > 1 else float("nan")
+        day_agree, day_total = _count_days_by_sign(mean_ret, returns)
+        rows.append(
+            WeekdayPooledRow(
+                weekday=wd,
+                name=WEEKDAY_NAMES[wd],
+                mean_pct=mean_ret,
+                median_pct=median_ret,
+                volatility_pct=vol_ret,
+                day_agree=day_agree,
+                day_total=day_total,
+                status=status_by_weekday.get(wd, "не значим"),
+            )
+        )
+    return rows
+
+
+def format_pooled_summary_table(rows: list[WeekdayPooledRow]) -> list[str]:
+    headers = (
+        "День",
+        "Среднее, %",
+        "Медиана, %",
+        "Волатильность, %",
+        "Доля дней по знаку",
+        "Кол-во наблюдений",
+        "Статус",
+    )
+    body = [
+        (
+            row.name,
+            _fmt_effect(row.mean_pct),
+            _fmt_effect(row.median_pct),
+            _fmt_volatility(row.volatility_pct),
+            _day_sign_share_text(row.day_agree, row.day_total),
+            str(row.day_total),
+            row.status,
+        )
+        for row in rows
+    ]
+    col_w = [len(h) for h in headers]
+    for cells in body:
+        for i, cell in enumerate(cells):
+            col_w[i] = max(col_w[i], len(cell))
+
+    header = " | ".join(f"{h:<{col_w[i]}}" for i, h in enumerate(headers))
+    sep = "-" * len(header)
+    lines = [
+        "=== Сводная таблица: полный пул (все пары, весь период) ===",
+        "",
+        "Среднее / медиана / волатильность — intraday return (close−open)/open×100 по всем дням weekday.",
+        "Волатильность — стандартное отклонение return по дням выборки.",
+        "Доля дней по знаку — % дней, закрывшихся в сторону среднего (рост при mean>0, падение при mean<0).",
+        "Статус: пересечение статусов из таблиц «универсальность среди пар» и «устойчивость во времени».",
         "",
         header,
         sep,

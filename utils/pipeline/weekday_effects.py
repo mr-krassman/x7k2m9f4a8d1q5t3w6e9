@@ -151,6 +151,9 @@ def run_weekday_effects(
     to_date: datetime,
     max_pair_start: datetime | None = None,
     split: str | None = None,
+    *,
+    highlight_weekdays: frozenset[int] = frozenset(),
+    main_plot_only: bool = False,
 ) -> Path:
     from crypto_research.utils.pipeline.daily_pool import build_weekday_daily
     from crypto_research.utils.pipeline.weekday_plots import save_weekday_nav_plots
@@ -174,5 +177,7 @@ def run_weekday_effects(
         from_date,
         to_date,
         weekday_plot_path(n_pairs, from_date, to_date, split),
+        highlight_weekdays=highlight_weekdays,
+        main_plot_only=main_plot_only,
     )
     return log_path

@@ -20,7 +20,10 @@ def parse_report_args() -> argparse.Namespace:
     split_group.add_argument(
         "--summary",
         action="store_true",
-        help="Итог train→val: p-value на train, подтверждение на val; отдельный .log",
+        help=(
+            "Сводка: универсальность среди пар + устойчивость во времени; "
+            "отдельный weekday_summary.log"
+        ),
     )
     parser.add_argument(
         "--data-dir",
@@ -30,13 +33,13 @@ def parse_report_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--from-date",
-        required=True,
-        help="Начало периода (ISO UTC), например 2024-01-01",
+        default=None,
+        help="Начало периода (ISO UTC), например 2024-01-01; для --summary не нужен",
     )
     parser.add_argument(
         "--to-date",
-        required=True,
-        help="Конец периода (ISO UTC), например 2024-12-31",
+        default=None,
+        help="Конец периода (ISO UTC), например 2024-12-31; для --summary не нужен",
     )
     parser.add_argument(
         "--max-pair-start",
@@ -58,4 +61,22 @@ def parse_report_args() -> argparse.Namespace:
         default=None,
         help="Потоки для параллельной загрузки JSONL (по умолчанию min(8, CPU))",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--highlight-weekdays",
+        nargs="+",
+        default=None,
+        metavar="DAY",
+        help=(
+            "Выделить дни на NAV-графике более толстыми линиями "
+            "(пн, вт, ср, чт, пт, сб, вс или mon..sun)"
+        ),
+    )
+    parser.add_argument(
+        "--main-plot-only",
+        action="store_true",
+        help="Только главный NAV-график (без мини-графиков по парам)",
+    )
+    args = parser.parse_args()
+    if not args.summary and (not args.from_date or not args.to_date):
+        parser.error("--from-date и --to-date обязательны вне режима --summary")
+    return args

@@ -25,6 +25,22 @@ WEEKDAY_PLOTS_DIR = WEEKDAY_STATS_DIR / "plots"
 TRAIN_MAX_PAIR_START = "2022-01-01"
 VAL_MAX_PAIR_START = "2023-01-01"
 
+# Универсальность среди пар: train 24 / val 25, один период
+PAIR_UNIVERSALITY_FROM = "2022-01-01"
+PAIR_UNIVERSALITY_TO = "2026-05-31"
+
+# Устойчивость во времени: 49 пар, два периода
+TEMPORAL_POOL_MAX_PAIR_START = VAL_MAX_PAIR_START
+TEMPORAL_TRAIN_FROM = "2022-01-01"
+TEMPORAL_TRAIN_TO = "2024-04-01"
+TEMPORAL_VAL_FROM = "2024-04-01"
+TEMPORAL_VAL_TO = "2026-05-31"
+
+# Полный пул: все пары, весь период исследования
+FULL_POOL_MAX_PAIR_START = VAL_MAX_PAIR_START
+FULL_POOL_FROM = PAIR_UNIVERSALITY_FROM
+FULL_POOL_TO = PAIR_UNIVERSALITY_TO
+
 
 def weekday_output_tag(
     n_pairs: int,
@@ -46,6 +62,10 @@ def weekday_stats_log_path(
 ) -> Path:
     tag = weekday_output_tag(n_pairs, from_date, to_date, split)
     return WEEKDAY_STATS_DIR / f"weekday_statistics_{tag}.log"
+
+
+def weekday_summary_log_path() -> Path:
+    return WEEKDAY_STATS_DIR / "weekday_summary.log"
 
 
 def weekday_train_val_summary_log_path(

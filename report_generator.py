@@ -15,17 +15,32 @@ from crypto_research.utils.pipeline.pair_means import compute_pair_means
 from crypto_research.utils.pipeline.weekday_effects import run_weekday_effects
 from crypto_research.utils.pipeline.weekday_report import (
     build_weekday_report_context,
+    load_full_pool_daily,
+    load_pair_universality_dailies,
     load_report_klines,
-    load_train_val_dailies,
+    load_temporal_stability_dailies,
 )
-from crypto_research.utils.pipeline.weekday_train_val_summary import run_train_val_summary_report
+from crypto_research.utils.pipeline.weekday_train_val_summary import run_summary_report
 
 
 def run(args) -> None:
     ctx = build_weekday_report_context(args)
     if ctx.summary:
-        train_daily, val_daily, train_pairs, val_pairs = load_train_val_dailies(ctx)
-        run_train_val_summary_report(ctx, train_daily, val_daily, train_pairs, val_pairs)
+        train_daily, val_daily, train_pairs, val_pairs = load_pair_universality_dailies(ctx)
+        temporal_train, temporal_val, temporal_pairs = load_temporal_stability_dailies(ctx)
+        full_daily, full_pairs = load_full_pool_daily(ctx)
+        run_summary_report(
+            ctx,
+            train_daily,
+            val_daily,
+            train_pairs,
+            val_pairs,
+            temporal_train,
+            temporal_val,
+            temporal_pairs,
+            full_daily,
+            full_pairs,
+        )
         return
 
     klines = load_report_klines(ctx)
@@ -40,6 +55,8 @@ def run(args) -> None:
         to_date=ctx.to_date,
         max_pair_start=ctx.max_pair_start,
         split=ctx.split,
+        highlight_weekdays=ctx.highlight_weekdays,
+        main_plot_only=ctx.main_plot_only,
     )
 
 

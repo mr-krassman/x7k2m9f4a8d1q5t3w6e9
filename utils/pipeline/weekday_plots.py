@@ -35,6 +35,14 @@ TITLE_TOP_IN = 0.10
 TITLE_LINE_H_IN = 0.15
 TITLE_N_LINES = 3
 TITLE_GAP_PLOT_IN = 0.05
+LINE_WIDTH_DEFAULT = 1.6
+LINE_WIDTH_COMPACT = 1.2
+LINE_WIDTH_HIGHLIGHT = 3.2
+LINE_WIDTH_DIM = 0.9
+MAIN_PLOT_BOTTOM = 0.18
+MAIN_PLOT_LEFT = 0.07
+MAIN_PLOT_WIDTH = 0.91
+SAVE_PAD_INCHES = 0.12
 
 
 def _title_block_height_in() -> float:
@@ -139,6 +147,20 @@ def _format_date_axis(ax: plt.Axes, *, rotate: int = 0) -> None:
     plt.setp(ax.get_xticklabels(), rotation=rotate, ha="right" if rotate else "center")
 
 
+def _line_style(
+    wd: int,
+    *,
+    compact: bool,
+    highlight_weekdays: frozenset[int],
+) -> tuple[float, float, int]:
+    base = LINE_WIDTH_COMPACT if compact else LINE_WIDTH_DEFAULT
+    if not highlight_weekdays:
+        return base, 0.92, 2
+    if wd in highlight_weekdays:
+        return LINE_WIDTH_HIGHLIGHT, 1.0, 4
+    return LINE_WIDTH_DIM, 0.35, 1
+
+
 def _plot_weekday_nav(
     ax: plt.Axes,
     curves: dict[int, tuple[np.ndarray, np.ndarray]],
@@ -146,25 +168,32 @@ def _plot_weekday_nav(
     title: str,
     compact: bool,
     xlabel: str | None = None,
+    highlight_weekdays: frozenset[int] = frozenset(),
 ) -> None:
     for wd in range(7):
         if wd not in curves:
             continue
         dates, nav = curves[wd]
+        lw, alpha, zorder = _line_style(
+            wd,
+            compact=compact,
+            highlight_weekdays=highlight_weekdays,
+        )
         ax.plot(
             dates,
             nav,
             color=WEEKDAY_COLORS[wd],
-            linewidth=1.6 if not compact else 1.2,
+            linewidth=lw,
             label=f"{WEEKDAY_LABELS[wd]} ({WEEKDAY_LABELS_RU[wd]})",
-            alpha=0.92,
+            alpha=alpha,
+            zorder=zorder,
         )
     ax.axhline(ZERO_LINE, color="#94a3b8", linewidth=0.8, linestyle="--", zorder=0)
     if title:
         ax.set_title(title, loc="left", pad=4 if compact else 8)
     if not compact:
         ax.set_ylabel(Y_LABEL)
-        ax.set_xlabel(xlabel or "Date (UTC)")
+        ax.set_xlabel(xlabel or "Date (UTC)", labelpad=10)
     else:
         ax.tick_params(labelsize=8)
     ax.grid(True, axis="y", alpha=0.85)
@@ -183,13 +212,41 @@ def _build_figure(
     pairs: list[str],
     from_date: datetime,
     to_date: datetime,
+    *,
+    highlight_weekdays: frozenset[int] = frozenset(),
+    main_plot_only: bool = False,
 ) -> plt.Figure:
     pair_list = sorted(pairs)
+    n_pairs = len(pair_list)
+    period = f"{from_date:%Y-%m-%d} — {to_date:%Y-%m-%d}"
+
+    if main_plot_only:
+        fig_h = 6.5
+        fig = plt.figure(figsize=(FIG_W_IN, fig_h), dpi=PLOT_DPI)
+        _add_figure_title(fig, fig_h, n_pairs, period)
+        grid_top = 1.0 - _title_block_height_in() / fig_h
+        ax = fig.add_axes(
+            [
+                MAIN_PLOT_LEFT,
+                MAIN_PLOT_BOTTOM,
+                MAIN_PLOT_WIDTH,
+                grid_top - MAIN_PLOT_BOTTOM,
+            ]
+        )
+        agg_curves = _weekday_curves(_session_returns(daily, None))
+        _plot_weekday_nav(
+            ax,
+            agg_curves,
+            title="",
+            compact=False,
+            xlabel=f"Date (UTC) — equal-weight mean across {n_pairs} pairs",
+            highlight_weekdays=highlight_weekdays,
+        )
+        return fig
+
     n_rows = max(1, (len(pair_list) + 1) // 2)
     fig_h = 5.5 + n_rows * 2.4
     fig = plt.figure(figsize=(FIG_W_IN, fig_h), dpi=PLOT_DPI)
-    period = f"{from_date:%Y-%m-%d} — {to_date:%Y-%m-%d}"
-    n_pairs = len(pair_list)
     _add_figure_title(fig, fig_h, n_pairs, period)
     grid_top = 1.0 - _title_block_height_in() / fig_h
     gs = gridspec.GridSpec(
@@ -213,6 +270,7 @@ def _build_figure(
         title="",
         compact=False,
         xlabel=f"Date (UTC) — equal-weight mean across {n_pairs} pairs",
+        highlight_weekdays=highlight_weekdays,
     )
 
     for idx, pair in enumerate(pair_list):
@@ -224,6 +282,7 @@ def _build_figure(
             curves,
             title=f"{pair.upper()} | Simple Cumulative Return",
             compact=True,
+            highlight_weekdays=highlight_weekdays,
         )
 
     return fig
@@ -235,11 +294,28 @@ def save_weekday_nav_plots(
     from_date: datetime,
     to_date: datetime,
     path: Path,
+    *,
+    highlight_weekdays: frozenset[int] = frozenset(),
+    main_plot_only: bool = False,
 ) -> Path:
     _apply_plot_style()
-    fig = _build_figure(daily, pairs, from_date, to_date)
+    fig = _build_figure(
+        daily,
+        pairs,
+        from_date,
+        to_date,
+        highlight_weekdays=highlight_weekdays,
+        main_plot_only=main_plot_only,
+    )
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=PLOT_DPI, facecolor=fig.get_facecolor(), pad_inches=0.08)
+    save_kwargs: dict = {
+        "dpi": PLOT_DPI,
+        "facecolor": fig.get_facecolor(),
+        "pad_inches": SAVE_PAD_INCHES,
+    }
+    if main_plot_only:
+        save_kwargs["bbox_inches"] = "tight"
+    fig.savefig(path, **save_kwargs)
     plt.close(fig)
     log.info("[2] NAV plots: %s", path)
     return path
