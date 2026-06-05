@@ -5,13 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.ticker import FuncFormatter, NullLocator
 import numpy as np
 import polars as pl
 
+from crypto_research.utils.plotting.date_axis import format_date_axis
 from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("weekday_plots")
@@ -131,21 +130,8 @@ def _weekday_curves(session: pl.DataFrame) -> dict[int, tuple[np.ndarray, np.nda
     return out
 
 
-def _quarter_tick_label(value: float, _pos: int) -> str:
-    dt = mdates.num2date(value)
-    if hasattr(dt, "tzinfo") and dt.tzinfo is not None:
-        dt = dt.replace(tzinfo=None)
-    if dt.month == 1:
-        return dt.strftime("%Y")
-    return dt.strftime("%b")
-
-
 def _format_date_axis(ax: plt.Axes, *, rotate: int = 0) -> None:
-    ax.xaxis.set_major_locator(mdates.MonthLocator(bymonth=(1, 4, 7, 10)))
-    ax.xaxis.set_major_formatter(FuncFormatter(_quarter_tick_label))
-    ax.xaxis.set_minor_locator(NullLocator())
-    plt.setp(ax.get_xticklabels(), rotation=rotate, ha="right" if rotate else "center")
-
+    format_date_axis(ax, rotate=rotate)
 
 def _line_style(
     wd: int,

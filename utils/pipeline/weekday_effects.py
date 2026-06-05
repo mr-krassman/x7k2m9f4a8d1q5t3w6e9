@@ -125,14 +125,18 @@ def assemble_weekday_report(
     table_lines: list[str],
     max_pair_start: datetime | None = None,
     split: str | None = None,
+    *,
+    extra_sections: list[str] | None = None,
 ) -> str:
     plot_name = weekday_plot_path(len(pairs), from_date, to_date, split).name
     parts = (
         build_report_header(pairs, from_date, to_date, max_pair_start, split)
         + table_lines
         + _REPORT_FOOTER
-        + _graph_footer_lines(plot_name)
     )
+    if extra_sections:
+        parts = parts + extra_sections
+    parts = parts + _graph_footer_lines(plot_name)
     return "\n".join(parts)
 
 
@@ -154,12 +158,18 @@ def run_weekday_effects(
     *,
     highlight_weekdays: frozenset[int] = frozenset(),
     main_plot_only: bool = False,
+    select_pairs_by_train: bool = False,
 ) -> Path:
     from crypto_research.utils.pipeline.daily_pool import build_weekday_daily
     from crypto_research.utils.pipeline.weekday_plots import save_weekday_nav_plots
+    from crypto_research.utils.weekday.pair_selection import build_train_pair_selection_section
 
     n_pairs = len(pairs)
-    table_lines = compute_weekday_effects(build_weekday_daily(daily), pair_bands)
+    weekday_daily = build_weekday_daily(daily)
+    table_lines = compute_weekday_effects(weekday_daily, pair_bands)
+    extra_sections: list[str] | None = None
+    if select_pairs_by_train:
+        extra_sections = build_train_pair_selection_section(weekday_daily, pair_bands)
     text = assemble_weekday_report(
         pairs,
         from_date,
@@ -167,6 +177,7 @@ def run_weekday_effects(
         table_lines,
         max_pair_start,
         split,
+        extra_sections=extra_sections,
     )
     log_path = save_weekday_statistics(
         text, weekday_stats_log_path(n_pairs, from_date, to_date, split)

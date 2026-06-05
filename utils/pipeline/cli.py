@@ -76,6 +76,14 @@ def parse_report_args() -> argparse.Namespace:
         action="store_true",
         help="Только главный NAV-график (без мини-графиков по парам)",
     )
+    parser.add_argument(
+        "--select-pairs-by-train",
+        action="store_true",
+        help=(
+            "Добавить в отчёт секцию отбора пар для оптимистичного сценария day_of_week: "
+            "знак Δ к BASE + подтверждение в 2/3 годов train-периода"
+        ),
+    )
     args = parser.parse_args()
     if not args.summary and (not args.from_date or not args.to_date):
         parser.error("--from-date и --to-date обязательны вне режима --summary")

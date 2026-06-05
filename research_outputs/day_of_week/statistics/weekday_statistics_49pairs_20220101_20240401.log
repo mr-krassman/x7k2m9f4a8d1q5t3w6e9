@@ -54,6 +54,29 @@ BASE без условий (n=32407)    |             50.3 |                12.5
 Год в знаменатель (X/Y) попадает только если в этом году ≥ 40 дней для BASE (все дни выборки) и ≥ 15 дней для строки (день недели). Иначе год пропускают — мало данных, сравнение ненадёжное.
 
 Для [пар] аналогично: ≥ 40 / ≥ 15 дней по каждой паре.
+=== Отбор пар по train (позитивный сценарий day_of_week) ===
+
+Short Чт / long Пт, Сб. Пара попадает в список, если:
+  1) знак Δ к BASE по колонке совпал с pooled train ([N] в таблице);
+  2) тот же знак Δ повторился в ≥ 2/3 годов с достаточной историей.
+
+Год учитывается при ≥ 40 дней BASE и ≥ 15 дней weekday в году.
+
+Чт — short (колонка «Закрытие в минусе»): знак [44] → 2/3 лет [33]
+  1000luncusdt, adausdt, aliceusdt, apeusdt, aptusdt, axsusdt, chzusdt, crvusdt, dashusdt, dogeusdt, dydxusdt
+    egldusdt, enjusdt, etcusdt, filusdt, galausdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, nearusdt
+    opusdt, paxgusdt, sandusdt, shib1000usdt, storjusdt, stxusdt, trxusdt, uniusdt, xlmusdt, xmrusdt, zenusdt
+
+Пт — long (колонка «Закрытие в плюсе»): знак [45] → 2/3 лет [31]
+  1000luncusdt, adausdt, algousdt, apeusdt, aptusdt, atomusdt, axsusdt, bnbusdt, chzusdt, crvusdt, dashusdt
+    dogeusdt, dydxusdt, egldusdt, etcusdt, filusdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, ontusdt
+    paxgusdt, sandusdt, shib1000usdt, storjusdt, stxusdt, trxusdt, xlmusdt, xrpusdt, zenusdt
+
+Сб — long (колонка «Закрытие в плюсе»): знак [32] → 2/3 лет [23]
+  1000luncusdt, aliceusdt, apeusdt, axsusdt, bnbusdt, chzusdt, dashusdt, dogeusdt, dotusdt, egldusdt, enjusdt
+    filusdt, gmtusdt, hbarusdt, icpusdt, ltcusdt, sandusdt, shib1000usdt, stxusdt, trxusdt, uniusdt, xlmusdt
+    xmrusdt
+
 
 === График dow_intraday_session_nav_49pairs_20220101_20240401.png ===
 

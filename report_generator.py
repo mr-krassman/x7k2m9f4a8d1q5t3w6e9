@@ -57,6 +57,7 @@ def run(args) -> None:
         split=ctx.split,
         highlight_weekdays=ctx.highlight_weekdays,
         main_plot_only=ctx.main_plot_only,
+        select_pairs_by_train=ctx.select_pairs_by_train,
     )
 
 

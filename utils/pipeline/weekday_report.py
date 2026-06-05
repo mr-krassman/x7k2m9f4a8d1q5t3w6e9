@@ -42,6 +42,7 @@ class WeekdayReportContext:
     summary: bool = False
     highlight_weekdays: frozenset[int] = frozenset()
     main_plot_only: bool = False
+    select_pairs_by_train: bool = False
 
 
 def _parse_highlight_weekdays_arg(tokens: list[str] | None) -> frozenset[int]:
@@ -70,6 +71,7 @@ def build_weekday_report_context(args) -> WeekdayReportContext:
         summary=bool(args.summary),
         highlight_weekdays=_parse_highlight_weekdays_arg(args.highlight_weekdays),
         main_plot_only=bool(args.main_plot_only),
+        select_pairs_by_train=bool(args.select_pairs_by_train),
     )
 
 
