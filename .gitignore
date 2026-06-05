@@ -9,4 +9,6 @@ data/*
 !data/.gitkeep
 research_outputs/
 *.png
+!docs/images/
+!docs/images/*.png
 *.log
