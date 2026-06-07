@@ -80,6 +80,10 @@ _Train: 2022-01-01 – 2024-04-01, val: 2024-04-01 – 2026-05-31 — одни �
 
 ### Итоговая сводка (49 пар, 2022–2026)
 
+![Накопленная доходность по дням недели (49 пар, 2022–2026)](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20260531.png)
+
+_Рис. 1. Простая накопленная доходность при входе на open и выходе на close. Без реинвестирования, равный вес пар._
+
 | День | Ср. open→close, % | Медиана open→close, % | σ return, % | Доля дней роста | Статус (после двух проверок) |
 | ---- | ----------------- | --------------------- | ----------- | --------------- | ---------------------------- |
 | Пн   | +0.03%            | +0.07%                | 5.32%       | 50.7%           | не значим                    |
@@ -93,34 +97,6 @@ _Train: 2022-01-01 – 2024-04-01, val: 2024-04-01 – 2026-05-31 — одни �
 _Сводка за полный период 2022–2026: среднее и медиана intraday return open→close по дням недели; σ — стандартное отклонение дневных return; «доля дней роста» — % дней, когда close > open. Статус «значим» — пересечение проверок 1 и 2._
 
 **Источники:** [weekday_summary.log](research_outputs/day_of_week/statistics/weekday_summary.log) (блок «Полный пул») · [детальная статистика 49 пар, 2022–2026](research_outputs/day_of_week/statistics/weekday_statistics_49pairs_20220101_20260531.log) (сила close, High/Low, повторяемость по годам и парам)
-
-#### Воспроизведение отчётов
-
-Из каталога `crypto_research` (нужны `*_klines_1m.jsonl` в `load_data_from_bybit/data` или `CRYPTO_DATA_DIR`):
-
-```bash
-cd crypto_research
-
-# Сводные таблицы проверок 1–2 и итоговая (weekday_summary.log)
-python3 report_generator.py --summary
-
-# Проверка 1 — детальные таблицы по когортам
-python3 report_generator.py --train --from-date 2022-01-01 --to-date 2026-05-31
-python3 report_generator.py --val   --from-date 2022-01-01 --to-date 2026-05-31
-
-# Проверка 2 — детальные таблицы по периодам (49 пар)
-python3 report_generator.py --from-date 2022-01-01 --to-date 2024-04-01 --max-pair-start 2023-01-01
-python3 report_generator.py --from-date 2024-04-01 --to-date 2026-05-31 --max-pair-start 2023-01-01
-
-# Итоговая сводка — полный период, 49 пар (+ NAV-график)
-python3 report_generator.py --from-date 2022-01-01 --to-date 2026-05-31 --max-pair-start 2023-01-01
-```
-
-Отчёты пишутся в `research_outputs/day_of_week/statistics/`; графики — в `…/plots/`.
-
-![Накопленная доходность по дням недели (49 пар, 2022–2026)](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20260531.png)
-
-_Рис. 1. Простая накопленная доходность при входе на open и выходе на close. Без реинвестирования, равный вес пар._
 
 ### Ключевые выводы
 
@@ -147,6 +123,30 @@ _Рис. 1. Простая накопленная доходность при в
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
 | [NAV, 24 train / 25 val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_24pairs_20220101_20260531_train.png) · [val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_25pairs_20220101_20260531_val.png) | NAV по когортам универсальности (проверка 1)    |
 | [NAV, train / val периоды](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20240401.png) · [val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20240401_20260531.png)         | NAV по временным окнам out-of-time (проверка 2) |
+
+#### Воспроизведение отчётов
+
+Из каталога `crypto_research` (нужны `*_klines_1m.jsonl` в `load_data_from_bybit/data` или `CRYPTO_DATA_DIR`):
+
+```bash
+cd crypto_research
+
+# Сводные таблицы проверок 1–2 и итоговая (weekday_summary.log)
+python3 report_generator.py --summary
+
+# Проверка 1 — детальные таблицы по когортам
+python3 report_generator.py --train --from-date 2022-01-01 --to-date 2026-05-31
+python3 report_generator.py --val   --from-date 2022-01-01 --to-date 2026-05-31
+
+# Проверка 2 — детальные таблицы по периодам (49 пар)
+python3 report_generator.py --from-date 2022-01-01 --to-date 2024-04-01 --max-pair-start 2023-01-01
+python3 report_generator.py --from-date 2024-04-01 --to-date 2026-05-31 --max-pair-start 2023-01-01
+
+# Итоговая сводка — полный период, 49 пар (+ NAV-график)
+python3 report_generator.py --from-date 2022-01-01 --to-date 2026-05-31 --max-pair-start 2023-01-01
+```
+
+Отчёты пишутся в `research_outputs/day_of_week/statistics/`; графики — в `…/plots/`.
 
 ### Историческое тестирование стратегии (out-of-sample)
 
