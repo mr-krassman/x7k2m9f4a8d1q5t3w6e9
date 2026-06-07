@@ -228,18 +228,15 @@ Out-of-sample период совпадает с **val-окном** исслед
 
 - **Четверг и суббота** — основные драйверы доходности (наибольший Total Ret и Sharpe).
 - **Пятница** — наименьший Sharpe и наибольшая просадка среди торговых дней; **отрицательная skewness (−1.11)** указывает на риск редких крупных убытков (худший день портфеля: **−23.4%**, 2025-10-10, Пт).
-- **Корреляция Пт ↔ Сб** (net maker, ISO-week): **+0.41** — умеренная, не полная диверсификация между long-днями.
+- **Корреляция Пт ↔ Сб** (net taker, ISO-week): **+0.41** — умеренная, не полная диверсификация между long-днями.
 
 **Рис. 4. Drawdown — оптимистичный сценарий** — общий (жирная красная, net maker) и вклад по дням (Чт / Пт / Сб). Глубокая просадка ~−30% (окт 2025) — в основном вклад **пятницы**.
 
 ![Drawdown — оптимистичный](research_outputs/day_of_week/backtest/plots/drawdown_optimistic_thu33_pt31_sb23_20240401_20260531.png)
 
-```bash
-cd crypto_research
-python3 backtester.py day_of_week --scenario optimistic
-```
+**Рис. 5. Корреляция дневных доходностей — оптимистичный сценарий** — net taker, торговые дни, выравнивание по ISO-week. Чт почти не коррелирует с long-днями; **Пт ↔ Сб: +0.41** — умеренная связь, не полная диверсификация.
 
-→ `research_outputs/day_of_week/backtest/plots/drawdown_optimistic_thu33_pt31_sb23_20240401_20260531.png`
+![Корреляция по дням — оптимистичный](research_outputs/day_of_week/backtest/plots/weekday_corr_optimistic_thu33_pt31_sb23_20240401_20260531.png)
 
 #### Распределение и tail-risk (оптимистичный, net maker, торговые дни)
 
@@ -254,16 +251,9 @@ python3 backtester.py day_of_week --scenario optimistic
 
 Отрицательная асимметрия и повышенный эксцесс: хвостовые убытки тяжелее, чем в нормальном распределении; это согласуется с экстремальным днём −23.4% (Пт, 2025-10-10).
 
-**Рис. 5. Распределение дневных доходностей — оптимистичный сценарий** — только торговые дни (gross и net taker).
+**Рис. 6. Распределение дневных доходностей — оптимистичный сценарий** — только торговые дни (gross и net taker).
 
 ![Распределение доходностей — оптимистичный](research_outputs/day_of_week/backtest/plots/returns_hist_optimistic_thu33_pt31_sb23_20240401_20260531.png)
-
-```bash
-cd crypto_research
-python3 backtester.py day_of_week --scenario optimistic
-```
-
-→ `research_outputs/day_of_week/backtest/plots/returns_hist_optimistic_thu33_pt31_sb23_20240401_20260531.png`
 
 #### Ограничения и риски
 
@@ -279,10 +269,17 @@ python3 backtester.py day_of_week --scenario optimistic
 
 Перед аллокацией капитала целесообразны: **paper trading / forward test** (минимум один полный цикл Чт–Пт–Сб на live-исполнении), мониторинг стабильности отобранных пар и отдельная оценка риска **пятничного** leg.
 
-Запуск бэктестов (отчёт `.log` + все графики в `research_outputs/day_of_week/backtest/plots/`):
+Запуск бэктестов (отчёт `.log` + графики рис. 2–6 в `research_outputs/day_of_week/backtest/plots/`):
 
 ```bash
 cd crypto_research
 python3 backtester.py day_of_week --scenario conservative   # консервативный
 python3 backtester.py day_of_week --scenario optimistic     # оптимистичный
 ```
+
+| Рис. | Файл (консервативный) | Файл (оптимистичный) |
+| ---- | --------------------- | -------------------- |
+| 2–3 equity | `equity_curve_49pairs_20240401_20260531.png` | `equity_curve_optimistic_thu33_pt31_sb23_20240401_20260531.png` |
+| 4 drawdown | `drawdown_49pairs_20240401_20260531.png` | `drawdown_optimistic_thu33_pt31_sb23_20240401_20260531.png` |
+| 5 корреляция | `weekday_corr_49pairs_20240401_20260531.png` | `weekday_corr_optimistic_thu33_pt31_sb23_20240401_20260531.png` |
+| 6 распределение | `returns_hist_49pairs_20240401_20260531.png` | `returns_hist_optimistic_thu33_pt31_sb23_20240401_20260531.png` |
