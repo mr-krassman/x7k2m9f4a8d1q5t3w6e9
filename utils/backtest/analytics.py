@@ -34,6 +34,8 @@ class DrawdownStats:
     peak_before_date: datetime | None
     recovery_date: datetime | None
     recovery_days: int | None
+    longest_underwater_days: int
+    pct_time_in_drawdown: float
 
 
 @dataclass(frozen=True)
@@ -104,9 +106,35 @@ def _kurtosis_excess(x: np.ndarray) -> float:
     return float(np.mean(((x - m) / s) ** 4) - 3.0)
 
 
+def compute_underwater_metrics(nav: np.ndarray) -> tuple[int, float]:
+    """Longest peak→recovery span and share of days below running peak."""
+    n = nav.size
+    if n == 0:
+        return 0, 0.0
+    run_peak = np.maximum.accumulate(nav)
+    pct = float(np.sum(nav < run_peak - 1e-9)) / n * 100.0
+
+    longest = 0
+    i = 0
+    while i < n:
+        is_ath = i == 0 or nav[i] > run_peak[i - 1] + 1e-9
+        if not is_ath:
+            i += 1
+            continue
+        level = nav[i]
+        rec = next((j for j in range(i + 1, n) if nav[j] >= level - 1e-9), None)
+        if rec is not None:
+            longest = max(longest, rec - i)
+            i = rec
+        else:
+            longest = max(longest, (n - 1) - i)
+            break
+    return longest, pct
+
+
 def compute_drawdown_stats(dates: np.ndarray, returns_pct: np.ndarray) -> DrawdownStats:
     if returns_pct.size == 0:
-        return DrawdownStats(0.0, None, None, None, None)
+        return DrawdownStats(0.0, None, None, None, None, 0, 0.0)
     nav = equity_curve_simple(returns_pct)
     peak = np.maximum.accumulate(nav)
     dd = (nav - peak) / peak * 100.0
@@ -128,12 +156,15 @@ def compute_drawdown_stats(dates: np.ndarray, returns_pct: np.ndarray) -> Drawdo
         return dt
 
     recovery_days = recovery_idx - trough_idx if recovery_idx is not None else None
+    longest_uw, pct_uw = compute_underwater_metrics(nav)
     return DrawdownStats(
         max_drawdown_pct=max_dd,
         trough_date=_date(trough_idx),
         peak_before_date=_date(peak_idx),
         recovery_date=_date(recovery_idx) if recovery_idx is not None else None,
         recovery_days=recovery_days,
+        longest_underwater_days=longest_uw,
+        pct_time_in_drawdown=pct_uw,
     )
 
 

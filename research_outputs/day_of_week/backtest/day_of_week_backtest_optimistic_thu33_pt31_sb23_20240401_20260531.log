@@ -42,6 +42,8 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Sharpe / sqrt(exposure):   1.32
   Max Drawdown:              -35.00%
   Recovery from max DD:      140 календарных дней (до 2024-11-16)
+  Longest underwater:        358 календарных дней
+  % time in drawdown:        90.9%
   Calmar:                    1.20
   Win Rate (trades):         +55.5%
   Profit Factor:             1.22
@@ -65,6 +67,8 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Sharpe / sqrt(exposure):   2.29
   Max Drawdown:              -28.57%
   Recovery from max DD:      98 календарных дней (до 2024-07-25)
+  Longest underwater:        251 календарных дней
+  % time in drawdown:        83.9%
   Calmar:                    2.57
   Win Rate (trades):         +57.5%
   Profit Factor:             1.40
@@ -88,6 +92,8 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Sharpe / sqrt(exposure):   1.94
   Max Drawdown:              -30.01%
   Recovery from max DD:      27 календарных дней (до 2024-07-26)
+  Longest underwater:        307 календарных дней
+  % time in drawdown:        86.1%
   Calmar:                    2.07
   Win Rate (trades):         +56.9%
   Profit Factor:             1.33
@@ -111,6 +117,8 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Sharpe / sqrt(exposure):   -0.20
   Max Drawdown:              -70.32%
   Recovery from max DD:      не восстановился к концу периода
+  Longest underwater:        539 календарных дней
+  % time in drawdown:        98.1%
   Calmar:                    -0.21
   Win Rate (trades):         +50.9%
   Profit Factor:             0.97
@@ -134,6 +142,8 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Sharpe / sqrt(exposure):   0.28
   Max Drawdown:              -37.40%
   Recovery from max DD:      не восстановился к концу периода
+  Longest underwater:        233 календарных дней
+  % time in drawdown:        94.3%
   Calmar:                    0.35
   Win Rate (trades):         +50.2%
   Profit Factor:             1.04
@@ -149,8 +159,9 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
 
 Exposure стратегии: 42.9%. Капитал в рынке только в Чт/Пт/Сб.
 Прямое сравнение Sharpe с Buy & Hold (100% exposure) требует осторожности.
-Information Ratio (net vs B&H 49 пар gross): 0.73.
-Sharpe / sqrt(exposure) (net): 1.32.
+Information Ratio (net taker vs B&H 49 пар gross): 0.73.
+Information Ratio (net maker vs B&H 49 пар gross): 0.99.
+Sharpe / sqrt(exposure) (net taker): 1.32.
 
 === Комментарий к комиссиям ===
 
@@ -195,7 +206,7 @@ VaR — перцентиль худших дней; CVaR (Expected Shortfall) �
 
 === Корреляция дневных доходностей (ISO-week aligned) ===
 
-Только торговые дни. Корреляция net-доходности портфеля внутри одной календарной недели.
+Только торговые дни. Корреляция net maker-доходности портфеля внутри одной календарной недели.
 
      |     Чт |     Пт |     Сб
 -------------------------------

@@ -30,6 +30,7 @@ class BacktestResult:
     benchmark: PortfolioAnalytics
     benchmark_btc: PortfolioAnalytics | None
     information_ratio_net: float
+    information_ratio_net_maker: float
     by_weekday_net: dict[int, PortfolioAnalytics]
     by_weekday_gross: dict[int, PortfolioAnalytics]
     weekday_corr: tuple[tuple[str, ...], np.ndarray]
@@ -93,6 +94,8 @@ def _analytics_block(title: str, a: PortfolioAnalytics, *, compact: bool = False
         f"  Sharpe / sqrt(exposure):   {_fmt_num(a.sharpe_per_exposure)}",
         f"  Max Drawdown:              {_fmt_pct(m.max_drawdown_pct)}",
         f"  Recovery from max DD:      {_recovery_text(a.drawdown)}",
+        f"  Longest underwater:        {a.drawdown.longest_underwater_days} календарных дней",
+        f"  % time in drawdown:        {_fmt_num(a.drawdown.pct_time_in_drawdown, 1)}%",
         f"  Calmar:                    {_fmt_num(m.calmar)}",
         f"  Win Rate (trades):         {_fmt_pct(m.win_rate_pct, 1)}",
         f"  Profit Factor:             {_fmt_num(m.profit_factor)}",
@@ -194,9 +197,11 @@ def _exposure_commentary(result: BacktestResult) -> list[str]:
         "",
         f"Exposure стратегии: {exp:.1f}%. Капитал в рынке только в Чт/Пт/Сб.",
         "Прямое сравнение Sharpe с Buy & Hold (100% exposure) требует осторожности.",
-        f"Information Ratio (net vs B&H {result.n_benchmark_pairs} пар gross): "
+        f"Information Ratio (net taker vs B&H {result.n_benchmark_pairs} пар gross): "
         f"{_fmt_num(result.information_ratio_net)}.",
-        f"Sharpe / sqrt(exposure) (net): {_fmt_num(result.portfolio_net.sharpe_per_exposure)}.",
+        f"Information Ratio (net maker vs B&H {result.n_benchmark_pairs} пар gross): "
+        f"{_fmt_num(result.information_ratio_net_maker)}.",
+        f"Sharpe / sqrt(exposure) (net taker): {_fmt_num(result.portfolio_net.sharpe_per_exposure)}.",
         "",
     ]
 
@@ -215,7 +220,7 @@ def _corr_block(
     lines = [
         "=== Корреляция дневных доходностей (ISO-week aligned) ===",
         "",
-        "Только торговые дни. Корреляция net-доходности портфеля внутри одной календарной недели.",
+        "Только торговые дни. Корреляция net maker-доходности портфеля внутри одной календарной недели.",
         "",
     ]
     header = "     | " + " | ".join(f"{c:>6}" for c in sub_labels)

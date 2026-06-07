@@ -223,7 +223,11 @@ def run_day_of_week_backtest(
         )
     strat_ret, bh_ret = _aligned_benchmark_returns(portfolio, benchmark_df)
     ir = information_ratio(strat_ret, bh_ret)
-    corr = weekday_correlation_matrix(portfolio, "net_return_pct")
+    strat_maker, _ = _aligned_benchmark_returns(
+        portfolio, benchmark_df, column="net_maker_return_pct"
+    )
+    ir_maker = information_ratio(strat_maker, bh_ret)
+    corr = weekday_correlation_matrix(portfolio, "net_maker_return_pct")
 
     result = BacktestResult(
         strategy=STRATEGY_NAME,
@@ -238,6 +242,7 @@ def run_day_of_week_backtest(
         benchmark=benchmark,
         benchmark_btc=benchmark_btc,
         information_ratio_net=ir,
+        information_ratio_net_maker=ir_maker,
         by_weekday_net=_analytics_by_weekday(portfolio, "net_return_pct"),
         by_weekday_gross=_analytics_by_weekday(portfolio, "gross_return_pct"),
         weekday_corr=corr,
@@ -294,10 +299,11 @@ def _log_summary(result: BacktestResult) -> None:
     m = result.portfolio_net.metrics
     b = result.benchmark.metrics
     log.info(
-        "[backtest] %s net=%+.2f%% vs B&H=%+.2f%% sharpe=%.2f IR=%.2f",
+        "[backtest] %s net=%+.2f%% vs B&H=%+.2f%% sharpe=%.2f IR_taker=%.2f IR_maker=%.2f",
         result.strategy,
         m.total_return_pct,
         b.total_return_pct,
         m.sharpe,
         result.information_ratio_net,
+        result.information_ratio_net_maker,
     )
