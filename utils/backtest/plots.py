@@ -278,7 +278,9 @@ def save_weekday_corr_plot(
     sub_labels = [labels[i] for i in trading_weekdays]
     sub = corr[np.ix_(trading_weekdays, trading_weekdays)]
 
-    fig, ax = plt.subplots(figsize=(4.0, 3.25), dpi=PLOT_DPI)
+    # Полотно 2:1 (ширина = 2 × высота); без bbox_inches='tight', иначе обрезка до квадрата heatmap.
+    fig_w, fig_h = 8.0, 4.0
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=PLOT_DPI)
     im = ax.imshow(sub, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
     ax.set_xticks(range(len(sub_labels)))
     ax.set_yticks(range(len(sub_labels)))
@@ -295,10 +297,10 @@ def save_weekday_corr_plot(
         fontweight="semibold",
         fontsize=10,
     )
-    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    fig.tight_layout()
+    fig.colorbar(im, ax=ax, fraction=0.035, pad=0.02)
+    fig.subplots_adjust(left=0.08, right=0.92, top=0.88, bottom=0.12)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight", pad_inches=0.12)
+    fig.savefig(path, dpi=PLOT_DPI, pad_inches=0.08)
     plt.close(fig)
     log.info("[backtest] plot: %s", path)
     return path
