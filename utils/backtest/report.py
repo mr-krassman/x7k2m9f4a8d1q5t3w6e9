@@ -10,7 +10,7 @@ import numpy as np
 
 from crypto_research.utils.backtest.analytics import PortfolioAnalytics, WEEKDAY_NAMES
 from crypto_research.utils.backtest.fees import FeeSchedule
-from crypto_research.utils.backtest.scenarios import SCENARIO_MAXIMAL_VAL, SCENARIO_OPTIMISTIC
+from crypto_research.utils.backtest.scenarios import SCENARIO_REPORT_HEADER
 
 RISK_FREE_NOTE = "Sharpe / Sortino: безрисковая ставка = 0% (стандарт для крипто)."
 _PAIRS_PER_LINE = 11
@@ -281,10 +281,9 @@ def format_backtest_report(result: BacktestResult) -> str:
         result.strategy_description,
         "",
     ]
-    if result.scenario == SCENARIO_OPTIMISTIC:
-        lines.append("Сценарий: optimistic (val, пары по train-отбор)")
-    elif result.scenario == SCENARIO_MAXIMAL_VAL:
-        lines.append("Сценарий: conservative (val, все 49 пар — baseline для сравнения с optimistic)")
+    header = SCENARIO_REPORT_HEADER.get(result.scenario)
+    if header:
+        lines.append(header)
     lines.extend([
         f"Период (UTC): {result.from_date:%Y-%m-%d} .. {result.to_date:%Y-%m-%d}",
         f"Пар (union): {len(result.pairs)}",

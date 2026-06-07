@@ -20,12 +20,12 @@ PLOT_DPI = 200
 FIG_W = 16.0
 FIG_H = 7.0
 
-COLOR_TAKER = "#dc2626"
-COLOR_MAKER = "#2563eb"
+COLOR_MAKER = "#dc2626"
+COLOR_TAKER = "#2563eb"
 COLOR_BH = "#374151"
 COLOR_BTC = "#cbd5e1"
-LW_TAKER = 2.4
-LW_MAKER = 1.5
+LW_MAKER = 2.4
+LW_TAKER = 1.5
 LW_BENCH = 1.3
 
 
@@ -64,8 +64,8 @@ def _plot_equity_lines(
         ax.plot(dates, nav_bh, color=COLOR_BH, linewidth=LW_BENCH, label="B&H gross", alpha=0.95)
     if include_benchmarks and nav_btc is not None:
         ax.plot(dates, nav_btc, color=COLOR_BTC, linewidth=LW_BENCH, label="BTC B&H", alpha=0.95)
-    ax.plot(dates, nav_maker, color=COLOR_MAKER, linewidth=LW_MAKER, label="Net maker")
     ax.plot(dates, nav_taker, color=COLOR_TAKER, linewidth=LW_TAKER, label="Net taker")
+    ax.plot(dates, nav_maker, color=COLOR_MAKER, linewidth=LW_MAKER, label="Net maker")
     ax.axhline(INITIAL_NAV, color="#64748b", linewidth=0.8, linestyle="--")
     ax.grid(True, alpha=0.35)
     if show_legend:
@@ -92,6 +92,7 @@ def save_equity_curve_plot(
     btc: pl.DataFrame | None = None,
     trading_weekdays: tuple[int, ...] = (3, 4, 5),
     strategy: str,
+    scenario_label: str | None = None,
     from_date: datetime,
     to_date: datetime,
     n_pairs: int,
@@ -138,8 +139,11 @@ def save_equity_curve_plot(
     )
     ax_main.set_ylabel("NAV (simple, base=100)", fontsize=10)
     ax_main.set_xlabel("")
+    title_line = f"Backtest equity — {strategy}"
+    if scenario_label:
+        title_line = f"{title_line} · {scenario_label}"
     ax_main.set_title(
-        f"Backtest equity — {strategy}\n"
+        f"{title_line}\n"
         f"{n_pairs} pairs · {from_date:%Y-%m-%d} — {to_date:%Y-%m-%d} · equal weight · no reinvest",
         loc="left",
         fontsize=12,

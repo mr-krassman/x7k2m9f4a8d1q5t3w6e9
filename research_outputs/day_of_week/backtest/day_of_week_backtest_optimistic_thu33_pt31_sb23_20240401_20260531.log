@@ -5,7 +5,7 @@
   Четверг: short на open → close. Доходность short = (open−close)/open×100% (эквивалент −(close−open)/open).
   Остальные дни: flat.
 
-Сценарий: optimistic (val, пары по train-отбор)
+Сценарий: оптимистичный (val, train-отбор пар — свой набор на Чт / Пт / Сб)
 Период (UTC): 2024-04-01 .. 2026-05-31
 Пар (union): 40
 Комиссии (net): Bybit USDT Perpetual (RU/CIS, non-VIP) — maker +0.036%, taker +0.100%, round-trip taker +0.200%

@@ -34,7 +34,11 @@ from crypto_research.utils.backtest.plots import (
     save_weekday_corr_plot,
 )
 from crypto_research.utils.backtest.report import BacktestResult, save_backtest_report
-from crypto_research.utils.backtest.scenarios import SCENARIO_MAXIMAL_VAL, SCENARIO_OPTIMISTIC
+from crypto_research.utils.backtest.scenarios import (
+    SCENARIO_CONSERVATIVE,
+    SCENARIO_OPTIMISTIC,
+    scenario_label_ru,
+)
 from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("strategy_day_of_week")
@@ -60,9 +64,9 @@ STRATEGY_DESCRIPTION_OPTIMISTIC = (
 )
 
 
-STRATEGY_DESCRIPTION_MAXIMAL_VAL = (
-    "Консервативный baseline: все 49 пар, val-период, без реинвестирования. "
-    "Те же сигналы day_of_week — для сравнения с оптимистичным сценарием.\n"
+STRATEGY_DESCRIPTION_CONSERVATIVE = (
+    "Консервативный сценарий: val-период, все 49 пар, без реинвестирования. "
+    "Baseline для сравнения с оптимистичным.\n"
     "  Пятница, суббота: long на open → close. Доходность = (close−open)/open×100%.\n"
     "  Четверг: short на open → close. Доходность short = (open−close)/open×100% "
     "(эквивалент −(close−open)/open).\n"
@@ -177,8 +181,8 @@ def _aligned_benchmark_returns(
 def _strategy_description(ctx: DayOfWeekBacktestContext) -> str:
     if ctx.scenario == SCENARIO_OPTIMISTIC:
         return STRATEGY_DESCRIPTION_OPTIMISTIC
-    if ctx.scenario == SCENARIO_MAXIMAL_VAL:
-        return STRATEGY_DESCRIPTION_MAXIMAL_VAL
+    if ctx.scenario == SCENARIO_CONSERVATIVE:
+        return STRATEGY_DESCRIPTION_CONSERVATIVE
     return STRATEGY_DESCRIPTION_MAXIMAL
 
 
@@ -245,6 +249,10 @@ def run_day_of_week_backtest(
 
     path_kw = _path_kwargs(ctx)
     tag_args = (STRATEGY_NAME, len(pairs), ctx.from_date, ctx.to_date)
+    scenario_labels = {
+        SCENARIO_CONSERVATIVE: scenario_label_ru(SCENARIO_CONSERVATIVE),
+        SCENARIO_OPTIMISTIC: scenario_label_ru(SCENARIO_OPTIMISTIC),
+    }
     save_backtest_report(result, backtest_report_path(*tag_args, **path_kw))
     save_equity_curve_plot(
         portfolio,
@@ -252,6 +260,7 @@ def run_day_of_week_backtest(
         btc=btc_df,
         trading_weekdays=TRADING_WEEKDAYS,
         strategy=STRATEGY_NAME,
+        scenario_label=scenario_labels.get(ctx.scenario),
         from_date=ctx.from_date,
         to_date=ctx.to_date,
         n_pairs=len(pairs),

@@ -3,9 +3,10 @@ from pathlib import Path
 
 from crypto_research.utils.pipeline.paths import DEFAULT_DATA_DIR
 from crypto_research.utils.backtest.scenarios import (
+    SCENARIO_CONSERVATIVE,
     SCENARIO_MAXIMAL,
-    SCENARIO_MAXIMAL_VAL,
     SCENARIO_OPTIMISTIC,
+    normalize_scenario,
 )
 
 
@@ -18,12 +19,13 @@ def parse_backtest_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--scenario",
-        choices=[SCENARIO_MAXIMAL, SCENARIO_MAXIMAL_VAL, SCENARIO_OPTIMISTIC],
+        choices=[SCENARIO_MAXIMAL, SCENARIO_CONSERVATIVE, SCENARIO_OPTIMISTIC, "maximal_val"],
         default=SCENARIO_MAXIMAL,
+        type=normalize_scenario,
         help=(
             "maximal — 49 пар, полный период; "
-            "maximal_val — 49 пар, val-период (консервативный baseline); "
-            "optimistic — val-период, пары по train (знак Δ + 2/3 лет), свой набор на Чт/Пт/Сб"
+            "conservative — 49 пар, val (консервативный); "
+            "optimistic — val, train-отбор пар (оптимистичный)"
         ),
     )
     parser.add_argument(

@@ -8,11 +8,12 @@ from pathlib import Path
 
 from crypto_research.utils.backtest.fees import DEFAULT_FEE, FeeSchedule
 from crypto_research.utils.backtest.scenarios import (
+    SCENARIO_CONSERVATIVE,
     SCENARIO_MAXIMAL,
-    SCENARIO_MAXIMAL_VAL,
     SCENARIO_OPTIMISTIC,
     VAL_FROM,
     VAL_TO,
+    normalize_scenario,
 )
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.load_pairs import _DEFAULT_WORKERS
@@ -37,8 +38,8 @@ class BacktestContext:
 
 
 def build_backtest_context(args) -> BacktestContext:
-    scenario = args.scenario
-    if scenario in (SCENARIO_OPTIMISTIC, SCENARIO_MAXIMAL_VAL):
+    scenario = normalize_scenario(args.scenario)
+    if scenario in (SCENARIO_OPTIMISTIC, SCENARIO_CONSERVATIVE):
         from_date = parse_iso_utc(args.from_date or VAL_FROM)
         to_date = parse_iso_utc(args.to_date or VAL_TO)
     else:

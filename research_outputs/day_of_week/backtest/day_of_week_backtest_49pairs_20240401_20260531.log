@@ -1,11 +1,11 @@
 === Backtest: day_of_week ===
 
-Консервативный baseline: все 49 пар, val-период, без реинвестирования. Те же сигналы day_of_week — для сравнения с оптимистичным сценарием.
+Консервативный сценарий: val-период, все 49 пар, без реинвестирования. Baseline для сравнения с оптимистичным.
   Пятница, суббота: long на open → close. Доходность = (close−open)/open×100%.
   Четверг: short на open → close. Доходность short = (open−close)/open×100% (эквивалент −(close−open)/open).
   Остальные дни: flat.
 
-Сценарий: conservative (val, все 49 пар — baseline для сравнения с optimistic)
+Сценарий: консервативный (val, все 49 пар — baseline для сравнения с оптимистичным)
 Период (UTC): 2024-04-01 .. 2026-05-31
 Пар (union): 49
 Комиссии (net): Bybit USDT Perpetual (RU/CIS, non-VIP) — maker +0.036%, taker +0.100%, round-trip taker +0.200%
