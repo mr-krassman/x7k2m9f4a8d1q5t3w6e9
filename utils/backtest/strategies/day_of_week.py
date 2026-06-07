@@ -269,6 +269,8 @@ def run_day_of_week_backtest(
     save_drawdown_plot(
         portfolio,
         strategy=STRATEGY_NAME,
+        trading_weekdays=TRADING_WEEKDAYS,
+        scenario_label=scenario_labels.get(ctx.scenario),
         path=backtest_drawdown_plot_path(*tag_args, **path_kw),
     )
     save_returns_histogram_plot(

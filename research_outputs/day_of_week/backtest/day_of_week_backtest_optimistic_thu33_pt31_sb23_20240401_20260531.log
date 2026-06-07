@@ -6,6 +6,7 @@
   Остальные дни: flat.
 
 Сценарий: оптимистичный (val, train-отбор пар — свой набор на Чт / Пт / Сб)
+Команда: python3 backtester.py day_of_week --scenario optimistic
 Период (UTC): 2024-04-01 .. 2026-05-31
 Пар (union): 40
 Комиссии (net): Bybit USDT Perpetual (RU/CIS, non-VIP) — maker +0.036%, taker +0.100%, round-trip taker +0.200%

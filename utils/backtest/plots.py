@@ -27,6 +27,13 @@ COLOR_BTC = "#cbd5e1"
 LW_MAKER = 2.4
 LW_TAKER = 1.5
 LW_BENCH = 1.3
+LW_WEEKDAY_DD = 1.2
+
+WEEKDAY_DD_COLORS: dict[int, str] = {
+    3: "#2563eb",  # Чт
+    4: "#d97706",  # Пт
+    5: "#059669",  # Сб
+}
 
 
 def _apply_style() -> None:
@@ -169,25 +176,58 @@ def save_equity_curve_plot(
     return path
 
 
+def _drawdown_for_weekday(
+    returns: np.ndarray,
+    weekdays: np.ndarray,
+    target_wd: int | None,
+) -> np.ndarray:
+    if target_wd is not None:
+        returns = _returns_on_weekday_only(returns, weekdays, target_wd)
+    return drawdown_series(returns)
+
+
 def save_drawdown_plot(
     portfolio: pl.DataFrame,
     *,
     strategy: str,
+    trading_weekdays: tuple[int, ...] = (3, 4, 5),
+    scenario_label: str | None = None,
     path: Path,
 ) -> Path:
     _apply_style()
     dates = portfolio["day_utc"].to_numpy()
-    dd_net = drawdown_series(portfolio["net_return_pct"].to_numpy())
-    dd_gross = drawdown_series(portfolio["gross_return_pct"].to_numpy())
+    weekdays = portfolio["weekday"].to_numpy()
+    maker = portfolio["net_maker_return_pct"].fill_null(0.0).to_numpy()
+    dd_total = _drawdown_for_weekday(maker, weekdays, None)
 
-    fig, ax = plt.subplots(figsize=(FIG_W, 5.0), dpi=PLOT_DPI)
-    ax.fill_between(dates, dd_gross, 0, color="#94a3b8", alpha=0.35, label="Gross DD")
-    ax.plot(dates, dd_net, color="#dc2626", linewidth=1.5, label="Net DD (taker)")
+    fig, ax = plt.subplots(figsize=(FIG_W, 5.5), dpi=PLOT_DPI)
+    for wd in trading_weekdays:
+        dd_wd = _drawdown_for_weekday(maker, weekdays, wd)
+        color = WEEKDAY_DD_COLORS.get(wd, "#64748b")
+        ax.plot(
+            dates,
+            dd_wd,
+            color=color,
+            linewidth=LW_WEEKDAY_DD,
+            label=WEEKDAY_NAMES[wd],
+            alpha=0.9,
+        )
+    ax.plot(
+        dates,
+        dd_total,
+        color=COLOR_MAKER,
+        linewidth=LW_MAKER,
+        label="Общий (maker)",
+        zorder=5,
+    )
     ax.set_ylabel("Drawdown (%)")
     ax.set_xlabel("Date (UTC)")
-    ax.set_title(f"Drawdown — {strategy}", loc="left", fontweight="semibold")
+    title_line = f"Drawdown — {strategy}"
+    if scenario_label:
+        title_line = f"{title_line} · {scenario_label}"
+    ax.set_title(title_line, loc="left", fontweight="semibold")
     ax.grid(True, alpha=0.35)
-    ax.legend(loc="lower left")
+    ax.legend(loc="lower left", fontsize=9)
     format_date_axis(ax, rotate=25)
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -230,6 +230,17 @@ Out-of-sample период совпадает с **val-окном** исслед
 - **Пятница** — наименьший Sharpe и наибольшая просадка среди торговых дней; **отрицательная skewness (−1.11)** указывает на риск редких крупных убытков (худший день портфеля: **−23.4%**, 2025-10-10, Пт).
 - **Корреляция Пт ↔ Сб** (net maker, ISO-week): **+0.41** — умеренная, не полная диверсификация между long-днями.
 
+**Рис. 4. Drawdown — оптимистичный сценарий** — общий (жирная красная, net maker) и вклад по дням (Чт / Пт / Сб). Глубокая просадка ~−30% (окт 2025) — в основном вклад **пятницы**.
+
+![Drawdown — оптимистичный](research_outputs/day_of_week/backtest/plots/drawdown_optimistic_thu33_pt31_sb23_20240401_20260531.png)
+
+```bash
+cd crypto_research
+python3 backtester.py day_of_week --scenario optimistic
+```
+
+→ `research_outputs/day_of_week/backtest/plots/drawdown_optimistic_thu33_pt31_sb23_20240401_20260531.png`
+
 #### Распределение и tail-risk (оптимистичный, net maker, торговые дни)
 
 | Показатель       | Значение |
@@ -243,11 +254,16 @@ Out-of-sample период совпадает с **val-окном** исслед
 
 Отрицательная асимметрия и повышенный эксцесс: хвостовые убытки тяжелее, чем в нормальном распределении; это согласуется с экстремальным днём −23.4% (Пт, 2025-10-10).
 
-#### Графики (drawdown и распределение)
-
-![Drawdown — оптимистичный](research_outputs/day_of_week/backtest/plots/drawdown_optimistic_thu33_pt31_sb23_20240401_20260531.png)
+**Рис. 5. Распределение дневных доходностей — оптимистичный сценарий** — только торговые дни (gross и net taker).
 
 ![Распределение доходностей — оптимистичный](research_outputs/day_of_week/backtest/plots/returns_hist_optimistic_thu33_pt31_sb23_20240401_20260531.png)
+
+```bash
+cd crypto_research
+python3 backtester.py day_of_week --scenario optimistic
+```
+
+→ `research_outputs/day_of_week/backtest/plots/returns_hist_optimistic_thu33_pt31_sb23_20240401_20260531.png`
 
 #### Ограничения и риски
 
@@ -263,9 +279,10 @@ Out-of-sample период совпадает с **val-окном** исслед
 
 Перед аллокацией капитала целесообразны: **paper trading / forward test** (минимум один полный цикл Чт–Пт–Сб на live-исполнении), мониторинг стабильности отобранных пар и отдельная оценка риска **пятничного** leg.
 
-Запуск бэктестов:
+Запуск бэктестов (отчёт `.log` + все графики в `research_outputs/day_of_week/backtest/plots/`):
 
 ```bash
+cd crypto_research
 python3 backtester.py day_of_week --scenario conservative   # консервативный
 python3 backtester.py day_of_week --scenario optimistic     # оптимистичный
 ```
