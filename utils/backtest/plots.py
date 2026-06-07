@@ -278,18 +278,23 @@ def save_weekday_corr_plot(
     sub_labels = [labels[i] for i in trading_weekdays]
     sub = corr[np.ix_(trading_weekdays, trading_weekdays)]
 
-    fig, ax = plt.subplots(figsize=(8.0, 6.5), dpi=PLOT_DPI)
+    fig, ax = plt.subplots(figsize=(4.0, 3.25), dpi=PLOT_DPI)
     im = ax.imshow(sub, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
     ax.set_xticks(range(len(sub_labels)))
     ax.set_yticks(range(len(sub_labels)))
-    ax.set_xticklabels(sub_labels)
-    ax.set_yticklabels(sub_labels)
+    ax.set_xticklabels(sub_labels, fontsize=9)
+    ax.set_yticklabels(sub_labels, fontsize=9)
     for i in range(sub.shape[0]):
         for j in range(sub.shape[1]):
             val = sub[i, j]
             if np.isfinite(val):
-                ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=10)
-    ax.set_title(f"Weekday return correlation — {strategy}", loc="left", fontweight="semibold")
+                ax.text(j, i, f"{val:.2f}", ha="center", va="center", fontsize=8)
+    ax.set_title(
+        f"Weekday return correlation — {strategy}",
+        loc="left",
+        fontweight="semibold",
+        fontsize=10,
+    )
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
