@@ -3,26 +3,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 
 import numpy as np
 import polars as pl
 
+from crypto_research.utils.research.signal_validation import (
+    ALPHA,
+    VAL_CONFIRM_RATIO,
+    ConfirmationMode,
+    bonferroni_alpha,
+    count_confirm,
+    fmt_p,
+    intersect_status,
+    permutation_p,
+    signal_status,
+    val_confirm_text,
+)
+
 WEEKDAY_NAMES: tuple[str, ...] = ("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
 WEEKDAYS: tuple[int, ...] = tuple(range(7))
 BONFERRONI_N = 7
-ALPHA = 0.05
-BONF_ALPHA = ALPHA / BONFERRONI_N
-VAL_CONFIRM_RATIO = 0.60
-_PERM_N = 20_000
-_PERM_RNG = np.random.default_rng(42)
-
-
-class ConfirmationMode(Enum):
-    """cohort — знак pooled train vs val-пары; per_pair — знак train vs val у каждой пары."""
-
-    COHORT = "cohort"
-    PER_PAIR = "per_pair"
+BONF_ALPHA = bonferroni_alpha(BONFERRONI_N)
 
 
 @dataclass(frozen=True)
@@ -88,31 +89,6 @@ def _pooled_mean_return(df: pl.DataFrame, weekday: int) -> float:
     return float(sub["return_pct"].mean())
 
 
-def _permutation_p(values: np.ndarray) -> float:
-    arr = np.asarray(values, dtype=np.float64)
-    arr = arr[np.isfinite(arr)]
-    n = arr.size
-    if n < 2:
-        return float("nan")
-    obs = float(arr.mean())
-    if obs == 0.0:
-        return 1.0
-    signs = _PERM_RNG.choice([-1.0, 1.0], size=(_PERM_N, n))
-    perm_means = (signs * arr).mean(axis=1)
-    return float(np.mean(np.abs(perm_means) >= abs(obs)))
-
-
-def _fmt_p(p: float) -> str:
-    if p != p:
-        return "n/a"
-    if p <= 0:
-        return "<0.0001"
-    text = f"{p:.4f}"
-    if text == "0.0000":
-        return "<0.0001"
-    return text
-
-
 def _fmt_effect(mean_ret: float | None) -> str:
     if mean_ret is None:
         return "—"
@@ -125,70 +101,6 @@ def _fmt_delta_pp(delta: float | None) -> str:
     if delta is None or delta != delta:
         return "—"
     return f"{delta:+.2f} п.п."
-
-
-def _status(p_value: float, val_agree: int | None, val_total: int) -> str:
-    if p_value != p_value or p_value >= 0.05:
-        return "не значим"
-    if val_total == 0 or val_agree is None:
-        return "не значим"
-    if p_value < BONF_ALPHA and val_agree / val_total >= VAL_CONFIRM_RATIO:
-        return "значим"
-    return "не значим"
-
-
-def _val_confirm_text(val_agree: int | None, val_total: int) -> str:
-    if val_total == 0 or val_agree is None:
-        return "—"
-    pct = round(val_agree / val_total * 100)
-    mark = "✅" if val_agree / val_total >= VAL_CONFIRM_RATIO else "❌"
-    return f"{val_agree}/{val_total} ({pct}%) {mark}"
-
-
-def _count_cohort_sign_confirm(
-    train_mean: float,
-    val_pair_means: dict[str, float],
-) -> tuple[int | None, int]:
-    if not val_pair_means:
-        return None, 0
-    if train_mean != train_mean or train_mean == 0:
-        return None, len(val_pair_means)
-    sign = 1 if train_mean > 0 else -1
-    agree = sum(
-        1
-        for mean in val_pair_means.values()
-        if (mean > 0 and sign > 0) or (mean < 0 and sign < 0)
-    )
-    return agree, len(val_pair_means)
-
-
-def _count_per_pair_sign_confirm(
-    train_pair_means: dict[str, float],
-    val_pair_means: dict[str, float],
-) -> tuple[int | None, int]:
-    common = sorted(set(train_pair_means) & set(val_pair_means))
-    if not common:
-        return None, 0
-    agree = 0
-    for pair in common:
-        train_m = train_pair_means[pair]
-        val_m = val_pair_means[pair]
-        if train_m == 0 or val_m == 0:
-            continue
-        if (train_m > 0 and val_m > 0) or (train_m < 0 and val_m < 0):
-            agree += 1
-    return agree, len(common)
-
-
-def _count_confirm(
-    mode: ConfirmationMode,
-    train_mean: float,
-    train_pair_means: dict[str, float],
-    val_pair_means: dict[str, float],
-) -> tuple[int | None, int]:
-    if mode is ConfirmationMode.PER_PAIR:
-        return _count_per_pair_sign_confirm(train_pair_means, val_pair_means)
-    return _count_cohort_sign_confirm(train_mean, val_pair_means)
 
 
 def compute_weekday_summary(
@@ -204,13 +116,13 @@ def compute_weekday_summary(
     for wd in WEEKDAYS:
         train_pair_means = _per_pair_mean(train, wd)
         train_mean = _pooled_mean_return(train, wd)
-        p_value = _permutation_p(np.array(list(train_pair_means.values()), dtype=np.float64))
+        p_value = permutation_p(np.array(list(train_pair_means.values()), dtype=np.float64))
 
         val_mean: float | None = None
         if val is not None:
             val_pair_means = _per_pair_mean(val, wd)
             val_mean = _pooled_mean_return(val, wd)
-            val_agree, val_total = _count_confirm(
+            val_agree, val_total = count_confirm(
                 confirmation_mode,
                 train_mean,
                 train_pair_means,
@@ -228,7 +140,12 @@ def compute_weekday_summary(
                 p_value=p_value,
                 val_agree=val_agree,
                 val_total=val_total,
-                status=_status(p_value, val_agree, val_total),
+                status=signal_status(
+                    p_value,
+                    val_agree,
+                    val_total,
+                    bonferroni_n=BONFERRONI_N,
+                ),
             )
         )
     return rows
@@ -255,8 +172,8 @@ def format_summary_table(
             _fmt_effect(row.train_mean_return_pct),
             _fmt_effect(row.val_mean_return_pct),
             _fmt_delta_pp(row.delta_val_train_pp),
-            _fmt_p(row.p_value),
-            _val_confirm_text(row.val_agree, row.val_total),
+            fmt_p(row.p_value),
+            val_confirm_text(row.val_agree, row.val_total),
             row.status,
         )
         for row in rows
@@ -316,12 +233,6 @@ def _day_sign_share_text(day_agree: int, day_total: int) -> str:
     if day_total == 0:
         return "—"
     return f"{day_agree / day_total * 100:.1f}%"
-
-
-def _intersect_status(*statuses: str) -> str:
-    if statuses and all(s == "значим" for s in statuses):
-        return "значим"
-    return "не значим"
 
 
 def _fmt_volatility(std_pct: float) -> str:

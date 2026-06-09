@@ -163,38 +163,13 @@ def classify_return_pct(
     day_high: float | None = None,
     day_low: float | None = None,
 ) -> set[str]:
-    tags: set[str] = set()
-    if ret > 0:
-        tags.add(COL_CLOSE_UP)
-        if ret <= bands.up_lo:
-            tags.add(COL_UP_WEAK)
-        elif ret <= bands.up_hi:
-            tags.add(COL_UP_MODERATE)
-        else:
-            tags.add(COL_UP_STRONG)
-    elif ret < 0:
-        tags.add(COL_CLOSE_DOWN)
-        if ret >= bands.down_lo:
-            tags.add(COL_DOWN_WEAK)
-        elif ret >= bands.down_hi:
-            tags.add(COL_DOWN_MODERATE)
-        else:
-            tags.add(COL_DOWN_STRONG)
+    from crypto_research.utils.research.return_classification import classify_return_pct as _classify
 
-    if (
-        day_open is not None
-        and day_high is not None
-        and day_low is not None
-        and day_open > 0
-    ):
-        up_move = (day_high - day_open) / day_open * 100.0
-        down_move = (day_low - day_open) / day_open * 100.0
-        if up_move >= bands.up_lo:
-            tags.add(COL_HIGH_REACH_UP)
-        if up_move > bands.up_hi:
-            tags.add(COL_HIGH_ABOVE_UP)
-        if down_move <= bands.down_lo:
-            tags.add(COL_LOW_REACH_DOWN)
-        if down_move < bands.down_hi:
-            tags.add(COL_LOW_BELOW_DOWN)
-    return tags
+    return _classify(
+        ret,
+        bands,
+        day_open,
+        day_high,
+        day_low,
+        columns=tuple(STATS_COLS),
+    )

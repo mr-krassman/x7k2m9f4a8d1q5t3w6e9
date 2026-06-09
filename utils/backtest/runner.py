@@ -9,10 +9,7 @@ from crypto_research.utils.backtest.scenarios import (
     resolve_optimistic_pairs_by_weekday,
     union_pairs,
 )
-from crypto_research.utils.backtest.strategies.day_of_week import (
-    DayOfWeekBacktestContext,
-    run_day_of_week_backtest,
-)
+from crypto_research.utils.backtest.strategies.registry import STRATEGY_HANDLERS
 from crypto_research.utils.pipeline.daily_pool import build_pooled_daily
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.load_pairs import load_klines_for_period
@@ -35,6 +32,7 @@ def _load_full_pool_daily(ctx: BacktestContext):
 
 
 def run_backtest(ctx: BacktestContext) -> BacktestResult:
+    handler = STRATEGY_HANDLERS[ctx.strategy]
     pairs_by_weekday: dict[int, list[str]] | None = None
     pair_filter = ctx.pairs
 
@@ -64,19 +62,11 @@ def run_backtest(ctx: BacktestContext) -> BacktestResult:
 
     daily_benchmark_49, benchmark_pairs = _load_full_pool_daily(ctx)
 
-    if ctx.strategy == "day_of_week":
-        dow_ctx = DayOfWeekBacktestContext(
-            data_dir=ctx.data_dir,
-            from_date=ctx.from_date,
-            to_date=ctx.to_date,
-            pairs=pairs,
-            workers=ctx.workers,
-            fee=ctx.fee,
-            scenario=ctx.scenario,
-            pairs_by_weekday=pairs_by_weekday,
-            daily_benchmark_49=daily_benchmark_49,
-            n_benchmark_pairs=len(benchmark_pairs),
-        )
-        return run_day_of_week_backtest(daily, pairs, dow_ctx)
-
-    raise ValueError(f"Неизвестная стратегия: {ctx.strategy}")
+    return handler.run(
+        ctx,
+        daily,
+        pairs,
+        daily_benchmark_49,
+        len(benchmark_pairs),
+        pairs_by_weekday,
+    )

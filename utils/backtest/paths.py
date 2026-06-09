@@ -1,17 +1,15 @@
 from datetime import datetime
 from pathlib import Path
 
-from crypto_research.utils.pipeline.paths import RESEARCH_ROOT
-
-BACKTEST_ROOT = RESEARCH_ROOT / "research_outputs"
+from crypto_research.utils.pipeline.paths import study_backtest_dir, study_backtest_plots_dir
 
 
 def strategy_backtest_dir(strategy: str) -> Path:
-    return BACKTEST_ROOT / strategy / "backtest"
+    return study_backtest_dir(strategy)
 
 
 def strategy_backtest_plots_dir(strategy: str) -> Path:
-    return strategy_backtest_dir(strategy) / "plots"
+    return study_backtest_plots_dir(strategy)
 
 
 def backtest_output_tag(

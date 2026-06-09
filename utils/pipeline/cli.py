@@ -2,10 +2,25 @@ import argparse
 from pathlib import Path
 
 from crypto_research.utils.pipeline.paths import DEFAULT_DATA_DIR, TRAIN_MAX_PAIR_START, VAL_MAX_PAIR_START
+from crypto_research.utils.ema_spreads.constants import (
+    DEFAULT_EMA_PERIODS,
+    DEFAULT_SCREEN_EMA_PERIODS,
+)
+from crypto_research.utils.pipeline.study_ids import (
+    ALL_STUDIES,
+    STUDY_DAY_OF_WEEK,
+    STUDY_EMA_PERIOD_SCREEN,
+    STUDY_EMA_SPREADS,
+)
 
 
 def parse_report_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Оркестратор отчётов crypto_research.")
+    parser.add_argument(
+        "study",
+        choices=list(ALL_STUDIES),
+        help="Исследование: day_of_week, ema_spreads или ema_period_screen",
+    )
     split_group = parser.add_mutually_exclusive_group()
     split_group.add_argument(
         "--train",
@@ -84,7 +99,20 @@ def parse_report_args() -> argparse.Namespace:
             "знак Δ к BASE + подтверждение в 2/3 годов train-периода"
         ),
     )
+    parser.add_argument(
+        "--ema-periods",
+        nargs="+",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Периоды EMA: ema_spreads "
+            f"({ ' '.join(str(p) for p in DEFAULT_EMA_PERIODS) }); "
+            f"ema_period_screen ({' '.join(str(p) for p in DEFAULT_SCREEN_EMA_PERIODS)})"
+        ),
+    )
     args = parser.parse_args()
-    if not args.summary and (not args.from_date or not args.to_date):
-        parser.error("--from-date и --to-date обязательны вне режима --summary")
+    from crypto_research.utils.pipeline.studies import STUDY_HANDLERS
+
+    STUDY_HANDLERS[args.study].validate_args(parser, args)
     return args

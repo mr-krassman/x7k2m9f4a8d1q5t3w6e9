@@ -61,4 +61,10 @@ def parse_backtest_args() -> argparse.Namespace:
         default=None,
         help="Потоки для параллельной загрузки JSONL",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    from crypto_research.utils.backtest.strategies.registry import STRATEGY_HANDLERS
+
+    if args.strategy not in STRATEGY_HANDLERS:
+        parser.error(f"Неизвестная стратегия: {args.strategy}")
+    STRATEGY_HANDLERS[args.strategy].validate_args(parser, args)
+    return args
