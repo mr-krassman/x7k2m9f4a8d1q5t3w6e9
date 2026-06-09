@@ -369,7 +369,11 @@ _t1⁺/t2⁺ — ⅓ и ⅔ квантили среди dev>0; t1⁻/t2⁻ — �
 
 _Порог значимости: |Δ| ≥ 1.5 п.п. Колонки скрининга: «Цена росла» / «Цена падала». Индекс = 25%·норм(ср.Δ) + 25%·ср.годы + 25%·ср.пары + 25%·норм(Знач.)._
 
-**Источник:** [ema*period_screen_49pairs*…20260531.log](research_outputs/ema/ema_spreads/statistics/ema_period_screen_49pairs_ema5_9_12_20_50_100_200_20220101_20260531.log) · [график индекса](research_outputs/ema/ema_spreads/statistics/plots/ema_period_screen_stability_index_49pairs_ema5_9_12_20_50_100_200_20220101_20260531.png) · [heatmap по годам](research_outputs/ema/ema_spreads/statistics/plots/ema_period_screen_yearly_agreement_49pairs_ema5_9_12_20_50_100_200_20220101_20260531.png)
+**Источник:** [ema_period_screen_49pairs_…20260531.log](research_outputs/ema/ema_spreads/statistics/ema_period_screen_49pairs_ema5_9_12_20_50_100_200_20220101_20260531.log) · [график индекса](research_outputs/ema/ema_spreads/statistics/plots/ema_period_screen_stability_index_49pairs_ema5_9_12_20_50_100_200_20220101_20260531.png) · [heatmap по годам](research_outputs/ema/ema_spreads/statistics/plots/ema_period_screen_yearly_agreement_49pairs_ema5_9_12_20_50_100_200_20220101_20260531.png)
+
+![Индекс стабильности EMA](research_outputs/ema/ema_spreads/statistics/plots/ema_period_screen_stability_index_49pairs_ema5_9_12_20_50_100_200_20220101_20260531.png)
+
+![Согласованность знака Δ по календарным годам](research_outputs/ema/ema_spreads/statistics/plots/ema_period_screen_yearly_agreement_49pairs_ema5_9_12_20_50_100_200_20220101_20260531.png)
 
 #### Обоснование выбора EMA(5) для этапов 1–3
 
@@ -439,7 +443,7 @@ _Train: 2022-01-01 – 2024-04-01, val: 2024-04-01 – 2026-05-31 — одни �
 
 ### Итоговая сводка (49 пар, 2022–2026)
 
-[Δ train vs val по сигналам EMA(5)](research_outputs/ema/ema_spreads/statistics/plots/ema_summary_signal_delta_ema5.png)
+![Δ train vs val по сигналам EMA(5)](research_outputs/ema/ema_spreads/statistics/plots/ema_summary_signal_delta_ema5.png)
 
 _Рис. EMA-1. Отклонение доли «Цена росла» / «Цена падала» от BASE на train и val (п.п.). Зелёная заливка — итоговый статус «значим»._
 
@@ -485,6 +489,8 @@ _Сводка за полный период 2022–2026: pooled Δ к BASE; «�
 **Итог:** воспроизводимый паттерн mean-reversion на **экстремумах** отклонения от EMA(5): вчерашний **b0** (dev > t2⁺) смещает завтрашний intraday к падению; вчерашний **b6** (dev < t1⁻) — к росту. Средние бакеты b1–b5 не дают устойчивого сигнала после train/val. Детальный отчёт `ema_spreads` показывает, что у b0/b6 смещение концентрируется в колонках «Цена росла» / «Цена падала»; колонки силы High/Low на полном периоде согласованы по знаку, но не проходят отдельный протокол Bonferroni по 14 ячейкам.
 
 #### Дополнительные материалы
+
+![Подтверждение на val](research_outputs/ema/ema_spreads/statistics/plots/ema_summary_confirmation_ema5.png)
 
 | Материал                                                                                                                                                             | Описание                                                     |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
