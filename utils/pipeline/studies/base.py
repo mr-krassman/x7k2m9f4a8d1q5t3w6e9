@@ -29,6 +29,13 @@ class StudyHandler(ABC):
     ) -> datetime | None:
         return max_pair_start
 
+    def resolve_dates(
+        self,
+        from_date: datetime | None,
+        to_date: datetime | None,
+    ) -> tuple[datetime | None, datetime | None]:
+        return from_date, to_date
+
     @abstractmethod
     def run(self, ctx: ReportContext, dataset: StudyDataset) -> Path:
         ...

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-SELECTED_EMA_PERIOD = 5
+SELECTED_EMA_PERIOD = 9
 DEFAULT_EMA_PERIODS: tuple[int, ...] = (SELECTED_EMA_PERIOD,)
 DEFAULT_SCREEN_EMA_PERIODS: tuple[int, ...] = (5, 9, 12, 20, 50, 100, 200)
 

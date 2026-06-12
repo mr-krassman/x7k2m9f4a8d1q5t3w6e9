@@ -77,6 +77,7 @@ def build_report_context(args) -> ReportContext:
     from_date = parse_iso_utc(args.from_date) if args.from_date else None
     to_date = parse_iso_utc(args.to_date) if args.to_date else None
     handler = STUDY_HANDLERS[args.study]
+    from_date, to_date = handler.resolve_dates(from_date, to_date)
     max_pair_start = handler.resolve_max_pair_start(
         max_pair_start,
         summary=bool(args.summary),

@@ -7,6 +7,8 @@ import polars as pl
 
 MIN_YEAR_BASE_DAYS = 40
 MIN_YEAR_ROW_DAYS = 15
+MIN_QUARTER_BASE_DAYS = 20
+MIN_QUARTER_ROW_DAYS = 8
 MIN_MONTH_BASE_DAYS = 10
 MIN_MONTH_ROW_DAYS = 5
 GREEN_DELTA_EPS = 0.001
@@ -20,6 +22,17 @@ def years_from_frame(work: pl.DataFrame) -> np.ndarray:
         .to_numpy()
         .astype(np.int32, copy=False)
     )
+
+
+def quarters_from_frame(work: pl.DataFrame) -> np.ndarray:
+    if "day_utc" not in work.columns or work.height == 0:
+        return np.full(work.height, -1, dtype=np.int32)
+    yq = work.with_columns(
+        (
+            pl.col("day_utc").dt.year() * 10 + pl.col("day_utc").dt.quarter()
+        ).alias("_yq")
+    )["_yq"]
+    return yq.to_numpy().astype(np.int32, copy=False)
 
 
 def months_from_frame(work: pl.DataFrame) -> np.ndarray:
@@ -102,6 +115,26 @@ def compute_cell_year_repeatability(
         scope_mask=scope_mask,
         group_year_min=group_year_min,
         group_year_max=group_year_max,
+    )
+
+
+def compute_cell_quarter_repeatability(
+    quarters: np.ndarray,
+    buckets: np.ndarray,
+    row_index: int,
+    valid: np.ndarray,
+    hit_mask: np.ndarray,
+    scope_mask: np.ndarray | None = None,
+) -> str:
+    return _compute_cell_repeatability_for_groups(
+        groups=quarters,
+        buckets=buckets,
+        row_index=row_index,
+        valid=valid,
+        hit_mask=hit_mask,
+        min_base_days=MIN_QUARTER_BASE_DAYS,
+        min_row_days=MIN_QUARTER_ROW_DAYS,
+        scope_mask=scope_mask,
     )
 
 

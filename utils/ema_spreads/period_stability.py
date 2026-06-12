@@ -18,7 +18,8 @@ from crypto_research.utils.weekday.repeatability import (
     MIN_YEAR_BASE_DAYS,
     MIN_YEAR_ROW_DAYS,
     _compute_cell_pair_support_scoped,
-    compute_cell_year_repeatability,
+    compute_cell_quarter_repeatability,
+    quarters_from_frame,
     years_from_frame,
 )
 
@@ -30,16 +31,16 @@ class MaterialCell:
     bucket: int
     column: str
     delta_pp: float
-    years_match: int
-    years_total: int
+    quarters_match: int
+    quarters_total: int
     pairs_match: int | None
     pairs_eligible: int | None
 
     @property
-    def years_rate(self) -> float | None:
-        if self.years_total == 0:
+    def quarters_rate(self) -> float | None:
+        if self.quarters_total == 0:
             return None
-        return self.years_match / self.years_total
+        return self.quarters_match / self.quarters_total
 
     @property
     def pairs_rate(self) -> float | None:
@@ -53,14 +54,14 @@ class PeriodStabilityMetrics:
     period: int
     significant_cell_count: int
     avg_abs_delta_pp: float
-    avg_years_rate: float
+    avg_quarters_rate: float
     avg_pairs_rate: float
     stability_index_pct: float
     rank: int = 0
 
     @property
-    def avg_years_label(self) -> str:
-        return f"{self.avg_years_rate:.0%}"
+    def avg_quarters_label(self) -> str:
+        return f"{self.avg_quarters_rate:.0%}"
 
     @property
     def avg_pairs_label(self) -> str:
@@ -98,7 +99,7 @@ def _pair_eligible_count(
     return eligible if eligible > 0 else None
 
 
-def _parse_year_rep(label: str) -> tuple[int, int]:
+def _parse_match_rep(label: str) -> tuple[int, int]:
     if label == "n/a" or "/" not in label:
         return 0, 0
     left, right = label.split("/", maxsplit=1)
@@ -155,7 +156,7 @@ def _material_cells_for_period(
     if prepared is None:
         return []
     work, buckets, valid, hit_masks = prepared
-    years = years_from_frame(work)
+    quarters = quarters_from_frame(work)
     pair_keys = work["pair"].to_numpy().astype(object, copy=False)
 
     cells: list[MaterialCell] = []
@@ -164,10 +165,10 @@ def _material_cells_for_period(
             delta_pp = _pooled_delta_pp(hit_masks[col], buckets, valid, bucket)
             if not np.isfinite(delta_pp) or abs(delta_pp) < SCREEN_MIN_POOLED_DELTA_PP:
                 continue
-            y_label = compute_cell_year_repeatability(
-                years, buckets, bucket, valid, hit_masks[col]
+            q_label = compute_cell_quarter_repeatability(
+                quarters, buckets, bucket, valid, hit_masks[col]
             )
-            y_match, y_total = _parse_year_rep(y_label)
+            q_match, q_total = _parse_match_rep(q_label)
             p_match = _compute_cell_pair_support_scoped(
                 pair_keys, buckets, bucket, valid, hit_masks[col]
             )
@@ -179,8 +180,8 @@ def _material_cells_for_period(
                     bucket=bucket,
                     column=col,
                     delta_pp=delta_pp,
-                    years_match=y_match,
-                    years_total=y_total,
+                    quarters_match=q_match,
+                    quarters_total=q_total,
                     pairs_match=p_match,
                     pairs_eligible=p_eligible,
                 )
@@ -202,17 +203,17 @@ def _scale_to_pct(value: float, max_value: float) -> float:
 
 def _stability_index(
     avg_abs_delta_pp: float,
-    avg_years_rate: float,
+    avg_quarters_rate: float,
     avg_pairs_rate: float,
     significant_cell_count: int,
     *,
     max_abs_delta_pp: float,
     max_significant_cells: int,
 ) -> float:
-    """Равный вес четырёх компонент (по 25%): сила, годы, пары, число значимых ячеек."""
+    """Равный вес четырёх компонент (по 25%): сила, кварталы, пары, число значимых ячеек."""
     return 0.25 * (
         _scale_to_pct(avg_abs_delta_pp, max_abs_delta_pp)
-        + avg_years_rate * 100.0
+        + avg_quarters_rate * 100.0
         + avg_pairs_rate * 100.0
         + _scale_to_pct(float(significant_cell_count), float(max_significant_cells))
     )
@@ -227,16 +228,16 @@ def compute_period_stability(
     cells = _material_cells_for_period(daily, period, periods, pair_bands)
     if not cells:
         return None
-    year_rates = [r for c in cells if (r := c.years_rate) is not None]
+    quarter_rates = [r for c in cells if (r := c.quarters_rate) is not None]
     pair_rates = [r for c in cells if (r := c.pairs_rate) is not None]
-    avg_years = _mean_rate(year_rates)
+    avg_quarters = _mean_rate(quarter_rates)
     avg_pairs = _mean_rate(pair_rates)
     avg_abs_delta = _mean_rate([abs(c.delta_pp) for c in cells])
     return PeriodStabilityMetrics(
         period=period,
         significant_cell_count=len(cells),
         avg_abs_delta_pp=avg_abs_delta,
-        avg_years_rate=avg_years,
+        avg_quarters_rate=avg_quarters,
         avg_pairs_rate=avg_pairs,
         stability_index_pct=0.0,
     )
@@ -252,11 +253,11 @@ def rank_period_stabilities(
             period=m.period,
             significant_cell_count=m.significant_cell_count,
             avg_abs_delta_pp=m.avg_abs_delta_pp,
-            avg_years_rate=m.avg_years_rate,
+            avg_quarters_rate=m.avg_quarters_rate,
             avg_pairs_rate=m.avg_pairs_rate,
             stability_index_pct=_stability_index(
                 m.avg_abs_delta_pp,
-                m.avg_years_rate,
+                m.avg_quarters_rate,
                 m.avg_pairs_rate,
                 m.significant_cell_count,
                 max_abs_delta_pp=max_abs_delta,
@@ -270,7 +271,7 @@ def rank_period_stabilities(
         key=lambda m: (
             -m.stability_index_pct,
             -m.avg_pairs_rate,
-            -m.avg_years_rate,
+            -m.avg_quarters_rate,
             -m.avg_abs_delta_pp,
             -m.significant_cell_count,
             m.period,
@@ -281,7 +282,7 @@ def rank_period_stabilities(
             period=m.period,
             significant_cell_count=m.significant_cell_count,
             avg_abs_delta_pp=m.avg_abs_delta_pp,
-            avg_years_rate=m.avg_years_rate,
+            avg_quarters_rate=m.avg_quarters_rate,
             avg_pairs_rate=m.avg_pairs_rate,
             stability_index_pct=m.stability_index_pct,
             rank=i + 1,

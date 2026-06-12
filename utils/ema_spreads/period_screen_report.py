@@ -37,7 +37,7 @@ _METHOD = (
     f"Этап 0 — выбор периода EMA. Колонки: «{SCREEN_STATS_COLS[0]}» и "
     f"«{SCREEN_STATS_COLS[1]}» (Δ к BASE, п.п.). Значимая ячейка = бакет×колонка "
     f"с |Δ| ≥ {SCREEN_MIN_POOLED_DELTA_PP:g} п.п. Индекс (равный вес 25%): "
-    f"ср.|Δ| (норм. к макс.), ср.годы %, ср.пары %, число значимых ячеек (норм. к макс.)."
+    f"ср.|Δ| (норм. к макс.), ср.кварталы %, ср.пары %, число значимых ячеек (норм. к макс.)."
 )
 
 
@@ -57,13 +57,13 @@ def _summary_table_lines(ranked: list) -> list[str]:
     col_rank = 4
     col_ema = 5
     col_delta = 8
-    col_years = 9
+    col_quarters = 11
     col_pairs = 9
     col_cells = 6
     col_idx = 8
     header = (
         f"{'#':>{col_rank}} | {'EMA':>{col_ema}} | {'ср.|Δ|':>{col_delta}} | "
-        f"{'Ср.годы':>{col_years}} | {'Ср.пары':>{col_pairs}} | "
+        f"{'Ср.кварт.':>{col_quarters}} | {'Ср.пары':>{col_pairs}} | "
         f"{'Знач.':>{col_cells}} | {'Индекс%':>{col_idx}}"
     )
     sep = "-" * len(header)
@@ -78,7 +78,7 @@ def _summary_table_lines(ranked: list) -> list[str]:
         lines.append(
             f"{m.rank:>{col_rank}} | {m.period:>{col_ema}} | "
             f"{m.avg_abs_delta_label:>{col_delta}} | "
-            f"{m.avg_years_label:>{col_years}} | {m.avg_pairs_label:>{col_pairs}} | "
+            f"{m.avg_quarters_label:>{col_quarters}} | {m.avg_pairs_label:>{col_pairs}} | "
             f"{m.significant_cell_count:>{col_cells}} | "
             f"{m.stability_index_pct:>{col_idx}.1f}"
         )
@@ -88,7 +88,7 @@ def _summary_table_lines(ranked: list) -> list[str]:
     best = ranked[0]
     lines.append(
         f"Рекомендация этапа 0: EMA({best.period}) — индекс {best.stability_index_pct:.1f}%, "
-        f"ср.|Δ| {best.avg_abs_delta_label} п.п., ср.годы {best.avg_years_label}, "
+        f"ср.|Δ| {best.avg_abs_delta_label} п.п., ср.кварталы {best.avg_quarters_label}, "
         f"ср.пары {best.avg_pairs_label}, значимых ячеек {best.significant_cell_count}."
     )
     lines.append(
@@ -107,7 +107,7 @@ def _material_detail_lines(
     lines = [
         "=== Значимые ячейки: «Цена росла» / «Цена падала» (|Δ| ≥ порога) ===",
         EMA_BUCKET_THRESHOLDS_NOTE,
-        "Формат: бакет | колонка | Δ п.п. | годы X/Y | пары N/M",
+        "Формат: бакет | колонка | Δ п.п. | кварталы X/Y | пары N/M",
         "",
     ]
     for m in ranked:
@@ -123,15 +123,15 @@ def _material_detail_lines(
                 if not cell.pairs_eligible
                 else f"{cell.pairs_match}/{cell.pairs_eligible}"
             )
-            y_label = (
+            q_label = (
                 "n/a"
-                if cell.years_total == 0
-                else f"{cell.years_match}/{cell.years_total}"
+                if cell.quarters_total == 0
+                else f"{cell.quarters_match}/{cell.quarters_total}"
             )
             row_label = EMA_SCENARIO_ROWS[cell.bucket]
             lines.append(
                 f"  b{cell.bucket} {row_label} | {cell.column} | {cell.delta_pp:+.1f} п.п. | "
-                f"годы {y_label} | пары {pairs_label}"
+                f"кварталы {q_label} | пары {pairs_label}"
             )
         lines.append("")
     return lines
@@ -160,7 +160,7 @@ def run_ema_period_screen_report(
     header = [
         "=== Отчёт: ema_period_screen (этап 0 — выбор периода EMA) ===",
         f"Пар: {len(pairs)}",
-        f"Период (UTC): {from_date:%Y-%m-%d} .. {to_date:%Y-%m-%d}",
+        f"Период скрининга (UTC, train): {from_date:%Y-%m-%d} .. {to_date:%Y-%m-%d}",
         f"Кандидаты EMA: {', '.join(str(p) for p in screen_periods)}",
     ]
     if max_pair_start is not None:
