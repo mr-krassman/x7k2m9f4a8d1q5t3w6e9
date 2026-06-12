@@ -117,6 +117,6 @@ b6 dev < t1⁻ × Цена росла          | +3.75 п.п. | значим
 b6 dev < t1⁻ × Цена падала         | -3.67 п.п. | значим   
 
 === Графики ===
-Δ train vs val: /home_admin/crypto_bot/crypto_research/research_outputs/ema/ema_spreads/statistics/plots/ema_summary_signal_delta_ema9.png
-Подтверждение на val: /home_admin/crypto_bot/crypto_research/research_outputs/ema/ema_spreads/statistics/plots/ema_summary_confirmation_ema9.png
+Проверка 1 — Δ train vs val: /home_admin/crypto_bot/crypto_research/research_outputs/ema/ema_spreads/statistics/plots/ema_summary_check_pair_universality_delta_ema9.png
+Проверка 2 — Δ train vs val: /home_admin/crypto_bot/crypto_research/research_outputs/ema/ema_spreads/statistics/plots/ema_summary_check_temporal_stability_delta_ema9.png
 

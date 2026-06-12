@@ -15,10 +15,7 @@ from crypto_research.utils.ema_spreads.summary import (
     format_signal_summary_table,
     status_by_signal_key,
 )
-from crypto_research.utils.ema_spreads.summary_plots import (
-    save_confirmation_chart,
-    save_signal_delta_chart,
-)
+from crypto_research.utils.ema_spreads.summary_plots import save_check_signal_delta_chart
 from crypto_research.utils.pipeline.logger import get_logger
 from crypto_research.utils.pipeline.pair_means import compute_pair_means
 from crypto_research.utils.pipeline.paths import ema_summary_log_path, ema_summary_plot_path
@@ -173,10 +170,22 @@ def run_summary_report(
         ema_period=ema_period,
     )
 
-    plot_delta = ema_summary_plot_path(ema_period, "signal_delta")
-    plot_confirm = ema_summary_plot_path(ema_period, "confirmation")
-    save_signal_delta_chart(pair_rows, plot_delta, ema_period=ema_period)
-    save_confirmation_chart(pair_rows, temporal_rows, plot_confirm, ema_period=ema_period)
+    plot_check1 = ema_summary_plot_path(ema_period, "check_pair_universality_delta")
+    plot_check2 = ema_summary_plot_path(ema_period, "check_temporal_stability_delta")
+    save_check_signal_delta_chart(
+        pair_rows,
+        plot_check1,
+        ema_period=ema_period,
+        title=f"EMA({ema_period}) — проверка 1: универсальность среди пар",
+        subtitle="зелёная полоса = статус «значим» (24 train / 25 val, 2022–2026)",
+    )
+    save_check_signal_delta_chart(
+        temporal_rows,
+        plot_check2,
+        ema_period=ema_period,
+        title=f"EMA({ema_period}) — проверка 2: устойчивость во времени",
+        subtitle="зелёная полоса = статус «значим» (49 пар, train 2022–2024-04 / val 2024-04–2026)",
+    )
 
     path = ema_summary_log_path(ema_period)
 
@@ -184,8 +193,8 @@ def run_summary_report(
     lines.extend([
         "",
         "=== Графики ===",
-        f"Δ train vs val: {plot_delta}",
-        f"Подтверждение на val: {plot_confirm}",
+        f"Проверка 1 — Δ train vs val: {plot_check1}",
+        f"Проверка 2 — Δ train vs val: {plot_check2}",
         "",
     ])
     save_summary_report("\n".join(lines), path)
