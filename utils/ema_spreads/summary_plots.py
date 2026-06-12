@@ -7,10 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from crypto_research.utils.ema_spreads.constants import (
-    SCREEN_MIN_POOLED_DELTA_PP,
-    SELECTED_EMA_PERIOD,
-)
+from crypto_research.utils.ema_spreads.constants import SELECTED_EMA_PERIOD
 from crypto_research.utils.ema_spreads.summary import EmaSignalSummaryRow
 from crypto_research.utils.pipeline.logger import get_logger
 
@@ -24,19 +21,6 @@ def _short_label(row: EmaSignalSummaryRow) -> str:
     return f"b{row.key.bucket}·{row.key.column[:6]}"
 
 
-def _material_rows(
-    rows: list[EmaSignalSummaryRow],
-    *,
-    min_train_delta_pp: float,
-) -> list[EmaSignalSummaryRow]:
-    return [
-        r
-        for r in rows
-        if r.train_delta_pp == r.train_delta_pp
-        and abs(r.train_delta_pp) >= min_train_delta_pp
-    ]
-
-
 def save_check_signal_delta_chart(
     rows: list[EmaSignalSummaryRow],
     path: Path,
@@ -44,17 +28,15 @@ def save_check_signal_delta_chart(
     ema_period: int = SELECTED_EMA_PERIOD,
     title: str,
     subtitle: str,
-    min_train_delta_pp: float = SCREEN_MIN_POOLED_DELTA_PP,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    material = _material_rows(rows, min_train_delta_pp=min_train_delta_pp)
-    if not material:
+    if not rows:
         return
-    labels = [_short_label(r) for r in material]
-    train_vals = [r.train_delta_pp for r in material]
+    labels = [_short_label(r) for r in rows]
+    train_vals = [r.train_delta_pp for r in rows]
     val_vals = [
         r.val_delta_pp if r.val_delta_pp == r.val_delta_pp else 0.0
-        for r in material
+        for r in rows
     ]
     y = np.arange(len(labels))
     bar_height = 0.35
@@ -62,7 +44,7 @@ def save_check_signal_delta_chart(
     fig, ax = plt.subplots(figsize=(11, fig_h))
     ax.barh(y - bar_height / 2, train_vals, height=bar_height, label="Δ train", color="#1f77b4")
     ax.barh(y + bar_height / 2, val_vals, height=bar_height, label="Δ val", color="#ff7f0e")
-    for i, row in enumerate(material):
+    for i, row in enumerate(rows):
         if row.status == "значим":
             ax.axhspan(i - 0.5, i + 0.5, color=COLOR_SIGNIFICANT, alpha=0.08, zorder=0)
     ax.set_yticks(y, labels, fontsize=8)
