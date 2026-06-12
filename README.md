@@ -62,7 +62,7 @@
 
 ![Проверка 1 — train / val NAV](research_outputs/day_of_week/statistics/plots/dow_check_pair_universality_train_val_nav.png)
 
-_Рис. 1a. Накопленная open→close доходность по дням недели: train (24 пары) и val (25 пар), один период 2022–2026. Красная жирная — все дни; цветные линии — по weekday (UTC)._
+_Рис. 1a. Накопленная open→close доходность по дням недели: train (24 пары) и val (25 пар), один период 2022–2026. Отдельная линия на каждый weekday (UTC)._
 
 ---
 
@@ -82,15 +82,11 @@ _Рис. 1a. Накопленная open→close доходность по дн�
 
 ![Проверка 2 — train / val NAV](research_outputs/day_of_week/statistics/plots/dow_check_temporal_stability_train_val_nav.png)
 
-_Рис. 1b. Накопленная open→close доходность: train-период (2022-01-01 – 2024-04-01) и val-период (2024-04-01 – 2026-05-31), 49 пар. Красная жирная — все дни; цветные линии — по weekday (UTC)._
+_Рис. 1b. Накопленная open→close доходность: train-период (2022-01-01 – 2024-04-01) и val-период (2024-04-01 – 2026-05-31), 49 пар. Отдельная линия на каждый weekday (UTC)._
 
 ---
 
 #### Итоговая сводка (49 пар, 2022–2026)
-
-![Накопленная доходность по дням недели (49 пар, 2022–2026)](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20260531.png)
-
-_Рис. 1. Простая накопленная доходность при входе на open и выходе на close. Без реинвестирования, равный вес пар._
 
 | День | Средняя, % | Медиана, % | σ, % | Доля роста | Статус       |
 | ---- | ---------- | ---------- | ---- | ---------- | ------------ |
@@ -103,6 +99,10 @@ _Рис. 1. Простая накопленная доходность при в
 | Вс   | -0.19      | -0.36      | 4.62 | 55.0%      | ❌ не значим |
 
 _Статус «значим» — одновременно прошли cross‑asset и out‑of‑time._
+
+![Накопленная доходность по дням недели (49 пар, 2022–2026)](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20260531.png)
+
+_Рис. 1. Простая накопленная доходность при входе на open и выходе на close. Без реинвестирования, равный вес пар._
 
 ---
 
@@ -137,12 +137,12 @@ _Статус «значим» — одновременно прошли cross�
 
 **Графики:**
 
-| Материал | Описание |
-| -------- | -------- |
-| [Проверка 1 — train / val NAV](research_outputs/day_of_week/statistics/plots/dow_check_pair_universality_train_val_nav.png) | NAV по когортам универсальности (24 train + 25 val, один период) |
-| [Проверка 2 — train / val NAV](research_outputs/day_of_week/statistics/plots/dow_check_temporal_stability_train_val_nav.png) | NAV по временным окнам out-of-time (49 пар) |
+| Материал                                                                                                                                                                                                                                         | Описание                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| [Проверка 1 — train / val NAV](research_outputs/day_of_week/statistics/plots/dow_check_pair_universality_train_val_nav.png)                                                                                                                      | NAV по когортам универсальности (24 train + 25 val, один период)  |
+| [Проверка 2 — train / val NAV](research_outputs/day_of_week/statistics/plots/dow_check_temporal_stability_train_val_nav.png)                                                                                                                     | NAV по временным окнам out-of-time (49 пар)                       |
 | [NAV, 24 train](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_24pairs_20220101_20260531_train.png) · [25 val](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_25pairs_20220101_20260531_val.png) | Детальные NAV по когортам (отдельные прогоны `--train` / `--val`) |
-| [NAV, train период](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20240401.png) · [val период](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20240401_20260531.png) | Детальные NAV по периодам (отдельные прогоны) |
+| [NAV, train период](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20220101_20240401.png) · [val период](research_outputs/day_of_week/statistics/plots/dow_intraday_session_nav_49pairs_20240401_20260531.png)   | Детальные NAV по периодам (отдельные прогоны)                     |
 
 #### Воспроизведение отчётов
 

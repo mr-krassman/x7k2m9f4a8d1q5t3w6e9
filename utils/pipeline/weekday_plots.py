@@ -38,8 +38,6 @@ LINE_WIDTH_DEFAULT = 1.6
 LINE_WIDTH_COMPACT = 1.2
 LINE_WIDTH_HIGHLIGHT = 3.2
 LINE_WIDTH_DIM = 0.9
-AGGREGATE_COLOR = "#c41e3a"
-AGGREGATE_LINE_WIDTH = 3.2
 CHECK_FIG_W_IN = 20.0
 CHECK_FIG_H_IN = 6.5
 MAIN_PLOT_BOTTOM = 0.18
@@ -122,22 +120,6 @@ def _cumulative_simple_return_pct(returns_pct: np.ndarray) -> np.ndarray:
     return np.cumsum(returns_pct.astype(np.float64))
 
 
-def _all_weekdays_curve(daily: pl.DataFrame, pair: str | None = None) -> tuple[np.ndarray, np.ndarray] | None:
-    df = _normalize_weekday(daily)
-    if pair is not None:
-        df = df.filter(pl.col("pair") == pair)
-    agg = (
-        df.group_by("day_utc")
-        .agg(pl.col("return_pct").mean().alias("return_pct"))
-        .sort("day_utc")
-    )
-    if agg.height == 0:
-        return None
-    dates = agg["day_utc"].to_numpy()
-    nav = _cumulative_simple_return_pct(agg["return_pct"].to_numpy())
-    return dates, nav
-
-
 def _weekday_curves(session: pl.DataFrame) -> dict[int, tuple[np.ndarray, np.ndarray]]:
     out: dict[int, tuple[np.ndarray, np.ndarray]] = {}
     for wd in range(7):
@@ -175,7 +157,6 @@ def _plot_weekday_nav(
     compact: bool,
     xlabel: str | None = None,
     highlight_weekdays: frozenset[int] = frozenset(),
-    aggregate_curve: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> None:
     for wd in range(7):
         if wd not in curves:
@@ -194,17 +175,6 @@ def _plot_weekday_nav(
             label=f"{WEEKDAY_LABELS[wd]} ({WEEKDAY_LABELS_RU[wd]})",
             alpha=alpha,
             zorder=zorder,
-        )
-    if aggregate_curve is not None:
-        dates, nav = aggregate_curve
-        ax.plot(
-            dates,
-            nav,
-            color=AGGREGATE_COLOR,
-            linewidth=AGGREGATE_LINE_WIDTH,
-            label="All weekdays (Все дни)",
-            alpha=1.0,
-            zorder=5,
         )
     ax.axhline(ZERO_LINE, color="#94a3b8", linewidth=0.8, linestyle="--", zorder=0)
     if title:
@@ -317,7 +287,6 @@ def _plot_train_val_panel(
 ) -> None:
     session = _session_returns(daily, None)
     curves = _weekday_curves(session)
-    aggregate = _all_weekdays_curve(daily, None)
     period = f"{from_date:%Y-%m-%d} — {to_date:%Y-%m-%d}"
     _plot_weekday_nav(
         ax,
@@ -325,7 +294,6 @@ def _plot_train_val_panel(
         title=f"{panel_title}\n{period} · {len(pairs)} pairs",
         compact=False,
         xlabel="Date (UTC)",
-        aggregate_curve=aggregate,
     )
 
 
