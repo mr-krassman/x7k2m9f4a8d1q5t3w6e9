@@ -6,9 +6,20 @@ from pathlib import Path
 
 import polars as pl
 
+from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.logger import get_logger
-from crypto_research.utils.pipeline.paths import weekday_summary_log_path
+from crypto_research.utils.pipeline.paths import (
+    PAIR_UNIVERSALITY_FROM,
+    PAIR_UNIVERSALITY_TO,
+    TEMPORAL_TRAIN_FROM,
+    TEMPORAL_TRAIN_TO,
+    TEMPORAL_VAL_FROM,
+    TEMPORAL_VAL_TO,
+    weekday_check_plot_path,
+    weekday_summary_log_path,
+)
 from crypto_research.utils.pipeline.report_context import ReportContext
+from crypto_research.utils.pipeline.weekday_plots import save_weekday_train_val_nav_comparison
 from crypto_research.utils.research.signal_validation import ConfirmationMode, intersect_status
 from crypto_research.utils.research.train_val_report import (
     full_pool_intro,
@@ -106,6 +117,56 @@ def save_summary_report(text: str, path: Path) -> Path:
     return path
 
 
+def _save_check_plots(
+    train_daily: pl.DataFrame,
+    train_pairs: list[str],
+    val_daily: pl.DataFrame,
+    val_pairs: list[str],
+    temporal_train_daily: pl.DataFrame,
+    temporal_val_daily: pl.DataFrame,
+    temporal_pairs: list[str],
+) -> tuple[Path, Path]:
+    pair_univ_from = parse_iso_utc(PAIR_UNIVERSALITY_FROM)
+    pair_univ_to = parse_iso_utc(PAIR_UNIVERSALITY_TO)
+    temporal_train_from = parse_iso_utc(TEMPORAL_TRAIN_FROM)
+    temporal_train_to = parse_iso_utc(TEMPORAL_TRAIN_TO)
+    temporal_val_from = parse_iso_utc(TEMPORAL_VAL_FROM)
+    temporal_val_to = parse_iso_utc(TEMPORAL_VAL_TO)
+
+    plot_pair_univ = weekday_check_plot_path("pair_universality")
+    save_weekday_train_val_nav_comparison(
+        train_daily,
+        train_pairs,
+        pair_univ_from,
+        pair_univ_to,
+        f"Train ({len(train_pairs)} pairs)",
+        val_daily,
+        val_pairs,
+        pair_univ_from,
+        pair_univ_to,
+        f"Val ({len(val_pairs)} pairs)",
+        plot_pair_univ,
+        suptitle="Проверка 1 — универсальность среди пар (cross-asset)",
+    )
+
+    plot_temporal = weekday_check_plot_path("temporal_stability")
+    save_weekday_train_val_nav_comparison(
+        temporal_train_daily,
+        temporal_pairs,
+        temporal_train_from,
+        temporal_train_to,
+        f"Train period ({len(temporal_pairs)} pairs)",
+        temporal_val_daily,
+        temporal_pairs,
+        temporal_val_from,
+        temporal_val_to,
+        f"Val period ({len(temporal_pairs)} pairs)",
+        plot_temporal,
+        suptitle="Проверка 2 — устойчивость во времени (out-of-time)",
+    )
+    return plot_pair_univ, plot_temporal
+
+
 def run_summary_report(
     ctx: ReportContext,
     train_daily: pl.DataFrame,
@@ -129,4 +190,21 @@ def run_summary_report(
         full_daily,
         full_pairs,
     )
-    return save_summary_report(text, weekday_summary_log_path())
+    plot_pair_univ, plot_temporal = _save_check_plots(
+        train_daily,
+        train_pairs,
+        val_daily,
+        val_pairs,
+        temporal_train_daily,
+        temporal_val_daily,
+        temporal_pairs,
+    )
+    lines = text.splitlines()
+    lines.extend([
+        "",
+        "=== Графики ===",
+        f"Проверка 1 (train/val): {plot_pair_univ}",
+        f"Проверка 2 (train/val): {plot_temporal}",
+        "",
+    ])
+    return save_summary_report("\n".join(lines), weekday_summary_log_path())

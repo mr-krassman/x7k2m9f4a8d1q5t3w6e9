@@ -38,6 +38,10 @@ LINE_WIDTH_DEFAULT = 1.6
 LINE_WIDTH_COMPACT = 1.2
 LINE_WIDTH_HIGHLIGHT = 3.2
 LINE_WIDTH_DIM = 0.9
+AGGREGATE_COLOR = "#c41e3a"
+AGGREGATE_LINE_WIDTH = 3.2
+CHECK_FIG_W_IN = 20.0
+CHECK_FIG_H_IN = 6.5
 MAIN_PLOT_BOTTOM = 0.18
 MAIN_PLOT_LEFT = 0.07
 MAIN_PLOT_WIDTH = 0.91
@@ -118,6 +122,22 @@ def _cumulative_simple_return_pct(returns_pct: np.ndarray) -> np.ndarray:
     return np.cumsum(returns_pct.astype(np.float64))
 
 
+def _all_weekdays_curve(daily: pl.DataFrame, pair: str | None = None) -> tuple[np.ndarray, np.ndarray] | None:
+    df = _normalize_weekday(daily)
+    if pair is not None:
+        df = df.filter(pl.col("pair") == pair)
+    agg = (
+        df.group_by("day_utc")
+        .agg(pl.col("return_pct").mean().alias("return_pct"))
+        .sort("day_utc")
+    )
+    if agg.height == 0:
+        return None
+    dates = agg["day_utc"].to_numpy()
+    nav = _cumulative_simple_return_pct(agg["return_pct"].to_numpy())
+    return dates, nav
+
+
 def _weekday_curves(session: pl.DataFrame) -> dict[int, tuple[np.ndarray, np.ndarray]]:
     out: dict[int, tuple[np.ndarray, np.ndarray]] = {}
     for wd in range(7):
@@ -155,6 +175,7 @@ def _plot_weekday_nav(
     compact: bool,
     xlabel: str | None = None,
     highlight_weekdays: frozenset[int] = frozenset(),
+    aggregate_curve: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> None:
     for wd in range(7):
         if wd not in curves:
@@ -173,6 +194,17 @@ def _plot_weekday_nav(
             label=f"{WEEKDAY_LABELS[wd]} ({WEEKDAY_LABELS_RU[wd]})",
             alpha=alpha,
             zorder=zorder,
+        )
+    if aggregate_curve is not None:
+        dates, nav = aggregate_curve
+        ax.plot(
+            dates,
+            nav,
+            color=AGGREGATE_COLOR,
+            linewidth=AGGREGATE_LINE_WIDTH,
+            label="All weekdays (Все дни)",
+            alpha=1.0,
+            zorder=5,
         )
     ax.axhline(ZERO_LINE, color="#94a3b8", linewidth=0.8, linestyle="--", zorder=0)
     if title:
@@ -272,6 +304,71 @@ def _build_figure(
         )
 
     return fig
+
+
+def _plot_train_val_panel(
+    ax: plt.Axes,
+    daily: pl.DataFrame,
+    pairs: list[str],
+    from_date: datetime,
+    to_date: datetime,
+    *,
+    panel_title: str,
+) -> None:
+    session = _session_returns(daily, None)
+    curves = _weekday_curves(session)
+    aggregate = _all_weekdays_curve(daily, None)
+    period = f"{from_date:%Y-%m-%d} — {to_date:%Y-%m-%d}"
+    _plot_weekday_nav(
+        ax,
+        curves,
+        title=f"{panel_title}\n{period} · {len(pairs)} pairs",
+        compact=False,
+        xlabel="Date (UTC)",
+        aggregate_curve=aggregate,
+    )
+
+
+def save_weekday_train_val_nav_comparison(
+    train_daily: pl.DataFrame,
+    train_pairs: list[str],
+    train_from: datetime,
+    train_to: datetime,
+    train_panel_title: str,
+    val_daily: pl.DataFrame,
+    val_pairs: list[str],
+    val_from: datetime,
+    val_to: datetime,
+    val_panel_title: str,
+    path: Path,
+    *,
+    suptitle: str,
+) -> Path:
+    _apply_plot_style()
+    fig, axes = plt.subplots(1, 2, figsize=(CHECK_FIG_W_IN, CHECK_FIG_H_IN), dpi=PLOT_DPI)
+    fig.suptitle(suptitle, fontsize=11, fontweight="bold", y=0.98)
+    _plot_train_val_panel(
+        axes[0],
+        train_daily,
+        train_pairs,
+        train_from,
+        train_to,
+        panel_title=train_panel_title,
+    )
+    _plot_train_val_panel(
+        axes[1],
+        val_daily,
+        val_pairs,
+        val_from,
+        val_to,
+        panel_title=val_panel_title,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=PLOT_DPI, facecolor=fig.get_facecolor(), bbox_inches="tight", pad_inches=SAVE_PAD_INCHES)
+    plt.close(fig)
+    log.info("[2] Train/val NAV comparison: %s", path)
+    return path
 
 
 def save_weekday_nav_plots(

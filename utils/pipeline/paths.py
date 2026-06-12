@@ -126,6 +126,11 @@ def weekday_plot_path(
     return WEEKDAY_PLOTS_DIR / f"dow_intraday_session_nav_{tag}.png"
 
 
+def weekday_check_plot_path(check: str) -> Path:
+    """Train+val NAV на одном полотне для проверки (pair_universality | temporal_stability)."""
+    return WEEKDAY_PLOTS_DIR / f"dow_check_{check}_train_val_nav.png"
+
+
 def ema_spreads_output_tag(
     n_pairs: int,
     from_date: datetime,

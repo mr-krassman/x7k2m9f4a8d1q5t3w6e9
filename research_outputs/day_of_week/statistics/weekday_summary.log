@@ -97,3 +97,7 @@ p-value (train) — permutation по средним return каждой train-е
 Сб   | +0.27%     | +0.10%     | 4.50%            | 51.7%              | 10163             | значим   
 Вс   | -0.19%     | -0.36%     | 4.62%            | 55.0%              | 10163             | не значим
 
+=== Графики ===
+Проверка 1 (train/val): /home_admin/crypto_bot/crypto_research/research_outputs/day_of_week/statistics/plots/dow_check_pair_universality_train_val_nav.png
+Проверка 2 (train/val): /home_admin/crypto_bot/crypto_research/research_outputs/day_of_week/statistics/plots/dow_check_temporal_stability_train_val_nav.png
+
