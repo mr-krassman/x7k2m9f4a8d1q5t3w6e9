@@ -19,7 +19,10 @@ def backtest_output_tag(
     *,
     scenario: str | None = None,
     pairs_by_weekday: dict[int, list[str]] | None = None,
+    selected_pairs: list[str] | None = None,
 ) -> str:
+    if scenario == "optimistic" and selected_pairs is not None:
+        return f"optimistic_b6_{len(selected_pairs)}pairs_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
     if scenario == "optimistic" and pairs_by_weekday:
         thu = len(pairs_by_weekday.get(3, ()))
         pt = len(pairs_by_weekday.get(4, ()))
@@ -35,6 +38,7 @@ def _tag(
     to_date: datetime,
     scenario: str | None = None,
     pairs_by_weekday: dict[int, list[str]] | None = None,
+    selected_pairs: list[str] | None = None,
 ) -> str:
     return backtest_output_tag(
         n_pairs,
@@ -42,6 +46,7 @@ def _tag(
         to_date,
         scenario=scenario,
         pairs_by_weekday=pairs_by_weekday,
+        selected_pairs=selected_pairs,
     )
 
 
@@ -53,8 +58,11 @@ def backtest_report_path(
     *,
     scenario: str | None = None,
     pairs_by_weekday: dict[int, list[str]] | None = None,
+    selected_pairs: list[str] | None = None,
 ) -> Path:
-    tag = _tag(strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday)
+    tag = _tag(
+        strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday, selected_pairs
+    )
     return strategy_backtest_dir(strategy) / f"{strategy}_backtest_{tag}.log"
 
 
@@ -66,8 +74,11 @@ def backtest_equity_plot_path(
     *,
     scenario: str | None = None,
     pairs_by_weekday: dict[int, list[str]] | None = None,
+    selected_pairs: list[str] | None = None,
 ) -> Path:
-    tag = _tag(strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday)
+    tag = _tag(
+        strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday, selected_pairs
+    )
     return strategy_backtest_plots_dir(strategy) / f"equity_curve_{tag}.png"
 
 
@@ -79,8 +90,11 @@ def backtest_drawdown_plot_path(
     *,
     scenario: str | None = None,
     pairs_by_weekday: dict[int, list[str]] | None = None,
+    selected_pairs: list[str] | None = None,
 ) -> Path:
-    tag = _tag(strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday)
+    tag = _tag(
+        strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday, selected_pairs
+    )
     return strategy_backtest_plots_dir(strategy) / f"drawdown_{tag}.png"
 
 
@@ -92,8 +106,11 @@ def backtest_returns_hist_plot_path(
     *,
     scenario: str | None = None,
     pairs_by_weekday: dict[int, list[str]] | None = None,
+    selected_pairs: list[str] | None = None,
 ) -> Path:
-    tag = _tag(strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday)
+    tag = _tag(
+        strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday, selected_pairs
+    )
     return strategy_backtest_plots_dir(strategy) / f"returns_hist_{tag}.png"
 
 
@@ -105,6 +122,9 @@ def backtest_weekday_corr_plot_path(
     *,
     scenario: str | None = None,
     pairs_by_weekday: dict[int, list[str]] | None = None,
+    selected_pairs: list[str] | None = None,
 ) -> Path:
-    tag = _tag(strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday)
+    tag = _tag(
+        strategy, n_pairs, from_date, to_date, scenario, pairs_by_weekday, selected_pairs
+    )
     return strategy_backtest_plots_dir(strategy) / f"weekday_corr_{tag}.png"

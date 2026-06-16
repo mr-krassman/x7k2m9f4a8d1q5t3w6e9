@@ -14,7 +14,7 @@ def parse_backtest_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Оркестратор бэктестов crypto_research.")
     parser.add_argument(
         "strategy",
-        choices=["day_of_week"],
+        choices=["day_of_week", "ema_spreads"],
         help="Название стратегии (совпадает с исследованием в report_generator)",
     )
     parser.add_argument(
@@ -61,10 +61,22 @@ def parse_backtest_args() -> argparse.Namespace:
         default=None,
         help="Потоки для параллельной загрузки JSONL",
     )
+    parser.add_argument(
+        "--ema-period",
+        type=int,
+        default=None,
+        help="Период EMA (только ema_spreads; по умолчанию 9)",
+    )
     args = parser.parse_args()
     from crypto_research.utils.backtest.strategies.registry import STRATEGY_HANDLERS
 
     if args.strategy not in STRATEGY_HANDLERS:
         parser.error(f"Неизвестная стратегия: {args.strategy}")
+    if args.ema_period is not None and args.strategy != "ema_spreads":
+        parser.error("--ema-period применим только к ema_spreads")
+    if args.ema_period is None and args.strategy == "ema_spreads":
+        from crypto_research.utils.ema_spreads.constants import SELECTED_EMA_PERIOD
+
+        args.ema_period = SELECTED_EMA_PERIOD
     STRATEGY_HANDLERS[args.strategy].validate_args(parser, args)
     return args

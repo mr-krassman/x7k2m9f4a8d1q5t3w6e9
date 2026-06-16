@@ -1,0 +1,199 @@
+=== Backtest: ema_spreads ===
+
+Оптимистичный сценарий: val, train-отбор пар по b6 × «Цена росла» (знак Δ + ≥2/3 лет). EMA(9), пороги b6 frozen train.
+  Long open→close при вчерашнем b6.
+  Остальные дни: flat.
+
+Сценарий: оптимистичный (val, train-отбор пар по b6 × «Цена росла»)
+Период (UTC): 2024-04-01 .. 2026-05-31
+Пар (union): 33
+Комиссии (net): Bybit USDT Perpetual (RU/CIS, non-VIP) — maker +0.036%, taker +0.100%, round-trip taker +0.200%
+
+Метрики нормированы: NAV=100, простая накопленная доходность, без привязки к депозиту.
+Gross — до комиссий; Net — после taker round-trip; Net (maker) — сценарий лимитных ордеров.
+
+=== Пары (train-отбор, optimistic) ===
+
+  1000luncusdt, aaveusdt, adausdt, aliceusdt, api3usdt, aptusdt, atomusdt, avaxusdt, bchusdt, bnbusdt, chzusdt
+    dogeusdt, dotusdt, dydxusdt, egldusdt, enjusdt, ethusdt, filusdt, galausdt, gmtusdt, injusdt, ltcusdt
+    ontusdt, opusdt, paxgusdt, solusdt, stxusdt, uniusdt, xlmusdt, xmrusdt, xrpusdt, zecusdt, zenusdt
+
+=== Portfolio (net of fees, taker) ===
+
+  NAV start / end (simple, base=100): 100.00 → 90.22
+  Total Return:              -9.78%
+  Ann. Return (linear):      -4.51%
+  CAGR (compounded):         -4.64%
+  Volatility (ann.):         +35.74%
+  Sharpe:                    -0.13  (Sharpe / Sortino: безрисковая ставка = 0% (стандарт для крипто).)
+  Sortino:                   -0.14
+  Sharpe / sqrt(exposure):   -0.14
+  Max Drawdown:              -32.03%
+  Recovery from max DD:      не восстановился к концу периода
+  Longest underwater:        301 календарных дней
+  % time in drawdown:        99.1%
+  Calmar:                    -0.14
+  Win Rate (trades):         +45.4%
+  Profit Factor:             0.97
+  Avg return (all days):     -0.012%
+  Avg return (trading days): -0.016%
+  Trade return σ:            +2.108%
+  Trade return median:       -0.019%
+  Best day: +11.00% — 2026-02-06 (Пт)
+  Worst day: -13.54% — 2026-02-05 (Чт)
+  Exposure:                  +78.8% (623/791 days in market)
+
+=== Portfolio (gross, no fees) ===
+
+  NAV start / end (simple, base=100): 100.00 → 133.39
+  Total Return:              +33.39%
+  Ann. Return (linear):      +15.42%
+  CAGR (compounded):         +14.23%
+  Volatility (ann.):         +35.81%
+  Sharpe:                    0.43  (Sharpe / Sortino: безрисковая ставка = 0% (стандарт для крипто).)
+  Sortino:                   0.47
+  Sharpe / sqrt(exposure):   0.49
+  Max Drawdown:              -22.91%
+  Recovery from max DD:      93 календарных дней (до 2024-11-06)
+  Longest underwater:        203 календарных дней
+  % time in drawdown:        85.2%
+  Calmar:                    0.67
+  Win Rate (trades):         +47.8%
+  Profit Factor:             1.10
+  Avg return (all days):     +0.042%
+  Avg return (trading days): +0.054%
+  Trade return σ:            +2.112%
+  Trade return median:       -0.005%
+  Best day: +11.20% — 2026-02-06 (Пт)
+  Worst day: -13.37% — 2026-02-05 (Чт)
+  Exposure:                  +78.8% (623/791 days in market)
+
+=== Portfolio (net, maker scenario) ===
+
+  NAV start / end (simple, base=100): 100.00 → 117.85
+  Total Return:              +17.85%
+  Ann. Return (linear):      +8.24%
+  CAGR (compounded):         +7.88%
+  Volatility (ann.):         +35.78%
+  Sharpe:                    0.23  (Sharpe / Sortino: безрисковая ставка = 0% (стандарт для крипто).)
+  Sortino:                   0.25
+  Sharpe / sqrt(exposure):   0.26
+  Max Drawdown:              -24.74%
+  Recovery from max DD:      128 календарных дней (до 2024-12-11)
+  Longest underwater:        248 календарных дней
+  % time in drawdown:        93.4%
+  Calmar:                    0.33
+  Win Rate (trades):         +46.9%
+  Profit Factor:             1.05
+  Avg return (all days):     +0.023%
+  Avg return (trading days): +0.029%
+  Trade return σ:            +2.110%
+  Trade return median:       -0.007%
+  Best day: +11.13% — 2026-02-06 (Пт)
+  Worst day: -13.43% — 2026-02-05 (Чт)
+  Exposure:                  +78.8% (623/791 days in market)
+
+=== Benchmark (Buy & Hold, equal weight 49 pairs, gross) ===
+
+  NAV start / end (simple, base=100): 100.00 → 68.61
+  Total Return:              -31.39%
+  Ann. Return (linear):      -14.50%
+  CAGR (compounded):         -15.97%
+  Volatility (ann.):         +72.03%
+  Sharpe:                    -0.20  (Sharpe / Sortino: безрисковая ставка = 0% (стандарт для крипто).)
+  Sortino:                   -0.28
+  Sharpe / sqrt(exposure):   -0.20
+  Max Drawdown:              -70.32%
+  Recovery from max DD:      не восстановился к концу периода
+  Longest underwater:        539 календарных дней
+  % time in drawdown:        98.1%
+  Calmar:                    -0.21
+  Win Rate (trades):         +50.9%
+  Profit Factor:             0.97
+  Avg return (all days):     -0.040%
+  Avg return (trading days): -0.040%
+  Trade return σ:            +3.769%
+  Trade return median:       +0.078%
+  Best day: +13.47% — 2025-11-07 (Пт)
+  Worst day: -22.25% — 2025-10-10 (Пт)
+  Exposure:                  +100.0% (791/791 days in market)
+
+=== Benchmark (BTC Buy & Hold, gross) ===
+
+  NAV start / end (simple, base=100): 100.00 → 128.32
+  Total Return:              +28.32%
+  Ann. Return (linear):      +13.15%
+  CAGR (compounded):         +12.27%
+  Volatility (ann.):         +46.59%
+  Sharpe:                    0.28  (Sharpe / Sortino: безрисковая ставка = 0% (стандарт для крипто).)
+  Sortino:                   0.43
+  Sharpe / sqrt(exposure):   0.28
+  Max Drawdown:              -37.40%
+  Recovery from max DD:      не восстановился к концу периода
+  Longest underwater:        233 календарных дней
+  % time in drawdown:        94.3%
+  Calmar:                    0.35
+  Win Rate (trades):         +50.2%
+  Profit Factor:             1.04
+  Avg return (all days):     +0.036%
+  Avg return (trading days): +0.036%
+  Trade return σ:            +2.438%
+  Trade return median:       +0.007%
+  Best day: +12.18% — 2026-02-06 (Пт)
+  Worst day: -14.03% — 2026-02-05 (Чт)
+  Exposure:                  +100.0% (787/787 days in market)
+
+=== Exposure и сравнение с бенчмарком ===
+
+Exposure стратегии: 78.8%. Капитал в рынке только в дни с сигналом b6 (вчера dev < t1⁻, EMA(9)).
+Прямое сравнение Sharpe с Buy & Hold (100% exposure) требует осторожности.
+Information Ratio (net taker vs B&H 49 пар gross): 0.18.
+Information Ratio (net maker vs B&H 49 пар gross): 0.41.
+Sharpe / sqrt(exposure) (net taker): -0.14.
+
+=== Комментарий к комиссиям ===
+
+Net-метрики по умолчанию консервативны: taker 0.100% × 2 = 0.200% round-trip на каждый торговый день.
+При лимитных ордерах (maker 0.036% × 2 = 0.072% round-trip) net total ≈ +17.85% — ближе к gross (+33.39%).
+
+=== By segment (net) ===
+
+Сегмент | Trades | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD
+----------------------------------------------------------------------------
+b6      |    623 |    -9.78% |   -0.016% | -0.019% | +2.108% |  -0.14 | -32.03%
+
+=== By segment (gross) ===
+
+Сегмент | Trades | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD
+----------------------------------------------------------------------------
+b6      |    623 |   +33.39% |   +0.054% | -0.005% | +2.112% |   0.49 | -22.91%
+
+=== Сводные метрики по дням недели (net maker) ===
+
+| Метрика | Пн | Вт | Ср | Чт | Пт | Сб | Вс |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Total Return | +25.6% | -7.0% | +39.9% | -34.0% | +18.7% | -9.5% | -16.0% |
+| CAGR (compounded) | +11.1% | -3.3% | +16.8% | -17.5% | +8.2% | -4.5% | -7.7% |
+| Sharpe (0% rf) | 0.93 | -0.28 | 1.32 | -1.03 | 0.63 | -0.35 | -0.52 |
+| Sharpe / √exposure | 2.81 | -0.85 | 3.89 | -3.07 | 1.80 | -1.01 | -1.59 |
+| Max Drawdown | -9.1% | -11.6% | -4.7% | -39.2% | -10.6% | -12.5% | -27.5% |
+| Recovery from max DD | 140 дн. | не восстановился | 70 дн. | не восстановился | 168 дн. | не восстановился | не восстановился |
+| Longest underwater | 1 дн. | 288 дн. | 1 дн. | 1 дн. | 1 дн. | 1 дн. | 1 дн. |
+| Calmar | 1.31 | -0.28 | 3.90 | -0.40 | 0.81 | -0.35 | -0.27 |
+| Profit Factor | 1.67 | 0.86 | 2.14 | 0.50 | 1.43 | 0.80 | 0.72 |
+| Win Rate (trades) | +55.8% | +45.3% | +50.5% | +36.0% | +51.6% | +51.1% | +36.9% |
+| Median trade return | +0.024% | -0.040% | +0.006% | -0.109% | +0.011% | +0.006% | -0.075% |
+| Information Ratio (vs B&H 49) | 0.76 | 1.52 | -0.45 | 2.03 | -0.73 | -3.61 | 3.20 |
+| Exposure | +10.9% | +10.9% | +11.5% | +11.3% | +12.0% | +11.6% | +10.6% |
+
+=== Статистика распределения (только торговые дни) ===
+
+                  Gross        Net
+Skewness:          0.04      -0.09
+Kurtosis:          9.41       9.48
+1% VaR:           -6.2%      -6.3%
+5% VaR:           -2.9%      -3.0%
+1% CVaR:          -9.1%      -9.3%
+5% CVaR:          -5.2%      -5.3%
+
+VaR — перцентиль худших дней; CVaR (Expected Shortfall) — средний убыток в хвосте ≤ VaR.

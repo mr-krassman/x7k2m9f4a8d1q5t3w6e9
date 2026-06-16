@@ -104,6 +104,7 @@ def save_equity_curve_plot(
     to_date: datetime,
     n_pairs: int,
     path: Path,
+    layout: str = "weekday",
 ) -> Path:
     _apply_style()
     merged = (
@@ -136,6 +137,30 @@ def save_equity_curve_plot(
     nav_maker = _equity_nav_series(maker, weekdays, None)
     nav_bh = _equity_nav_series(bh, weekdays, None)
     nav_btc = _equity_nav_series(btc_arr, weekdays, None) if btc_arr is not None else None
+
+    if layout == "simple" or not trading_weekdays:
+        fig, ax_main = plt.subplots(figsize=(FIG_W, FIG_H), dpi=PLOT_DPI)
+        _plot_equity_lines(
+            ax_main, dates, nav_taker, nav_maker, nav_bh, nav_btc, show_legend=True
+        )
+        ax_main.set_ylabel("NAV (simple, base=100)", fontsize=10)
+        ax_main.set_xlabel("Date (UTC)")
+        title_line = f"Backtest equity — {strategy}"
+        if scenario_label:
+            title_line = f"{title_line} · {scenario_label}"
+        ax_main.set_title(
+            f"{title_line}\n"
+            f"{n_pairs} pairs · {from_date:%Y-%m-%d} — {to_date:%Y-%m-%d} · equal weight · no reinvest",
+            loc="left",
+            fontsize=12,
+            fontweight="semibold",
+        )
+        fig.tight_layout()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight", pad_inches=0.15)
+        plt.close(fig)
+        log.info("[backtest] plot: %s", path)
+        return path
 
     fig = plt.figure(figsize=(28.0, 18.0), dpi=PLOT_DPI)
     gs = fig.add_gridspec(2, len(trading_weekdays), height_ratios=[2.2, 1.0], hspace=0.38, wspace=0.22)
@@ -193,6 +218,7 @@ def save_drawdown_plot(
     trading_weekdays: tuple[int, ...] = (3, 4, 5),
     scenario_label: str | None = None,
     path: Path,
+    layout: str = "weekday",
 ) -> Path:
     _apply_style()
     dates = portfolio["day_utc"].to_numpy()
@@ -201,17 +227,18 @@ def save_drawdown_plot(
     dd_total = _drawdown_for_weekday(maker, weekdays, None)
 
     fig, ax = plt.subplots(figsize=(FIG_W, 5.5), dpi=PLOT_DPI)
-    for wd in trading_weekdays:
-        dd_wd = _drawdown_for_weekday(maker, weekdays, wd)
-        color = WEEKDAY_DD_COLORS.get(wd, "#64748b")
-        ax.plot(
-            dates,
-            dd_wd,
-            color=color,
-            linewidth=LW_WEEKDAY_DD,
-            label=WEEKDAY_NAMES[wd],
-            alpha=0.9,
-        )
+    if layout != "simple" and trading_weekdays:
+        for wd in trading_weekdays:
+            dd_wd = _drawdown_for_weekday(maker, weekdays, wd)
+            color = WEEKDAY_DD_COLORS.get(wd, "#64748b")
+            ax.plot(
+                dates,
+                dd_wd,
+                color=color,
+                linewidth=LW_WEEKDAY_DD,
+                label=WEEKDAY_NAMES[wd],
+                alpha=0.9,
+            )
     ax.plot(
         dates,
         dd_total,

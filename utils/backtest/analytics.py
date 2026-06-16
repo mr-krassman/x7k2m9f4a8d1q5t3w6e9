@@ -275,3 +275,29 @@ def drawdown_series(returns_pct: np.ndarray) -> np.ndarray:
     nav = equity_curve_simple(returns_pct)
     peak = np.maximum.accumulate(nav)
     return (nav - peak) / peak * 100.0
+
+
+def _weekday_portfolio_view(
+    portfolio: pl.DataFrame,
+    wd: int,
+    column: str,
+) -> tuple[pl.DataFrame, np.ndarray]:
+    """Полный календарь val: доходность только в целевой weekday, иначе 0%."""
+    returns = portfolio[column].to_numpy()
+    weekdays = portfolio["weekday"].to_numpy()
+    position = portfolio["position"].to_numpy()
+    masked = np.where(weekdays == wd, returns, 0.0)
+    trade = (weekdays == wd) & (position != 0)
+    view = portfolio.with_columns(pl.Series(column, masked))
+    return view, trade
+
+
+def analytics_by_weekday(
+    portfolio: pl.DataFrame,
+    column: str,
+) -> dict[int, PortfolioAnalytics]:
+    by_wd: dict[int, PortfolioAnalytics] = {}
+    for wd in range(7):
+        view, trade = _weekday_portfolio_view(portfolio, wd, column)
+        by_wd[wd] = build_portfolio_analytics(view, column, trading_mask=trade)
+    return by_wd

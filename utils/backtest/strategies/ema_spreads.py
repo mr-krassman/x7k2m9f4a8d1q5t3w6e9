@@ -1,4 +1,4 @@
-"""Стратегия day_of_week: long Пт/Сб, short Чт, flat остальные дни."""
+"""Стратегия ema_spreads: long intraday при вчерашнем b6 (EMA dev < t1⁻)."""
 
 from __future__ import annotations
 
@@ -10,29 +10,21 @@ import polars as pl
 
 from crypto_research.utils.backtest.analytics import (
     PortfolioAnalytics,
-    analytics_by_weekday,
     build_portfolio_analytics,
     information_ratio,
-    weekday_correlation_matrix,
 )
-from crypto_research.utils.backtest.benchmark import (
-    build_btc_buy_hold_portfolio,
-    build_buy_hold_portfolio,
-    filter_daily_by_weekday_pairs,
-)
+from crypto_research.utils.backtest.benchmark import build_btc_buy_hold_portfolio, build_buy_hold_portfolio
 from crypto_research.utils.backtest.fees import DEFAULT_FEE, FeeSchedule
 from crypto_research.utils.backtest.paths import (
     backtest_drawdown_plot_path,
     backtest_equity_plot_path,
     backtest_report_path,
     backtest_returns_hist_plot_path,
-    backtest_weekday_corr_plot_path,
 )
 from crypto_research.utils.backtest.plots import (
     save_drawdown_plot,
     save_equity_curve_plot,
     save_returns_histogram_plot,
-    save_weekday_corr_plot,
 )
 from crypto_research.utils.backtest.report import BacktestResult, save_backtest_report
 from crypto_research.utils.backtest.scenarios import (
@@ -40,85 +32,102 @@ from crypto_research.utils.backtest.scenarios import (
     SCENARIO_OPTIMISTIC,
     scenario_label_ru,
 )
+from crypto_research.utils.ema_spreads.constants import SELECTED_EMA_PERIOD
+from crypto_research.utils.ema_spreads.ema import (
+    assign_ema_dev_buckets_vectorized,
+    build_ema_work_frame,
+    build_pair_thresholds_frame,
+    ema_dev_prev_column,
+)
+from crypto_research.utils.ema_spreads.pair_selection import EMA_BUCKET_B6, EMA_TRAIN_SIGNAL
 from crypto_research.utils.pipeline.logger import get_logger
 
-log = get_logger("strategy_day_of_week")
+log = get_logger("strategy_ema_spreads")
 
-STRATEGY_NAME = "day_of_week"
-TRADING_WEEKDAYS: tuple[int, ...] = (3, 4, 5)
+STRATEGY_NAME = "ema_spreads"
+TRADING_SEGMENTS: tuple[str, ...] = ("b6",)
+WARMUP_CALENDAR_DAYS = 45
 
 STRATEGY_DESCRIPTION_MAXIMAL = (
-    "Intraday UTC, равный вес 49 пар, без реинвестирования. Сигналы — исследование day_of_week.\n"
-    "  Пятница, суббота: long на open → close. Доходность = (close−open)/open×100%.\n"
-    "  Четверг: short на open → close. Доходность short = (open−close)/open×100% "
-    "(эквивалент −(close−open)/open).\n"
+    "Intraday UTC, равный вес пар, без реинвестирования. Сигнал — исследование ema_spreads.\n"
+    f"  EMA({SELECTED_EMA_PERIOD}): если вчера dev попал в b6 (dev < t1⁻) → long open→close.\n"
+    "  Пороги b6 заморожены на train (2022-01-01 – 2024-04-01).\n"
+    "  Остальные дни: flat."
+)
+
+STRATEGY_DESCRIPTION_CONSERVATIVE = (
+    f"Консервативный сценарий: val-период, все 49 пар, EMA({SELECTED_EMA_PERIOD}), "
+    "long при вчерашнем b6. Пороги b6 заморожены на train.\n"
+    "  Доходность long = (close−open)/open×100%.\n"
     "  Остальные дни: flat."
 )
 
 STRATEGY_DESCRIPTION_OPTIMISTIC = (
-    "Оптимистичный сценарий: val-период, без реинвестирования. Пары отобраны на train "
-    "(знак Δ к BASE + ≥2/3 лет); свой набор на каждый торговый день.\n"
-    "  Пятница, суббота: long на open → close. Доходность = (close−open)/open×100%.\n"
-    "  Четверг: short на open → close. Доходность short = (open−close)/open×100% "
-    "(эквивалент −(close−open)/open).\n"
-    "  Остальные дни: flat."
-)
-
-
-STRATEGY_DESCRIPTION_CONSERVATIVE = (
-    "Консервативный сценарий: val-период, все 49 пар, без реинвестирования. "
-    "Baseline для сравнения с оптимистичным.\n"
-    "  Пятница, суббота: long на open → close. Доходность = (close−open)/open×100%.\n"
-    "  Четверг: short на open → close. Доходность short = (open−close)/open×100% "
-    "(эквивалент −(close−open)/open).\n"
+    f"Оптимистичный сценарий: val, train-отбор пар по b6 × «Цена росла» "
+    f"(знак Δ + ≥2/3 лет). EMA({SELECTED_EMA_PERIOD}), пороги b6 frozen train.\n"
+    "  Long open→close при вчерашнем b6.\n"
     "  Остальные дни: flat."
 )
 
 
 @dataclass(frozen=True)
-class DayOfWeekBacktestContext:
+class EmaSpreadsBacktestContext:
     data_dir: object
     from_date: datetime
     to_date: datetime
-    pairs: list[str] | None
+    pairs: list[str]
     workers: int
     fee: FeeSchedule = DEFAULT_FEE
     scenario: str = "maximal"
-    pairs_by_weekday: dict[int, list[str]] | None = None
+    ema_period: int = SELECTED_EMA_PERIOD
+    frozen_thresholds: pl.DataFrame | None = None
+    selected_pairs: list[str] | None = None
     daily_benchmark_49: pl.DataFrame | None = None
     n_benchmark_pairs: int = 49
 
 
-def _normalize_weekday(daily: pl.DataFrame) -> pl.DataFrame:
-    wd = daily["weekday"] if "weekday" in daily.columns else daily["day_utc"].dt.weekday()
-    wd_min = int(wd.min())
-    wd_max = int(wd.max())
-    if wd_min >= 1 and wd_max <= 7:
-        wd = ((wd - 1) % 7).cast(pl.Int64)
-    return daily.with_columns(wd.alias("weekday"))
-
-
-def _position_expr() -> pl.Expr:
-    return (
-        pl.when(pl.col("weekday") == 3)
-        .then(-1.0)
-        .when(pl.col("weekday").is_in([4, 5]))
-        .then(1.0)
-        .otherwise(0.0)
-        .alias("position")
-    )
+def compute_frozen_thresholds(daily_train: pl.DataFrame, period: int) -> pl.DataFrame:
+    work = build_ema_work_frame(daily_train, (period,))
+    prev_col = ema_dev_prev_column(period)
+    return build_pair_thresholds_frame(work, prev_col)
 
 
 def build_pair_returns(
     daily: pl.DataFrame,
     fee: FeeSchedule,
     *,
-    pairs_by_weekday: dict[int, list[str]] | None = None,
+    period: int,
+    frozen_thresholds: pl.DataFrame,
+    pair_filter: list[str] | None = None,
+    from_date: datetime | None = None,
+    to_date: datetime | None = None,
 ) -> pl.DataFrame:
-    df = _normalize_weekday(daily)
-    if pairs_by_weekday:
-        df = filter_daily_by_weekday_pairs(df, pairs_by_weekday)
-    df = df.with_columns(_position_expr())
+    work = build_ema_work_frame(daily, (period,))
+    prev_col = ema_dev_prev_column(period)
+    if "pair" not in work.columns:
+        work = work.with_columns(pl.lit("_single").alias("pair"))
+    merged = work.join(frozen_thresholds, on="pair", how="inner")
+    if pair_filter:
+        merged = merged.filter(pl.col("pair").is_in(pair_filter))
+
+    dev = merged[prev_col].to_numpy().astype(np.float64, copy=False)
+    buckets = assign_ema_dev_buckets_vectorized(
+        dev,
+        merged["t1_up"].to_numpy(),
+        merged["t2_up"].to_numpy(),
+        merged["t1_down"].to_numpy(),
+        merged["t2_down"].to_numpy(),
+        merged["near_abs"].to_numpy(),
+    )
+    position = np.where(buckets == EMA_BUCKET_B6, 1.0, 0.0)
+    df = merged.with_columns(
+        pl.Series("ema_bucket_prev", buckets),
+        pl.Series("position", position),
+    )
+    if from_date is not None:
+        df = df.filter(pl.col("day_utc") >= from_date)
+    if to_date is not None:
+        df = df.filter(pl.col("day_utc") <= to_date)
     return df.with_columns(
         (pl.col("position") * pl.col("return_pct")).alias("gross_return_pct"),
     ).with_columns(
@@ -130,6 +139,7 @@ def build_pair_returns(
         .then(pl.col("gross_return_pct") - fee.round_trip_maker_pct)
         .otherwise(0.0)
         .alias("net_maker_return_pct"),
+        pl.lit("b6").alias("segment"),
     )
 
 
@@ -140,24 +150,29 @@ def build_portfolio_daily(pair_returns: pl.DataFrame) -> pl.DataFrame:
             pl.col("gross_return_pct").mean().alias("gross_return_pct"),
             pl.col("net_return_pct").mean().alias("net_return_pct"),
             pl.col("net_maker_return_pct").mean().alias("net_maker_return_pct"),
-            pl.col("weekday").first().alias("weekday"),
-            pl.col("position").first().alias("position"),
+            pl.col("position").max().alias("position"),
+            pl.col("segment").first().alias("segment"),
         )
+        .with_columns(((pl.col("day_utc").dt.weekday() - 1) % 7).alias("weekday"))
         .sort("day_utc")
     )
 
 
-def _analytics_by_weekday(
-    portfolio: pl.DataFrame,
-    column: str,
-) -> dict[int, PortfolioAnalytics]:
-    return analytics_by_weekday(portfolio, column)
+def _analytics_by_segment(portfolio: pl.DataFrame, column: str) -> dict[str, PortfolioAnalytics]:
+    active = portfolio.filter(pl.col("position") != 0)
+    return {
+        "b6": build_portfolio_analytics(
+            active,
+            column,
+            trading_mask=np.ones(active.height, dtype=bool) if active.height else None,
+        )
+    }
 
 
-def _path_kwargs(ctx: DayOfWeekBacktestContext) -> dict:
+def _path_kwargs(ctx: EmaSpreadsBacktestContext) -> dict:
     return {
         "scenario": ctx.scenario if ctx.scenario == SCENARIO_OPTIMISTIC else None,
-        "pairs_by_weekday": ctx.pairs_by_weekday,
+        "selected_pairs": ctx.selected_pairs,
     }
 
 
@@ -174,7 +189,7 @@ def _aligned_benchmark_returns(
     return merged[column].to_numpy(), merged["bh"].to_numpy()
 
 
-def _strategy_description(ctx: DayOfWeekBacktestContext) -> str:
+def _strategy_description(ctx: EmaSpreadsBacktestContext) -> str:
     if ctx.scenario == SCENARIO_OPTIMISTIC:
         return STRATEGY_DESCRIPTION_OPTIMISTIC
     if ctx.scenario == SCENARIO_CONSERVATIVE:
@@ -182,13 +197,23 @@ def _strategy_description(ctx: DayOfWeekBacktestContext) -> str:
     return STRATEGY_DESCRIPTION_MAXIMAL
 
 
-def run_day_of_week_backtest(
+def run_ema_spreads_backtest(
     daily: pl.DataFrame,
     pairs: list[str],
-    ctx: DayOfWeekBacktestContext,
+    ctx: EmaSpreadsBacktestContext,
 ) -> BacktestResult:
+    if ctx.frozen_thresholds is None or ctx.frozen_thresholds.is_empty():
+        raise RuntimeError("frozen_thresholds не заданы для ema_spreads backtest")
+
+    pair_filter = ctx.selected_pairs if ctx.selected_pairs is not None else None
     pair_returns = build_pair_returns(
-        daily, ctx.fee, pairs_by_weekday=ctx.pairs_by_weekday
+        daily,
+        ctx.fee,
+        period=ctx.ema_period,
+        frozen_thresholds=ctx.frozen_thresholds,
+        pair_filter=pair_filter,
+        from_date=ctx.from_date,
+        to_date=ctx.to_date,
     )
     portfolio = build_portfolio_daily(pair_returns)
     bh_daily = ctx.daily_benchmark_49 if ctx.daily_benchmark_49 is not None else daily
@@ -223,14 +248,14 @@ def run_day_of_week_backtest(
         portfolio, benchmark_df, column="net_maker_return_pct"
     )
     ir_maker = information_ratio(strat_maker, bh_ret)
-    corr = weekday_correlation_matrix(portfolio, "net_maker_return_pct")
 
+    empty_corr = (tuple(), np.empty((0, 0)))
     result = BacktestResult(
         strategy=STRATEGY_NAME,
         strategy_description=_strategy_description(ctx),
         from_date=ctx.from_date,
         to_date=ctx.to_date,
-        pairs=pairs,
+        pairs=pairs if pair_filter is None else pair_filter,
         fee=ctx.fee,
         portfolio_net=portfolio_net,
         portfolio_gross=portfolio_gross,
@@ -239,17 +264,25 @@ def run_day_of_week_backtest(
         benchmark_btc=benchmark_btc,
         information_ratio_net=ir,
         information_ratio_net_maker=ir_maker,
-        by_weekday_net=_analytics_by_weekday(portfolio, "net_return_pct"),
-        by_weekday_gross=_analytics_by_weekday(portfolio, "gross_return_pct"),
-        weekday_corr=corr,
-        trading_weekdays=TRADING_WEEKDAYS,
+        by_weekday_net={},
+        by_weekday_gross={},
+        weekday_corr=empty_corr,
+        trading_weekdays=(),
         scenario=ctx.scenario,
-        pairs_by_weekday=ctx.pairs_by_weekday,
         n_benchmark_pairs=ctx.n_benchmark_pairs,
+        exposure_note=(
+            f"Капитал в рынке только в дни с сигналом {EMA_TRAIN_SIGNAL.label} "
+            f"(вчера dev < t1⁻, EMA({ctx.ema_period}))."
+        ),
+        by_segment_net=_analytics_by_segment(portfolio, "net_return_pct"),
+        by_segment_gross=_analytics_by_segment(portfolio, "gross_return_pct"),
+        trading_segments=TRADING_SEGMENTS,
+        selected_pairs=ctx.selected_pairs,
+        plot_layout="simple",
     )
 
     path_kw = _path_kwargs(ctx)
-    tag_args = (STRATEGY_NAME, len(pairs), ctx.from_date, ctx.to_date)
+    tag_args = (STRATEGY_NAME, len(result.pairs), ctx.from_date, ctx.to_date)
     scenario_labels = {
         SCENARIO_CONSERVATIVE: scenario_label_ru(SCENARIO_CONSERVATIVE),
         SCENARIO_OPTIMISTIC: scenario_label_ru(SCENARIO_OPTIMISTIC),
@@ -259,31 +292,27 @@ def run_day_of_week_backtest(
         portfolio,
         benchmark_df,
         btc=btc_df,
-        trading_weekdays=TRADING_WEEKDAYS,
+        trading_weekdays=(),
         strategy=STRATEGY_NAME,
         scenario_label=scenario_labels.get(ctx.scenario),
         from_date=ctx.from_date,
         to_date=ctx.to_date,
-        n_pairs=len(pairs),
+        n_pairs=len(result.pairs),
         path=backtest_equity_plot_path(*tag_args, **path_kw),
+        layout="simple",
     )
     save_drawdown_plot(
         portfolio,
         strategy=STRATEGY_NAME,
-        trading_weekdays=TRADING_WEEKDAYS,
+        trading_weekdays=(),
         scenario_label=scenario_labels.get(ctx.scenario),
         path=backtest_drawdown_plot_path(*tag_args, **path_kw),
+        layout="simple",
     )
     save_returns_histogram_plot(
         portfolio,
         strategy=STRATEGY_NAME,
         path=backtest_returns_hist_plot_path(*tag_args, **path_kw),
-    )
-    save_weekday_corr_plot(
-        *corr,
-        trading_weekdays=TRADING_WEEKDAYS,
-        strategy=STRATEGY_NAME,
-        path=backtest_weekday_corr_plot_path(*tag_args, **path_kw),
     )
 
     log.info("[backtest] report: %s", backtest_report_path(*tag_args, **path_kw))

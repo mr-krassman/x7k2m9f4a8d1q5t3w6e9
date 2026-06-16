@@ -10,7 +10,7 @@ import numpy as np
 
 from crypto_research.utils.backtest.analytics import PortfolioAnalytics, WEEKDAY_NAMES
 from crypto_research.utils.backtest.fees import FeeSchedule
-from crypto_research.utils.backtest.scenarios import SCENARIO_REPORT_HEADER
+from crypto_research.utils.backtest.scenarios import SCENARIO_REPORT_HEADER, EMA_SCENARIO_REPORT_HEADER
 
 RISK_FREE_NOTE = "Sharpe / Sortino: безрисковая ставка = 0% (стандарт для крипто)."
 _PAIRS_PER_LINE = 11
@@ -38,6 +38,12 @@ class BacktestResult:
     scenario: str = "maximal"
     pairs_by_weekday: dict[int, list[str]] | None = None
     n_benchmark_pairs: int = 49
+    exposure_note: str = "Капитал в рынке только в Чт/Пт/Сб."
+    by_segment_net: dict[str, PortfolioAnalytics] | None = None
+    by_segment_gross: dict[str, PortfolioAnalytics] | None = None
+    trading_segments: tuple[str, ...] = ()
+    selected_pairs: list[str] | None = None
+    plot_layout: str = "weekday"
 
 
 def _fmt_pct(value: float, digits: int = 2) -> str:
@@ -195,7 +201,7 @@ def _exposure_commentary(result: BacktestResult) -> list[str]:
     return [
         "=== Exposure и сравнение с бенчмарком ===",
         "",
-        f"Exposure стратегии: {exp:.1f}%. Капитал в рынке только в Чт/Пт/Сб.",
+        f"Exposure стратегии: {exp:.1f}%. {result.exposure_note}",
         "Прямое сравнение Sharpe с Buy & Hold (100% exposure) требует осторожности.",
         f"Information Ratio (net taker vs B&H {result.n_benchmark_pairs} пар gross): "
         f"{_fmt_num(result.information_ratio_net)}.",
@@ -229,6 +235,41 @@ def _corr_block(
     for i, row_name in enumerate(sub_labels):
         cells = [_corr_cell(sub[i, j]) for j in range(len(sub_labels))]
         lines.append(f"{row_name:4} | " + " | ".join(cells))
+    lines.append("")
+    return lines
+
+
+def _segment_table(
+    title: str,
+    by_segment: dict[str, PortfolioAnalytics],
+    segments: tuple[str, ...],
+) -> list[str]:
+    lines = [title, ""]
+    header = (
+        "Сегмент | Trades | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD"
+    )
+    lines.extend([header, "-" * len(header)])
+    for seg in segments:
+        a = by_segment[seg]
+        m = a.metrics
+        lines.append(
+            f"{seg:7} | {m.n_trading:6} | "
+            f"{_fmt_pct(m.total_return_pct):>9} | "
+            f"{_fmt_pct(a.avg_trading_day_pct, 3):>9} | "
+            f"{_fmt_pct(a.trade_median_pct, 3):>6} | "
+            f"{_fmt_pct(a.trade_std_pct, 3):>7} | "
+            f"{_fmt_num(m.sharpe):>6} | {_fmt_pct(m.max_drawdown_pct):>5}"
+        )
+    lines.append("")
+    return lines
+
+
+def _selected_pairs_block(selected_pairs: list[str], title: str) -> list[str]:
+    lines = [title, ""]
+    for i in range(0, len(selected_pairs), _PAIRS_PER_LINE):
+        chunk = selected_pairs[i : i + _PAIRS_PER_LINE]
+        prefix = "  " if i == 0 else "    "
+        lines.append(f"{prefix}{', '.join(chunk)}")
     lines.append("")
     return lines
 
@@ -287,6 +328,8 @@ def format_backtest_report(result: BacktestResult) -> str:
         "",
     ]
     header = SCENARIO_REPORT_HEADER.get(result.scenario)
+    if result.strategy == "ema_spreads":
+        header = EMA_SCENARIO_REPORT_HEADER.get(result.scenario, header)
     if header:
         lines.append(header)
     lines.extend([
@@ -302,6 +345,13 @@ def format_backtest_report(result: BacktestResult) -> str:
     ])
     if result.pairs_by_weekday:
         lines.extend(_pairs_by_weekday_block(result.pairs_by_weekday))
+    if result.selected_pairs is not None:
+        lines.extend(
+            _selected_pairs_block(
+                result.selected_pairs,
+                "=== Пары (train-отбор, optimistic) ===",
+            )
+        )
     lines.extend(_analytics_block("=== Portfolio (net of fees, taker) ===", result.portfolio_net))
     lines.extend(_analytics_block("=== Portfolio (gross, no fees) ===", result.portfolio_gross))
     lines.extend(
@@ -316,15 +366,28 @@ def format_backtest_report(result: BacktestResult) -> str:
     lines.extend(_benchmark_btc_block(result.benchmark_btc))
     lines.extend(_exposure_commentary(result))
     lines.extend(_fee_commentary(result))
-    lines.extend(
-        _weekday_table("=== By weekday (net) ===", result.by_weekday_net, result.trading_weekdays)
-    )
-    lines.extend(
-        _weekday_table("=== By weekday (gross) ===", result.by_weekday_gross, result.trading_weekdays)
-    )
-    lines.extend(_skew_kurtosis_weekday_table(result.by_weekday_net, result.trading_weekdays))
+    if result.by_weekday_net and result.trading_weekdays:
+        lines.extend(
+            _weekday_table("=== By weekday (net) ===", result.by_weekday_net, result.trading_weekdays)
+        )
+        lines.extend(
+            _weekday_table(
+                "=== By weekday (gross) ===", result.by_weekday_gross, result.trading_weekdays
+            )
+        )
+        lines.extend(_skew_kurtosis_weekday_table(result.by_weekday_net, result.trading_weekdays))
+    if result.by_segment_net and result.trading_segments:
+        lines.extend(
+            _segment_table("=== By segment (net) ===", result.by_segment_net, result.trading_segments)
+        )
+        lines.extend(
+            _segment_table(
+                "=== By segment (gross) ===", result.by_segment_gross, result.trading_segments
+            )
+        )
     lines.extend(_distribution_block(result.portfolio_gross, result.portfolio_net))
-    lines.extend(_corr_block(*result.weekday_corr, result.trading_weekdays))
+    if result.weekday_corr[1].size and result.trading_weekdays:
+        lines.extend(_corr_block(*result.weekday_corr, result.trading_weekdays))
     return "\n".join(lines)
 
 

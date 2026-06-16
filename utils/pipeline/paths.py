@@ -74,9 +74,17 @@ def study_backtest_plots_dir(study: str) -> Path:
     return study_backtest_dir(study) / "plots"
 
 
+def study_ml_dir(study: str) -> Path:
+    return study_research_root(study) / "ml"
+
+
 # Обратная совместимость (те же пути, что до унификации)
 WEEKDAY_STATS_DIR = study_stats_dir(STUDY_DAY_OF_WEEK)
 WEEKDAY_PLOTS_DIR = study_plots_dir(STUDY_DAY_OF_WEEK)
+WEEKDAY_ML_DIR = study_ml_dir(STUDY_DAY_OF_WEEK)
+WEEKDAY_ML_MODELS_DIR = WEEKDAY_ML_DIR / "models"
+WEEKDAY_ML_METRICS_DIR = WEEKDAY_ML_DIR / "metrics"
+WEEKDAY_ML_PLOTS_DIR = WEEKDAY_ML_DIR / "plots"
 EMA_SPREADS_STATS_DIR = study_stats_dir(STUDY_EMA_SPREADS)
 
 
@@ -129,6 +137,70 @@ def weekday_plot_path(
 def weekday_check_plot_path(check: str) -> Path:
     """Train+val NAV на одном полотне для проверки (pair_universality | temporal_stability)."""
     return WEEKDAY_PLOTS_DIR / f"dow_check_{check}_train_val_nav.png"
+
+
+def weekday_ml_output_tag(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+) -> str:
+    return f"weekday_direction_{n_pairs}pairs_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+
+
+def weekday_ml_log_path(
+    from_date: datetime,
+    to_date: datetime,
+) -> Path:
+    tag = f"weekday_direction_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+    return WEEKDAY_ML_DIR / f"{tag}.log"
+
+
+def weekday_ml_metrics_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+) -> Path:
+    return WEEKDAY_ML_METRICS_DIR / f"{weekday_ml_output_tag(n_pairs, from_date, to_date)}_cpcv.json"
+
+
+def weekday_ml_oos_plot_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+) -> Path:
+    return WEEKDAY_ML_PLOTS_DIR / f"{weekday_ml_output_tag(n_pairs, from_date, to_date)}_oos_prob.png"
+
+
+def weekday_ml_oos_calibration_plot_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+) -> Path:
+    return WEEKDAY_ML_PLOTS_DIR / f"{weekday_ml_output_tag(n_pairs, from_date, to_date)}_oos_calibration.png"
+
+
+def weekday_ml_roc_auc_plot_path(
+    n_pairs: int,
+    train_from: datetime,
+    val_to: datetime,
+) -> Path:
+    return WEEKDAY_ML_PLOTS_DIR / f"{weekday_ml_output_tag(n_pairs, train_from, val_to)}_roc_auc.png"
+
+
+def weekday_ml_model_bundle_path(
+    n_pairs: int,
+    train_from: datetime,
+    train_to: datetime,
+) -> Path:
+    return WEEKDAY_ML_MODELS_DIR / f"{weekday_ml_output_tag(n_pairs, train_from, train_to)}_model_bundle.pkl"
+
+
+def weekday_ml_train_test_metrics_path(
+    n_pairs: int,
+    train_from: datetime,
+    test_to: datetime,
+) -> Path:
+    return WEEKDAY_ML_METRICS_DIR / f"{weekday_ml_output_tag(n_pairs, train_from, test_to)}_train_test.json"
 
 
 def ema_spreads_output_tag(
