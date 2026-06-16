@@ -11,8 +11,11 @@ import polars as pl
 from crypto_research.utils.backtest.analytics import (
     PortfolioAnalytics,
     analytics_by_weekday,
+    avg_active_long_short_pairs_by_weekday,
     build_portfolio_analytics,
+    build_portfolio_daily_peak_weighted,
     information_ratio,
+    peak_eligible_pairs_per_day,
     weekday_correlation_matrix,
 )
 from crypto_research.utils.backtest.benchmark import (
@@ -133,20 +136,6 @@ def build_pair_returns(
     )
 
 
-def build_portfolio_daily(pair_returns: pl.DataFrame) -> pl.DataFrame:
-    return (
-        pair_returns.group_by("day_utc")
-        .agg(
-            pl.col("gross_return_pct").mean().alias("gross_return_pct"),
-            pl.col("net_return_pct").mean().alias("net_return_pct"),
-            pl.col("net_maker_return_pct").mean().alias("net_maker_return_pct"),
-            pl.col("weekday").first().alias("weekday"),
-            pl.col("position").first().alias("position"),
-        )
-        .sort("day_utc")
-    )
-
-
 def _analytics_by_weekday(
     portfolio: pl.DataFrame,
     column: str,
@@ -190,7 +179,10 @@ def run_day_of_week_backtest(
     pair_returns = build_pair_returns(
         daily, ctx.fee, pairs_by_weekday=ctx.pairs_by_weekday
     )
-    portfolio = build_portfolio_daily(pair_returns)
+    peak_pairs = peak_eligible_pairs_per_day(
+        ctx.pairs_by_weekday, len(pairs), trading_weekdays=TRADING_WEEKDAYS
+    )
+    portfolio = build_portfolio_daily_peak_weighted(pair_returns, peak_pairs)
     bh_daily = ctx.daily_benchmark_49 if ctx.daily_benchmark_49 is not None else daily
     benchmark_df = build_buy_hold_portfolio(bh_daily)
     btc_df = build_btc_buy_hold_portfolio(bh_daily)
@@ -224,6 +216,7 @@ def run_day_of_week_backtest(
     )
     ir_maker = information_ratio(strat_maker, bh_ret)
     corr = weekday_correlation_matrix(portfolio, "net_maker_return_pct")
+    active_pairs, long_pairs, short_pairs = avg_active_long_short_pairs_by_weekday(pair_returns)
 
     result = BacktestResult(
         strategy=STRATEGY_NAME,
@@ -245,6 +238,9 @@ def run_day_of_week_backtest(
         trading_weekdays=TRADING_WEEKDAYS,
         scenario=ctx.scenario,
         pairs_by_weekday=ctx.pairs_by_weekday,
+        avg_active_pairs_by_weekday=active_pairs,
+        avg_long_pairs_by_weekday=long_pairs,
+        avg_short_pairs_by_weekday=short_pairs,
         n_benchmark_pairs=ctx.n_benchmark_pairs,
     )
 

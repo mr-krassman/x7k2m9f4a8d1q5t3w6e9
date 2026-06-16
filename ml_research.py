@@ -36,6 +36,7 @@ from crypto_research.utils.ml.oos_paths import (
     save_oos_calibration_plot,
     save_oos_probability_plot,
     save_roc_auc_comparison_plot,
+    save_weekday_pair_summary_plot,
 )
 from crypto_research.utils.backtest.analytics import WEEKDAY_NAMES
 from crypto_research.utils.pipeline.dates import parse_iso_utc
@@ -57,6 +58,7 @@ from crypto_research.utils.pipeline.paths import (
     weekday_ml_oos_plot_path,
     weekday_ml_roc_auc_plot_path,
     weekday_ml_train_test_metrics_path,
+    weekday_ml_weekday_pair_summary_plot_path,
 )
 
 log = get_logger("ml_research")
@@ -403,9 +405,21 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         test_oos,
         weekday_ml_oos_calibration_plot_path(len(train_pairs), test_from, test_to),
     )
+    test_weekday_pair_summary_plot_path = save_weekday_pair_summary_plot(
+        test_oos,
+        weekday_ml_weekday_pair_summary_plot_path(len(train_pairs), test_from, test_to),
+        title="Holdout test: weekday × pair metrics",
+    )
     train_oos = train_cpcv.oos_paths
     if train_oos is None:
         raise RuntimeError("Train CPCV не вернул OOS-предсказания для ROC AUC plot")
+    if train_cpcv.oos_predictions is None:
+        raise RuntimeError("Train CPCV не вернул OOS-предсказания для weekday×pair summary plot")
+    train_weekday_pair_summary_plot_path = save_weekday_pair_summary_plot(
+        train_cpcv.oos_predictions,
+        weekday_ml_weekday_pair_summary_plot_path(len(train_pairs), train_from, train_to),
+        title="Train CPCV OOS: weekday × pair metrics",
+    )
     roc_auc_plot_path = save_roc_auc_comparison_plot(
         train_oos[:, 2].astype(np.int8),
         train_oos[:, 1],
@@ -464,6 +478,7 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
                 str(train_cpcv.oos_calibration_plot_path) if train_cpcv.oos_calibration_plot_path else None
             ),
             "roc_auc_plot_path": str(roc_auc_plot_path),
+            "weekday_pair_summary_plot_path": str(train_weekday_pair_summary_plot_path),
         },
         "final_model_path": str(model_path),
         "train_fit": {
@@ -482,6 +497,7 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
             "calibration_metrics": test_calibration,
             "oos_plot_path": str(test_plot_path),
             "oos_calibration_plot_path": str(test_calibration_plot_path),
+            "weekday_pair_summary_plot_path": str(test_weekday_pair_summary_plot_path),
         },
     }
     out_path = args.output or _default_train_test_output_path(len(train_pairs), train_from, test_to)

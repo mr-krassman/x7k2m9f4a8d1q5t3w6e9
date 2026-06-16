@@ -363,3 +363,68 @@ def save_roc_auc_comparison_plot(
     plt.close(fig)
     log.info("[ml] ROC AUC comparison plot saved: %s", path)
     return path
+
+
+def save_weekday_pair_summary_plot(
+    oos: pl.DataFrame,
+    path: Path,
+    *,
+    title: str,
+) -> Path:
+    """Сводное полотно heatmap: weekday × pair для ключевых метрик."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if oos.is_empty():
+        log.warning("[ml] Weekday×pair summary plot skipped: нет предсказаний")
+        return path
+
+    df = oos.with_columns(_weekday_from_day_utc())
+    grouped = df.group_by("weekday", "pair").agg(
+        pl.col("y_true").mean().alias("base_rate_up"),
+        pl.col("y_prob").mean().alias("mean_p_up"),
+        (((pl.col("y_prob") >= 0.5).cast(pl.Int8) == pl.col("y_true")).cast(pl.Float64).mean()).alias("accuracy"),
+        pl.len().alias("n_obs"),
+    )
+    grouped = grouped.with_columns((pl.col("mean_p_up") - pl.col("base_rate_up")).alias("edge_p_up"))
+
+    pairs = sorted(grouped["pair"].unique().to_list())
+    pair_to_idx = {p: i for i, p in enumerate(pairs)}
+    n_pairs = len(pairs)
+    n_weekdays = N_WEEKDAYS
+
+    metric_names = ("mean_p_up", "base_rate_up", "accuracy", "edge_p_up")
+    vmins = {"mean_p_up": 0.4, "base_rate_up": 0.4, "accuracy": 0.4, "edge_p_up": -0.1}
+    vmaxs = {"mean_p_up": 0.6, "base_rate_up": 0.6, "accuracy": 0.6, "edge_p_up": 0.1}
+    cmaps = {"mean_p_up": "viridis", "base_rate_up": "viridis", "accuracy": "viridis", "edge_p_up": "coolwarm"}
+
+    mats = {name: np.full((n_weekdays, n_pairs), np.nan, dtype=float) for name in metric_names}
+    for row in grouped.iter_rows(named=True):
+        wd = int(row["weekday"])
+        pi = pair_to_idx[str(row["pair"])]
+        for name in metric_names:
+            mats[name][wd, pi] = float(row[name])
+
+    fig, axes = plt.subplots(2, 2, figsize=(max(18, n_pairs * 0.33), 9), sharex=True, sharey=True)
+    axes_flat = axes.flatten()
+    for ax, metric in zip(axes_flat, metric_names):
+        im = ax.imshow(
+            mats[metric],
+            aspect="auto",
+            origin="upper",
+            interpolation="nearest",
+            cmap=cmaps[metric],
+            vmin=vmins[metric],
+            vmax=vmaxs[metric],
+        )
+        ax.set_title(metric, fontsize=10, loc="left", fontweight="semibold")
+        ax.set_yticks(range(n_weekdays))
+        ax.set_yticklabels(WEEKDAY_NAMES, fontsize=8)
+        ax.set_xticks(range(n_pairs))
+        ax.set_xticklabels(pairs, rotation=90, fontsize=6)
+        fig.colorbar(im, ax=ax, fraction=0.03, pad=0.01)
+
+    fig.suptitle(title, fontsize=12, fontweight="semibold", y=1.01)
+    fig.tight_layout()
+    fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight", pad_inches=0.12)
+    plt.close(fig)
+    log.info("[ml] Weekday×pair summary plot saved: %s (pairs=%s rows=%s)", path, n_pairs, oos.height)
+    return path

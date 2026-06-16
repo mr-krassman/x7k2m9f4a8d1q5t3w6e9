@@ -11,6 +11,7 @@ import polars as pl
 from crypto_research.utils.backtest.analytics import (
     PortfolioAnalytics,
     build_portfolio_analytics,
+    build_portfolio_daily_peak_weighted,
     information_ratio,
 )
 from crypto_research.utils.backtest.benchmark import build_btc_buy_hold_portfolio, build_buy_hold_portfolio
@@ -143,21 +144,6 @@ def build_pair_returns(
     )
 
 
-def build_portfolio_daily(pair_returns: pl.DataFrame) -> pl.DataFrame:
-    return (
-        pair_returns.group_by("day_utc")
-        .agg(
-            pl.col("gross_return_pct").mean().alias("gross_return_pct"),
-            pl.col("net_return_pct").mean().alias("net_return_pct"),
-            pl.col("net_maker_return_pct").mean().alias("net_maker_return_pct"),
-            pl.col("position").max().alias("position"),
-            pl.col("segment").first().alias("segment"),
-        )
-        .with_columns(((pl.col("day_utc").dt.weekday() - 1) % 7).alias("weekday"))
-        .sort("day_utc")
-    )
-
-
 def _analytics_by_segment(portfolio: pl.DataFrame, column: str) -> dict[str, PortfolioAnalytics]:
     active = portfolio.filter(pl.col("position") != 0)
     return {
@@ -215,7 +201,8 @@ def run_ema_spreads_backtest(
         from_date=ctx.from_date,
         to_date=ctx.to_date,
     )
-    portfolio = build_portfolio_daily(pair_returns)
+    peak_pairs = len(ctx.selected_pairs) if ctx.selected_pairs else len(pairs)
+    portfolio = build_portfolio_daily_peak_weighted(pair_returns, peak_pairs, first_cols=("segment",))
     bh_daily = ctx.daily_benchmark_49 if ctx.daily_benchmark_49 is not None else daily
     benchmark_df = build_buy_hold_portfolio(bh_daily)
     btc_df = build_btc_buy_hold_portfolio(bh_daily)

@@ -301,3 +301,95 @@ def analytics_by_weekday(
         view, trade = _weekday_portfolio_view(portfolio, wd, column)
         by_wd[wd] = build_portfolio_analytics(view, column, trading_mask=trade)
     return by_wd
+
+
+def peak_eligible_pairs_per_day(
+    pairs_by_weekday: dict[int, list[str]] | None,
+    n_pairs: int,
+    *,
+    trading_weekdays: tuple[int, ...] | None = None,
+) -> int:
+    """Макс. число пар, допущенных в один день (для веса позиции 1/peak)."""
+    if pairs_by_weekday:
+        weekdays = trading_weekdays if trading_weekdays is not None else tuple(pairs_by_weekday)
+        counts = [len(pairs_by_weekday.get(wd, ())) for wd in weekdays]
+        counts = [c for c in counts if c > 0]
+        if counts:
+            return max(counts)
+    return max(n_pairs, 1)
+
+
+def build_portfolio_daily_peak_weighted(
+    pair_returns: pl.DataFrame,
+    peak_pairs: int,
+    *,
+    first_cols: tuple[str, ...] = (),
+) -> pl.DataFrame:
+    """Портфель: каждая активная пара получает долю 1/peak_pairs капитала."""
+    if peak_pairs < 1:
+        raise ValueError(f"peak_pairs must be >= 1, got {peak_pairs}")
+    weight = 1.0 / peak_pairs
+    if "weekday" in pair_returns.columns:
+        calendar = pair_returns.group_by("day_utc").agg(pl.col("weekday").first())
+    else:
+        calendar = pair_returns.group_by("day_utc").agg(
+            ((pl.col("day_utc").dt.weekday() - 1) % 7).first().alias("weekday")
+        )
+    active = pair_returns.filter(pl.col("position") != 0)
+    agg_exprs: list[pl.Expr] = [
+        (pl.col("gross_return_pct") * weight).sum().alias("gross_return_pct"),
+        (pl.col("net_return_pct") * weight).sum().alias("net_return_pct"),
+        (pl.col("net_maker_return_pct") * weight).sum().alias("net_maker_return_pct"),
+        pl.lit(1.0).alias("position"),
+    ]
+    for col in first_cols:
+        agg_exprs.append(pl.col(col).first().alias(col))
+    active_daily = active.group_by("day_utc").agg(*agg_exprs)
+    out = (
+        calendar.join(active_daily, on="day_utc", how="left")
+        .with_columns(
+            pl.col("gross_return_pct").fill_null(0.0),
+            pl.col("net_return_pct").fill_null(0.0),
+            pl.col("net_maker_return_pct").fill_null(0.0),
+            pl.col("position").fill_null(0.0),
+        )
+        .sort("day_utc")
+    )
+    for col in first_cols:
+        if col in out.columns:
+            out = out.with_columns(pl.col(col).fill_null(""))
+    return out
+
+
+def avg_active_long_short_pairs_by_weekday(
+    pair_returns: pl.DataFrame,
+) -> tuple[dict[int, float], dict[int, int], dict[int, int]]:
+    """Пары: среднее число активных в день; Long/Short: общее число сделок по weekday."""
+    daily = (
+        pair_returns.group_by("day_utc", "weekday")
+        .agg(
+            (pl.col("position") > 0).sum().alias("n_long"),
+            (pl.col("position") < 0).sum().alias("n_short"),
+        )
+        .with_columns((pl.col("n_long") + pl.col("n_short")).alias("n_active"))
+        .filter(pl.col("n_active") > 0)
+    )
+    total: dict[int, float] = {}
+    long_: dict[int, int] = {}
+    short: dict[int, int] = {}
+    for wd in range(7):
+        sub = daily.filter(pl.col("weekday") == wd)
+        if sub.height == 0:
+            total[wd] = 0.0
+            long_[wd] = 0
+            short[wd] = 0
+        else:
+            total[wd] = float(sub["n_active"].mean())
+            long_[wd] = int(sub["n_long"].sum())
+            short[wd] = int(sub["n_short"].sum())
+    return total, long_, short
+
+
+def avg_active_pairs_by_weekday(pair_returns: pl.DataFrame) -> dict[int, float]:
+    total, _, _ = avg_active_long_short_pairs_by_weekday(pair_returns)
+    return total

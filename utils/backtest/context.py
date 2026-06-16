@@ -34,12 +34,17 @@ class BacktestContext:
     max_pair_start: datetime
     pairs: list[str] | None
     workers: int
+    ml_policy_path: Path | None = None
+    ml_model_path: Path | None = None
     fee: FeeSchedule = DEFAULT_FEE
 
 
 def build_backtest_context(args) -> BacktestContext:
     scenario = normalize_scenario(args.scenario)
-    if scenario in (SCENARIO_OPTIMISTIC, SCENARIO_CONSERVATIVE):
+    if args.strategy == "day_of_week_ml":
+        from_date = parse_iso_utc(args.from_date or VAL_FROM)
+        to_date = parse_iso_utc(args.to_date or VAL_TO)
+    elif scenario in (SCENARIO_OPTIMISTIC, SCENARIO_CONSERVATIVE):
         from_date = parse_iso_utc(args.from_date or VAL_FROM)
         to_date = parse_iso_utc(args.to_date or VAL_TO)
     else:
@@ -56,4 +61,6 @@ def build_backtest_context(args) -> BacktestContext:
         max_pair_start=max_pair_start,
         pairs=args.pairs,
         workers=workers,
+        ml_policy_path=getattr(args, "ml_policy_path", None),
+        ml_model_path=getattr(args, "ml_model_path", None),
     )

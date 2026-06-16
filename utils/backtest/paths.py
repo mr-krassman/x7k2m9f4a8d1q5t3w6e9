@@ -5,11 +5,13 @@ from crypto_research.utils.pipeline.paths import study_backtest_dir, study_backt
 
 
 def strategy_backtest_dir(strategy: str) -> Path:
-    return study_backtest_dir(strategy)
+    study = "day_of_week" if strategy == "day_of_week_ml" else strategy
+    return study_backtest_dir(study)
 
 
 def strategy_backtest_plots_dir(strategy: str) -> Path:
-    return study_backtest_plots_dir(strategy)
+    study = "day_of_week" if strategy == "day_of_week_ml" else strategy
+    return study_backtest_plots_dir(study)
 
 
 def backtest_output_tag(
@@ -40,7 +42,7 @@ def _tag(
     pairs_by_weekday: dict[int, list[str]] | None = None,
     selected_pairs: list[str] | None = None,
 ) -> str:
-    return backtest_output_tag(
+    tag = backtest_output_tag(
         n_pairs,
         from_date,
         to_date,
@@ -48,6 +50,9 @@ def _tag(
         pairs_by_weekday=pairs_by_weekday,
         selected_pairs=selected_pairs,
     )
+    if strategy == "day_of_week_ml":
+        return f"ml_{tag}"
+    return tag
 
 
 def backtest_report_path(

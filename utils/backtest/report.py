@@ -37,6 +37,9 @@ class BacktestResult:
     trading_weekdays: tuple[int, ...] = (3, 4, 5)
     scenario: str = "maximal"
     pairs_by_weekday: dict[int, list[str]] | None = None
+    avg_active_pairs_by_weekday: dict[int, float] | None = None
+    avg_long_pairs_by_weekday: dict[int, int] | None = None
+    avg_short_pairs_by_weekday: dict[int, int] | None = None
     n_benchmark_pairs: int = 49
     exposure_note: str = "Капитал в рынке только в Чт/Пт/Сб."
     by_segment_net: dict[str, PortfolioAnalytics] | None = None
@@ -278,17 +281,32 @@ def _weekday_table(
     title: str,
     by_wd: dict[int, PortfolioAnalytics],
     trading_weekdays: tuple[int, ...],
+    avg_active_pairs_by_weekday: dict[int, float] | None = None,
+    avg_long_pairs_by_weekday: dict[int, int] | None = None,
+    avg_short_pairs_by_weekday: dict[int, int] | None = None,
 ) -> list[str]:
     lines = [title, ""]
-    header = (
-        "День | Trades | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD"
-    )
+    if avg_active_pairs_by_weekday is not None:
+        header = (
+            "День | Trades | Пары | Long | Short | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD"
+        )
+    else:
+        header = (
+            "День | Trades | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD"
+        )
     lines.extend([header, "-" * len(header)])
     for wd in trading_weekdays:
         a = by_wd[wd]
         m = a.metrics
+        pairs_cell = ""
+        if avg_active_pairs_by_weekday is not None:
+            pairs_cell = (
+                f"{avg_active_pairs_by_weekday.get(wd, 0.0):>5.1f} | "
+                f"{(avg_long_pairs_by_weekday or {}).get(wd, 0):>4d} | "
+                f"{(avg_short_pairs_by_weekday or {}).get(wd, 0):>5d} | "
+            )
         lines.append(
-            f"{WEEKDAY_NAMES[wd]:4} | {m.n_trading:6} | "
+            f"{WEEKDAY_NAMES[wd]:4} | {m.n_trading:6} | {pairs_cell}"
             f"{_fmt_pct(m.total_return_pct):>9} | "
             f"{_fmt_pct(a.avg_trading_day_pct, 3):>9} | "
             f"{_fmt_pct(a.trade_median_pct, 3):>6} | "
@@ -299,15 +317,24 @@ def _weekday_table(
     return lines
 
 
-def _pairs_by_weekday_block(pairs_by_weekday: dict[int, list[str]]) -> list[str]:
+def _pairs_by_weekday_block(
+    pairs_by_weekday: dict[int, list[str]],
+    *,
+    weekdays: tuple[int, ...] = (3, 4, 5),
+    show_direction: bool = True,
+    title: str = "=== Пары по торговым дням (train-отбор) ===",
+) -> list[str]:
     lines = [
-        "=== Пары по торговым дням (train-отбор) ===",
+        title,
         "",
     ]
-    for wd in (3, 4, 5):
+    for wd in weekdays:
         pairs = pairs_by_weekday.get(wd, [])
-        direction = "short" if wd == 3 else "long"
-        lines.append(f"{WEEKDAY_NAMES[wd]} — {direction}: {len(pairs)} пар")
+        if show_direction:
+            direction = "short" if wd == 3 else "long"
+            lines.append(f"{WEEKDAY_NAMES[wd]} — {direction}: {len(pairs)} пар")
+        else:
+            lines.append(f"{WEEKDAY_NAMES[wd]}: {len(pairs)} пар")
         for i in range(0, len(pairs), _PAIRS_PER_LINE):
             chunk = pairs[i : i + _PAIRS_PER_LINE]
             prefix = "  " if i == 0 else "    "
@@ -344,7 +371,17 @@ def format_backtest_report(result: BacktestResult) -> str:
         "",
     ])
     if result.pairs_by_weekday:
-        lines.extend(_pairs_by_weekday_block(result.pairs_by_weekday))
+        if result.strategy == "day_of_week_ml":
+            lines.extend(
+                _pairs_by_weekday_block(
+                    result.pairs_by_weekday,
+                    weekdays=tuple(range(7)),
+                    show_direction=False,
+                    title="=== Пары по дням недели (policy) ===",
+                )
+            )
+        else:
+            lines.extend(_pairs_by_weekday_block(result.pairs_by_weekday))
     if result.selected_pairs is not None:
         lines.extend(
             _selected_pairs_block(
@@ -367,12 +404,30 @@ def format_backtest_report(result: BacktestResult) -> str:
     lines.extend(_exposure_commentary(result))
     lines.extend(_fee_commentary(result))
     if result.by_weekday_net and result.trading_weekdays:
+        wd_kw = {
+            "avg_active_pairs_by_weekday": result.avg_active_pairs_by_weekday,
+            "avg_long_pairs_by_weekday": result.avg_long_pairs_by_weekday,
+            "avg_short_pairs_by_weekday": result.avg_short_pairs_by_weekday,
+        }
+        if result.avg_active_pairs_by_weekday is not None:
+            lines.append(
+                "Пары — среднее число активных пар в день недели; Long/Short — общее число сделок за период."
+            )
+            lines.append("")
         lines.extend(
-            _weekday_table("=== By weekday (net) ===", result.by_weekday_net, result.trading_weekdays)
+            _weekday_table(
+                "=== By weekday (net) ===",
+                result.by_weekday_net,
+                result.trading_weekdays,
+                **wd_kw,
+            )
         )
         lines.extend(
             _weekday_table(
-                "=== By weekday (gross) ===", result.by_weekday_gross, result.trading_weekdays
+                "=== By weekday (gross) ===",
+                result.by_weekday_gross,
+                result.trading_weekdays,
+                **wd_kw,
             )
         )
         lines.extend(_skew_kurtosis_weekday_table(result.by_weekday_net, result.trading_weekdays))

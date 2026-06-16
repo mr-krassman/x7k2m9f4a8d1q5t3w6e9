@@ -85,6 +85,7 @@ WEEKDAY_ML_DIR = study_ml_dir(STUDY_DAY_OF_WEEK)
 WEEKDAY_ML_MODELS_DIR = WEEKDAY_ML_DIR / "models"
 WEEKDAY_ML_METRICS_DIR = WEEKDAY_ML_DIR / "metrics"
 WEEKDAY_ML_PLOTS_DIR = WEEKDAY_ML_DIR / "plots"
+WEEKDAY_ML_POLICIES_DIR = WEEKDAY_ML_DIR / "policies"
 EMA_SPREADS_STATS_DIR = study_stats_dir(STUDY_EMA_SPREADS)
 
 
@@ -187,6 +188,14 @@ def weekday_ml_roc_auc_plot_path(
     return WEEKDAY_ML_PLOTS_DIR / f"{weekday_ml_output_tag(n_pairs, train_from, val_to)}_roc_auc.png"
 
 
+def weekday_ml_weekday_pair_summary_plot_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+) -> Path:
+    return WEEKDAY_ML_PLOTS_DIR / f"{weekday_ml_output_tag(n_pairs, from_date, to_date)}_weekday_pair_summary.png"
+
+
 def weekday_ml_model_bundle_path(
     n_pairs: int,
     train_from: datetime,
@@ -201,6 +210,14 @@ def weekday_ml_train_test_metrics_path(
     test_to: datetime,
 ) -> Path:
     return WEEKDAY_ML_METRICS_DIR / f"{weekday_ml_output_tag(n_pairs, train_from, test_to)}_train_test.json"
+
+
+def weekday_ml_policy_path(
+    n_pairs: int,
+    train_from: datetime,
+    test_to: datetime,
+) -> Path:
+    return WEEKDAY_ML_POLICIES_DIR / f"{weekday_ml_output_tag(n_pairs, train_from, test_to)}_policy.json"
 
 
 def ema_spreads_output_tag(
