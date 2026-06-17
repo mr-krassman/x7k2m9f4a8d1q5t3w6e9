@@ -6,6 +6,7 @@ from crypto_research.utils.ema_spreads.constants import (
     DEFAULT_EMA_PERIODS,
     DEFAULT_SCREEN_EMA_PERIODS,
 )
+from crypto_research.utils.rsi.constants import DEFAULT_SCREEN_RSI_PERIODS
 from crypto_research.utils.pipeline.study_ids import (
     ALL_STUDIES,
     STUDY_DAY_OF_WEEK,
@@ -19,7 +20,7 @@ def parse_report_args() -> argparse.Namespace:
     parser.add_argument(
         "study",
         choices=list(ALL_STUDIES),
-        help="Исследование: day_of_week, ema_spreads или ema_period_screen",
+        help="Исследование: day_of_week, ema_spreads, ema_period_screen или rsi_period_screen",
     )
     split_group = parser.add_mutually_exclusive_group()
     split_group.add_argument(
@@ -109,6 +110,17 @@ def parse_report_args() -> argparse.Namespace:
             "Периоды EMA: ema_spreads "
             f"({ ' '.join(str(p) for p in DEFAULT_EMA_PERIODS) }); "
             f"ema_period_screen ({' '.join(str(p) for p in DEFAULT_SCREEN_EMA_PERIODS)})"
+        ),
+    )
+    parser.add_argument(
+        "--rsi-periods",
+        nargs="+",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Периоды RSI для rsi_period_screen "
+            f"({' '.join(str(p) for p in DEFAULT_SCREEN_RSI_PERIODS)})"
         ),
     )
     args = parser.parse_args()

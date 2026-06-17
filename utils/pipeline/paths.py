@@ -7,6 +7,7 @@ from crypto_research.utils.pipeline.study_ids import (
     STUDY_DAY_OF_WEEK,
     STUDY_EMA_PERIOD_SCREEN,
     STUDY_EMA_SPREADS,
+    STUDY_RSI_PERIOD_SCREEN,
 )
 
 RESEARCH_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -17,6 +18,7 @@ _STUDY_STATS_REL: dict[str, Path] = {
     STUDY_DAY_OF_WEEK: Path("day_of_week") / "statistics",
     STUDY_EMA_SPREADS: Path("ema") / "ema_spreads" / "statistics",
     STUDY_EMA_PERIOD_SCREEN: Path("ema") / "ema_spreads" / "statistics",
+    STUDY_RSI_PERIOD_SCREEN: Path("rsi") / "rsi_quantiles" / "statistics",
 }
 
 
@@ -91,6 +93,7 @@ WEEKDAY_ML_METRICS_DIR = WEEKDAY_ML_DIR / "metrics"
 WEEKDAY_ML_PLOTS_DIR = WEEKDAY_ML_DIR / "plots"
 WEEKDAY_ML_POLICIES_DIR = WEEKDAY_ML_DIR / "policies"
 EMA_SPREADS_STATS_DIR = study_stats_dir(STUDY_EMA_SPREADS)
+RSI_QUANTILES_STATS_DIR = study_stats_dir(STUDY_RSI_PERIOD_SCREEN)
 
 
 def weekday_output_tag(
@@ -392,3 +395,34 @@ def ema_period_screen_plot_path(
 ) -> Path:
     tag = ema_spreads_output_tag(n_pairs, from_date, to_date, periods)
     return study_plots_dir(STUDY_EMA_SPREADS) / f"ema_period_screen_{plot_kind}_{tag}.png"
+
+
+def rsi_screen_output_tag(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+) -> str:
+    periods_tag = "_".join(str(p) for p in periods)
+    return f"{n_pairs}pairs_rsi{periods_tag}_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+
+
+def rsi_period_screen_log_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+) -> Path:
+    tag = rsi_screen_output_tag(n_pairs, from_date, to_date, periods)
+    return RSI_QUANTILES_STATS_DIR / f"rsi_period_screen_{tag}.log"
+
+
+def rsi_period_screen_plot_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+    plot_kind: str,
+) -> Path:
+    tag = rsi_screen_output_tag(n_pairs, from_date, to_date, periods)
+    return study_plots_dir(STUDY_RSI_PERIOD_SCREEN) / f"rsi_period_screen_{plot_kind}_{tag}.png"

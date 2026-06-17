@@ -11,6 +11,7 @@ from crypto_research.utils.ema_spreads.constants import (
     DEFAULT_SCREEN_EMA_PERIODS,
 )
 from crypto_research.utils.pipeline.study_ids import STUDY_EMA_PERIOD_SCREEN
+from crypto_research.utils.rsi.constants import DEFAULT_SCREEN_RSI_PERIODS
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.load_pairs import _DEFAULT_WORKERS
 from crypto_research.utils.pipeline.paths import TRAIN_MAX_PAIR_START, VAL_MAX_PAIR_START
@@ -31,6 +32,7 @@ class ReportContext:
     main_plot_only: bool = False
     select_pairs_by_train: bool = False
     ema_periods: tuple[int, ...] = DEFAULT_EMA_PERIODS
+    rsi_periods: tuple[int, ...] = DEFAULT_SCREEN_RSI_PERIODS
 
 
 def parse_ema_periods(
@@ -43,6 +45,19 @@ def parse_ema_periods(
     periods = tuple(sorted({int(t) for t in tokens}))
     if any(p < 2 for p in periods):
         raise ValueError("Период EMA должен быть ≥ 2")
+    return periods
+
+
+def parse_rsi_periods(
+    tokens: list[int] | None,
+    *,
+    default: tuple[int, ...] = DEFAULT_SCREEN_RSI_PERIODS,
+) -> tuple[int, ...]:
+    if not tokens:
+        return default
+    periods = tuple(sorted({int(t) for t in tokens}))
+    if any(p < 2 for p in periods):
+        raise ValueError("Период RSI должен быть ≥ 2")
     return periods
 
 
@@ -103,4 +118,5 @@ def build_report_context(args) -> ReportContext:
                 else DEFAULT_EMA_PERIODS
             ),
         ),
+        rsi_periods=parse_rsi_periods(args.rsi_periods),
     )
