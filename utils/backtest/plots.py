@@ -20,12 +20,12 @@ PLOT_DPI = 200
 FIG_W = 16.0
 FIG_H = 7.0
 
+COLOR_GROSS = "#0d9488"
 COLOR_MAKER = "#dc2626"
-COLOR_TAKER = "#2563eb"
 COLOR_BH = "#374151"
 COLOR_BTC = "#cbd5e1"
+LW_GROSS = 1.8
 LW_MAKER = 2.4
-LW_TAKER = 1.5
 LW_BENCH = 1.3
 LW_WEEKDAY_DD = 1.2
 
@@ -58,7 +58,7 @@ def _returns_on_weekday_only(
 def _plot_equity_lines(
     ax: plt.Axes,
     dates: np.ndarray,
-    nav_taker: np.ndarray,
+    nav_gross: np.ndarray,
     nav_maker: np.ndarray,
     nav_bh: np.ndarray | None = None,
     nav_btc: np.ndarray | None = None,
@@ -71,7 +71,7 @@ def _plot_equity_lines(
         ax.plot(dates, nav_bh, color=COLOR_BH, linewidth=LW_BENCH, label="B&H gross", alpha=0.95)
     if include_benchmarks and nav_btc is not None:
         ax.plot(dates, nav_btc, color=COLOR_BTC, linewidth=LW_BENCH, label="BTC B&H", alpha=0.95)
-    ax.plot(dates, nav_taker, color=COLOR_TAKER, linewidth=LW_TAKER, label="Net taker")
+    ax.plot(dates, nav_gross, color=COLOR_GROSS, linewidth=LW_GROSS, label="Gross")
     ax.plot(dates, nav_maker, color=COLOR_MAKER, linewidth=LW_MAKER, label="Net maker")
     ax.axhline(INITIAL_NAV, color="#64748b", linewidth=0.8, linestyle="--")
     ax.grid(True, alpha=0.35)
@@ -108,7 +108,12 @@ def save_equity_curve_plot(
 ) -> Path:
     _apply_style()
     merged = (
-        portfolio.select("day_utc", "weekday", "net_return_pct", "net_maker_return_pct")
+        portfolio.select(
+            "day_utc",
+            "weekday",
+            "gross_return_pct",
+            "net_maker_return_pct",
+        )
         .join(
             benchmark.select("day_utc", pl.col("gross_return_pct").alias("bh_return_pct")),
             on="day_utc",
@@ -126,14 +131,14 @@ def save_equity_curve_plot(
 
     dates = merged["day_utc"].to_numpy()
     weekdays = merged["weekday"].to_numpy()
-    net = merged["net_return_pct"].fill_null(0.0).to_numpy()
+    gross = merged["gross_return_pct"].fill_null(0.0).to_numpy()
     maker = merged["net_maker_return_pct"].fill_null(0.0).to_numpy()
     bh = merged["bh_return_pct"].fill_null(0.0).to_numpy()
     btc_col = merged["btc_return_pct"]
     has_btc = btc is not None and btc_col.null_count() < btc_col.len()
     btc_arr = btc_col.fill_null(0.0).to_numpy() if has_btc else None
 
-    nav_taker = _equity_nav_series(net, weekdays, None)
+    nav_gross = _equity_nav_series(gross, weekdays, None)
     nav_maker = _equity_nav_series(maker, weekdays, None)
     nav_bh = _equity_nav_series(bh, weekdays, None)
     nav_btc = _equity_nav_series(btc_arr, weekdays, None) if btc_arr is not None else None
@@ -141,7 +146,7 @@ def save_equity_curve_plot(
     if layout == "simple" or not trading_weekdays:
         fig, ax_main = plt.subplots(figsize=(FIG_W, FIG_H), dpi=PLOT_DPI)
         _plot_equity_lines(
-            ax_main, dates, nav_taker, nav_maker, nav_bh, nav_btc, show_legend=True
+            ax_main, dates, nav_gross, nav_maker, nav_bh, nav_btc, show_legend=True
         )
         ax_main.set_ylabel("NAV (simple, base=100)", fontsize=10)
         ax_main.set_xlabel("Date (UTC)")
@@ -167,7 +172,7 @@ def save_equity_curve_plot(
     ax_main = fig.add_subplot(gs[0, :])
 
     _plot_equity_lines(
-        ax_main, dates, nav_taker, nav_maker, nav_bh, nav_btc, show_legend=True
+        ax_main, dates, nav_gross, nav_maker, nav_bh, nav_btc, show_legend=True
     )
     ax_main.set_ylabel("NAV (simple, base=100)", fontsize=10)
     ax_main.set_xlabel("")
@@ -184,10 +189,10 @@ def save_equity_curve_plot(
 
     for col, wd in enumerate(trading_weekdays):
         ax = fig.add_subplot(gs[1, col])
-        wd_taker = _equity_nav_series(net, weekdays, wd)
+        wd_gross = _equity_nav_series(gross, weekdays, wd)
         wd_maker = _equity_nav_series(maker, weekdays, wd)
         _plot_equity_lines(
-            ax, dates, wd_taker, wd_maker, show_legend=False, include_benchmarks=False, compact=True
+            ax, dates, wd_gross, wd_maker, show_legend=False, include_benchmarks=False, compact=True
         )
         ax.set_title(WEEKDAY_NAMES[wd], loc="left", fontsize=11, fontweight="semibold")
         ax.set_ylabel("NAV", fontsize=9)
@@ -272,13 +277,13 @@ def save_returns_histogram_plot(
 ) -> Path:
     _apply_style()
     traded = portfolio.filter(pl.col("position") != 0)
-    net = traded["net_return_pct"].to_numpy()
     gross = traded["gross_return_pct"].to_numpy()
+    maker = traded["net_maker_return_pct"].to_numpy()
 
     fig, ax = plt.subplots(figsize=(FIG_W, 5.0), dpi=PLOT_DPI)
-    bins = np.linspace(min(net.min(), gross.min()) - 0.5, max(net.max(), gross.max()) + 0.5, 40)
-    ax.hist(gross, bins=bins, alpha=0.45, color="#94a3b8", label="Gross (trading days)", density=True)
-    ax.hist(net, bins=bins, alpha=0.55, color="#2563eb", label="Net (trading days)", density=True)
+    bins = np.linspace(min(maker.min(), gross.min()) - 0.5, max(maker.max(), gross.max()) + 0.5, 40)
+    ax.hist(gross, bins=bins, alpha=0.45, color=COLOR_GROSS, label="Gross (trading days)", density=True)
+    ax.hist(maker, bins=bins, alpha=0.55, color=COLOR_MAKER, label="Net maker (trading days)", density=True)
     ax.axvline(0, color="#64748b", linewidth=0.8, linestyle="--")
     ax.set_xlabel("Daily portfolio return (%)")
     ax.set_ylabel("Density")

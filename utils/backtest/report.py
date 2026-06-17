@@ -11,6 +11,8 @@ import numpy as np
 from crypto_research.utils.backtest.analytics import PortfolioAnalytics, WEEKDAY_NAMES
 from crypto_research.utils.backtest.fees import FeeSchedule
 from crypto_research.utils.backtest.scenarios import SCENARIO_REPORT_HEADER, EMA_SCENARIO_REPORT_HEADER
+from crypto_research.utils.backtest.bundle_registry import is_algo_bundle_id
+from crypto_research.utils.ml.registry import is_ml_backtest_strategy, is_ml_study_id
 
 RISK_FREE_NOTE = "Sharpe / Sortino: безрисковая ставка = 0% (стандарт для крипто)."
 _PAIRS_PER_LINE = 11
@@ -32,6 +34,7 @@ class BacktestResult:
     information_ratio_net: float
     information_ratio_net_maker: float
     by_weekday_net: dict[int, PortfolioAnalytics]
+    by_weekday_net_maker: dict[int, PortfolioAnalytics]
     by_weekday_gross: dict[int, PortfolioAnalytics]
     weekday_corr: tuple[tuple[str, ...], np.ndarray]
     trading_weekdays: tuple[int, ...] = (3, 4, 5)
@@ -109,7 +112,7 @@ def _analytics_block(title: str, a: PortfolioAnalytics, *, compact: bool = False
         f"  Win Rate (trades):         {_fmt_pct(m.win_rate_pct, 1)}",
         f"  Profit Factor:             {_fmt_num(m.profit_factor)}",
         f"  Avg return (all days):     {_fmt_pct(a.avg_all_days_pct, 3)}",
-        f"  Avg return (trading days): {_fmt_pct(a.avg_trading_day_pct, 3)}",
+        f"  Avg return (per trade):    {_fmt_pct(a.avg_trading_day_pct, 3)}",
         f"  Trade return σ:            {_fmt_pct(a.trade_std_pct, 3)}",
         f"  Trade return median:       {_fmt_pct(a.trade_median_pct, 3)}",
     ]
@@ -136,19 +139,19 @@ def _distribution_row(label: str, gross_val: float, net_val: float, *, pct: bool
     return f"{label:<12} {g:>10} {n:>10}"
 
 
-def _distribution_block(gross: PortfolioAnalytics, net: PortfolioAnalytics) -> list[str]:
+def _distribution_block(gross: PortfolioAnalytics, net_maker: PortfolioAnalytics) -> list[str]:
     return [
-        "=== Статистика распределения (только торговые дни) ===",
+        "=== Статистика распределения (только сделки) ===",
         "",
-        f"{'':12} {'Gross':>10} {'Net':>10}",
-        _distribution_row("Skewness:", gross.skewness, net.skewness),
-        _distribution_row("Kurtosis:", gross.kurtosis, net.kurtosis),
-        _distribution_row("1% VaR:", gross.var_1_pct, net.var_1_pct, pct=True),
-        _distribution_row("5% VaR:", gross.var_5_pct, net.var_5_pct, pct=True),
-        _distribution_row("1% CVaR:", gross.cvar_1_pct, net.cvar_1_pct, pct=True),
-        _distribution_row("5% CVaR:", gross.cvar_5_pct, net.cvar_5_pct, pct=True),
+        f"{'':12} {'Gross':>10} {'Net maker':>10}",
+        _distribution_row("Skewness:", gross.skewness, net_maker.skewness),
+        _distribution_row("Kurtosis:", gross.kurtosis, net_maker.kurtosis),
+        _distribution_row("1% VaR:", gross.var_1_pct, net_maker.var_1_pct, pct=True),
+        _distribution_row("5% VaR:", gross.var_5_pct, net_maker.var_5_pct, pct=True),
+        _distribution_row("1% CVaR:", gross.cvar_1_pct, net_maker.cvar_1_pct, pct=True),
+        _distribution_row("5% CVaR:", gross.cvar_5_pct, net_maker.cvar_5_pct, pct=True),
         "",
-        "VaR — перцентиль худших дней; CVaR (Expected Shortfall) — средний убыток в хвосте ≤ VaR.",
+        "VaR — перцентиль худших сделок; CVaR (Expected Shortfall) — средний убыток в хвосте ≤ VaR.",
         "",
     ]
 
@@ -158,7 +161,7 @@ def _skew_kurtosis_weekday_table(
     trading_weekdays: tuple[int, ...],
 ) -> list[str]:
     lines = [
-        "=== Skewness & Kurtosis by weekday (net) ===",
+        "=== Skewness & Kurtosis by weekday (net maker) ===",
         "",
         f"{'':6} {'Skewness':>10} {'Kurtosis':>10}",
         "-" * 28,
@@ -191,7 +194,7 @@ def _fee_commentary(result: BacktestResult) -> list[str]:
         "=== Комментарий к комиссиям ===",
         "",
         f"Net-метрики по умолчанию консервативны: taker {fee.taker_pct:.3f}% × 2 = "
-        f"{fee.round_trip_taker_pct:.3f}% round-trip на каждый торговый день.",
+        f"{fee.round_trip_taker_pct:.3f}% round-trip на каждую сделку.",
         f"При лимитных ордерах (maker {fee.maker_pct:.3f}% × 2 = "
         f"{fee.round_trip_maker_pct:.3f}% round-trip) net total ≈ "
         f"{maker.total_return_pct:+.2f}% — ближе к gross ({result.portfolio_gross.metrics.total_return_pct:+.2f}%).",
@@ -298,6 +301,7 @@ def _weekday_table(
     for wd in trading_weekdays:
         a = by_wd[wd]
         m = a.metrics
+        n_trades = a.n_trades if a.n_trades > 0 else m.n_trading
         pairs_cell = ""
         if avg_active_pairs_by_weekday is not None:
             pairs_cell = (
@@ -306,7 +310,7 @@ def _weekday_table(
                 f"{(avg_short_pairs_by_weekday or {}).get(wd, 0):>5d} | "
             )
         lines.append(
-            f"{WEEKDAY_NAMES[wd]:4} | {m.n_trading:6} | {pairs_cell}"
+            f"{WEEKDAY_NAMES[wd]:4} | {n_trades:6} | {pairs_cell}"
             f"{_fmt_pct(m.total_return_pct):>9} | "
             f"{_fmt_pct(a.avg_trading_day_pct, 3):>9} | "
             f"{_fmt_pct(a.trade_median_pct, 3):>6} | "
@@ -371,7 +375,7 @@ def format_backtest_report(result: BacktestResult) -> str:
         "",
     ])
     if result.pairs_by_weekday:
-        if result.strategy == "day_of_week_ml":
+        if is_ml_backtest_strategy(result.strategy) and not is_algo_bundle_id(result.strategy):
             lines.extend(
                 _pairs_by_weekday_block(
                     result.pairs_by_weekday,
@@ -416,8 +420,8 @@ def format_backtest_report(result: BacktestResult) -> str:
             lines.append("")
         lines.extend(
             _weekday_table(
-                "=== By weekday (net) ===",
-                result.by_weekday_net,
+                "=== By weekday (net maker) ===",
+                result.by_weekday_net_maker,
                 result.trading_weekdays,
                 **wd_kw,
             )
@@ -430,17 +434,17 @@ def format_backtest_report(result: BacktestResult) -> str:
                 **wd_kw,
             )
         )
-        lines.extend(_skew_kurtosis_weekday_table(result.by_weekday_net, result.trading_weekdays))
+        lines.extend(_skew_kurtosis_weekday_table(result.by_weekday_net_maker, result.trading_weekdays))
     if result.by_segment_net and result.trading_segments:
         lines.extend(
-            _segment_table("=== By segment (net) ===", result.by_segment_net, result.trading_segments)
+            _segment_table("=== By segment (net maker) ===", result.by_segment_net, result.trading_segments)
         )
         lines.extend(
             _segment_table(
                 "=== By segment (gross) ===", result.by_segment_gross, result.trading_segments
             )
         )
-    lines.extend(_distribution_block(result.portfolio_gross, result.portfolio_net))
+    lines.extend(_distribution_block(result.portfolio_gross, result.portfolio_net_maker))
     if result.weekday_corr[1].size and result.trading_weekdays:
         lines.extend(_corr_block(*result.weekday_corr, result.trading_weekdays))
     return "\n".join(lines)

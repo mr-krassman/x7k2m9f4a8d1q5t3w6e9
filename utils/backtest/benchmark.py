@@ -41,6 +41,18 @@ def build_btc_buy_hold_portfolio(daily: pl.DataFrame) -> pl.DataFrame | None:
     return _daily_to_bh_portfolio(_with_weekday(sub))
 
 
+def benchmark_pair_returns(daily: pl.DataFrame) -> pl.DataFrame:
+    """По одной «сделке» на (день, пара) для win rate бенчмарка."""
+    df = _with_weekday(daily)
+    return df.select(
+        "day_utc",
+        "pair",
+        "weekday",
+        pl.col("return_pct").alias("gross_return_pct"),
+        pl.lit(1.0).alias("position"),
+    )
+
+
 def filter_daily_by_weekday_pairs(
     daily: pl.DataFrame,
     pairs_by_weekday: dict[int, list[str]],

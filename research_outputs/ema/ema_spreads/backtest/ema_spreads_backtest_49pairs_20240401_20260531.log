@@ -27,12 +27,12 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Longest underwater:        559 календарных дней
   % time in drawdown:        99.4%
   Calmar:                    -0.13
-  Win Rate (trades):         +45.1%
-  Profit Factor:             0.97
+  Win Rate (trades):         +49.2%
+  Profit Factor:             0.98
   Avg return (all days):     -0.013%
-  Avg return (trading days): -0.015%
-  Trade return σ:            +2.085%
-  Trade return median:       -0.013%
+  Avg return (per trade):    -0.045%
+  Trade return σ:            +4.983%
+  Trade return median:       -0.074%
   Best day: +10.85% — 2026-02-06 (Пт)
   Worst day: -13.69% — 2026-02-05 (Чт)
   Exposure:                  +82.3% (648/787 days in market)
@@ -52,12 +52,12 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Longest underwater:        199 календарных дней
   % time in drawdown:        87.5%
   Calmar:                    0.64
-  Win Rate (trades):         +48.0%
-  Profit Factor:             1.10
+  Win Rate (trades):         +51.0%
+  Profit Factor:             1.09
   Avg return (all days):     +0.043%
-  Avg return (trading days): +0.052%
-  Trade return σ:            +2.089%
-  Trade return median:       -0.003%
+  Avg return (per trade):    +0.155%
+  Trade return σ:            +4.983%
+  Trade return median:       +0.126%
   Best day: +11.05% — 2026-02-06 (Пт)
   Worst day: -13.51% — 2026-02-05 (Чт)
   Exposure:                  +82.3% (648/787 days in market)
@@ -77,12 +77,12 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Longest underwater:        222 календарных дней
   % time in drawdown:        93.6%
   Calmar:                    0.32
-  Win Rate (trades):         +46.5%
+  Win Rate (trades):         +50.6%
   Profit Factor:             1.05
   Avg return (all days):     +0.023%
-  Avg return (trading days): +0.028%
-  Trade return σ:            +2.087%
-  Trade return median:       -0.008%
+  Avg return (per trade):    +0.083%
+  Trade return σ:            +4.983%
+  Trade return median:       +0.054%
   Best day: +10.98% — 2026-02-06 (Пт)
   Worst day: -13.58% — 2026-02-05 (Чт)
   Exposure:                  +82.3% (648/787 days in market)
@@ -102,12 +102,12 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Longest underwater:        535 календарных дней
   % time in drawdown:        98.1%
   Calmar:                    -0.21
-  Win Rate (trades):         +51.0%
-  Profit Factor:             0.97
+  Win Rate (trades):         +47.8%
+  Profit Factor:             0.98
   Avg return (all days):     -0.041%
-  Avg return (trading days): -0.041%
-  Trade return σ:            +3.777%
-  Trade return median:       +0.078%
+  Avg return (per trade):    -0.041%
+  Trade return σ:            +5.068%
+  Trade return median:       -0.165%
   Best day: +13.47% — 2025-11-07 (Пт)
   Worst day: -22.25% — 2025-10-10 (Пт)
   Exposure:                  +100.0% (787/787 days in market)
@@ -130,7 +130,7 @@ Gross — до комиссий; Net — после taker round-trip; Net (maker
   Win Rate (trades):         +50.2%
   Profit Factor:             1.04
   Avg return (all days):     +0.036%
-  Avg return (trading days): +0.036%
+  Avg return (per trade):    +0.036%
   Trade return σ:            +2.438%
   Trade return median:       +0.007%
   Best day: +12.18% — 2026-02-06 (Пт)
@@ -147,29 +147,81 @@ Sharpe / sqrt(exposure) (net taker): -0.14.
 
 === Комментарий к комиссиям ===
 
-Net-метрики по умолчанию консервативны: taker 0.100% × 2 = 0.200% round-trip на каждый торговый день.
+Net-метрики по умолчанию консервативны: taker 0.100% × 2 = 0.200% round-trip на каждую сделку.
 При лимитных ордерах (maker 0.036% × 2 = 0.072% round-trip) net total ≈ +17.97% — ближе к gross (+33.61%).
 
-=== By segment (net) ===
+Пары — среднее число активных пар в день недели; Long/Short — общее число сделок за период.
+
+=== By weekday (net maker) ===
+
+День | Trades | Пары | Long | Short | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD
+-----------------------------------------------------------------------------------------------
+Пн   |   1573 |  17.1 | 1573 |     0 |   +27.84% |   +0.867% | +1.084% | +4.836% |   0.99 | -9.66%
+Вт   |   1488 |  16.5 | 1488 |     0 |    -6.91% |   -0.227% | -0.216% | +4.397% |  -0.27 | -11.01%
+Ср   |   1581 |  16.5 | 1581 |     0 |   +37.20% |   +1.153% | +0.749% | +4.946% |   1.24 | -5.06%
+Чт   |   1387 |  15.1 | 1387 |     0 |   -33.57% |   -1.186% | -0.969% | +5.471% |  -1.01 | -39.60%
+Пт   |   1618 |  16.9 | 1618 |     0 |   +22.13% |   +0.670% | +0.508% | +5.009% |   0.74 | -9.14%
+Сб   |   1609 |  17.1 | 1609 |     0 |   -11.42% |   -0.348% | -0.107% | +4.498% |  -0.41 | -14.08%
+Вс   |   1389 |  15.8 | 1389 |     0 |   -17.29% |   -0.610% | -0.767% | +5.293% |  -0.56 | -28.00%
+
+=== By weekday (gross) ===
+
+День | Trades | Пары | Long | Short | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD
+-----------------------------------------------------------------------------------------------
+Пн   |   1573 |  17.1 | 1573 |     0 |   +30.15% |   +0.939% | +1.156% | +4.836% |   1.07 | -9.28%
+Вт   |   1488 |  16.5 | 1488 |     0 |    -4.72% |   -0.155% | -0.144% | +4.397% |  -0.19 | -10.78%
+Ср   |   1581 |  16.5 | 1581 |     0 |   +39.52% |   +1.225% | +0.821% | +4.946% |   1.31 | -4.99%
+Чт   |   1387 |  15.1 | 1387 |     0 |   -31.54% |   -1.114% | -0.897% | +5.471% |  -0.95 | -38.16%
+Пт   |   1618 |  16.9 | 1618 |     0 |   +24.50% |   +0.742% | +0.580% | +5.009% |   0.81 | -8.59%
+Сб   |   1609 |  17.1 | 1609 |     0 |    -9.06% |   -0.276% | -0.035% | +4.498% |  -0.32 | -11.82%
+Вс   |   1389 |  15.8 | 1389 |     0 |   -15.25% |   -0.538% | -0.695% | +5.293% |  -0.49 | -27.22%
+
+=== Skewness & Kurtosis by weekday (net maker) ===
+
+         Skewness   Kurtosis
+----------------------------
+Пн           0.46       5.83
+Вт           0.18       0.23
+Ср           0.79       2.59
+Чт           0.19       3.43
+Пт           0.32       2.77
+Сб          -0.07       3.63
+Вс           0.30       2.73
+
+=== By segment (net maker) ===
 
 Сегмент | Trades | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD
 ----------------------------------------------------------------------------
-b6      |    648 |    -9.84% |   -0.015% | -0.013% | +2.085% |  -0.14 | -34.23%
+b6      |    648 |   +17.97% |   +0.083% | +0.054% | +4.983% |   0.25 | -26.15%
 
 === By segment (gross) ===
 
 Сегмент | Trades | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD
 ----------------------------------------------------------------------------
-b6      |    648 |   +33.61% |   +0.052% | -0.003% | +2.089% |   0.47 | -24.22%
+b6      |    648 |   +33.61% |   +0.155% | +0.126% | +4.983% |   0.47 | -24.22%
 
-=== Статистика распределения (только торговые дни) ===
+=== Статистика распределения (только сделки) ===
 
-                  Gross        Net
-Skewness:          0.01      -0.13
-Kurtosis:          9.84       9.92
-1% VaR:           -6.0%      -6.2%
-5% VaR:           -2.9%      -3.1%
-1% CVaR:          -9.1%      -9.3%
-5% CVaR:          -5.2%      -5.3%
+                  Gross  Net maker
+Skewness:          0.30       0.30
+Kurtosis:          3.23       3.23
+1% VaR:          -13.6%     -13.7%
+5% VaR:           -7.6%      -7.7%
+1% CVaR:         -15.8%     -15.8%
+5% CVaR:         -11.0%     -11.1%
 
-VaR — перцентиль худших дней; CVaR (Expected Shortfall) — средний убыток в хвосте ≤ VaR.
+VaR — перцентиль худших сделок; CVaR (Expected Shortfall) — средний убыток в хвосте ≤ VaR.
+
+=== Корреляция дневных доходностей (ISO-week aligned) ===
+
+Только торговые дни. Корреляция net maker-доходности портфеля внутри одной календарной недели.
+
+     |     Пн |     Вт |     Ср |     Чт |     Пт |     Сб |     Вс
+-------------------------------------------------------------------
+Пн   |   1.00 |  -0.30 |   0.02 |  -0.40 |  -0.11 |   0.04 |   0.10
+Вт   |  -0.30 |   1.00 |  -0.14 |   0.29 |   0.02 |  -0.02 |   0.18
+Ср   |   0.02 |  -0.14 |   1.00 |   0.17 |  -0.19 |   0.03 |  -0.11
+Чт   |  -0.40 |   0.29 |   0.17 |   1.00 |  -0.13 |   0.06 |  -0.09
+Пт   |  -0.11 |   0.02 |  -0.19 |  -0.13 |   1.00 |   0.29 |  -0.04
+Сб   |   0.04 |  -0.02 |   0.03 |   0.06 |   0.29 |   1.00 |  -0.22
+Вс   |   0.10 |   0.18 |  -0.11 |  -0.09 |  -0.04 |  -0.22 |   1.00

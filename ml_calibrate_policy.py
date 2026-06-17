@@ -16,10 +16,12 @@ if str(_REPO_PARENT) not in sys.path:
     sys.path.insert(0, str(_REPO_PARENT))
 
 from crypto_research.utils.backtest.analytics import WEEKDAY_NAMES
+from crypto_research.utils.ml.registry import resolve_ml_study
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.paths import (
     TEMPORAL_TRAIN_FROM,
     TEMPORAL_VAL_TO,
+    ml_policy_path,
     weekday_ml_policy_path,
     weekday_ml_train_test_metrics_path,
 )
@@ -161,6 +163,107 @@ def _dynamic_thresholds(
     return {"t_long": t_long, "t_short": t_short}
 
 
+def _select_pairs_global(
+    weekday_pair_metrics: dict[str, dict[str, float]],
+    *,
+    score_quantile: float,
+    min_obs: int,
+) -> tuple[list[str], list[dict[str, float | int | str]], float]:
+    by_pair: dict[str, list[tuple[float, float, float, int]]] = {}
+    for key, metrics in weekday_pair_metrics.items():
+        _, pair = _parse_weekday_pair_key(key)
+        mean_p = float(metrics["mean_p_up"])
+        base = float(metrics["base_rate_up"])
+        acc = float(metrics["accuracy"])
+        n_obs = int(metrics["n_test"])
+        edge = mean_p - base
+        confidence = abs(mean_p - 0.5)
+        score = 0.7 * abs(edge) + 0.3 * max(0.0, acc - 0.5) + 0.2 * confidence
+        by_pair.setdefault(pair, []).append((score, mean_p, base, n_obs))
+
+    details: list[dict[str, float | int | str]] = []
+    for pair, rows in by_pair.items():
+        weights = np.array([max(r[3], 1) for r in rows], dtype=float)
+        score_arr = np.array([r[0] for r in rows], dtype=float)
+        mean_arr = np.array([r[1] for r in rows], dtype=float)
+        base_arr = np.array([r[2] for r in rows], dtype=float)
+        n_obs_total = int(sum(r[3] for r in rows))
+        score_agg = float(np.average(score_arr, weights=weights))
+        mean_p_agg = float(np.average(mean_arr, weights=weights))
+        base_agg = float(np.average(base_arr, weights=weights))
+        details.append(
+            {
+                "pair": pair,
+                "score": score_agg,
+                "mean_p_up": mean_p_agg,
+                "base_rate_up": base_agg,
+                "edge_p_up": mean_p_agg - base_agg,
+                "n_test_total": n_obs_total,
+                "weekday_coverage": len(rows),
+                "side": _side(mean_p_agg),
+            }
+        )
+
+    all_scores = np.array([row["score"] for row in details], dtype=float)
+    score_cutoff = float(np.quantile(all_scores, score_quantile))
+    selected = sorted(
+        row["pair"]
+        for row in details
+        if float(row["score"]) >= score_cutoff and int(row["n_test_total"]) >= min_obs
+    )
+    if not selected and details:
+        selected = [str(max(details, key=lambda row: float(row["score"]))["pair"])]
+    return selected, details, score_cutoff
+
+
+def _dynamic_thresholds_global(
+    pair_score_table: list[dict[str, float | int | str]],
+    selected_pairs: list[str],
+    *,
+    long_quantile: float,
+    short_quantile: float,
+) -> dict[str, float]:
+    selected = set(selected_pairs)
+    long_probs: list[float] = []
+    short_probs: list[float] = []
+    for row in pair_score_table:
+        pair = str(row["pair"])
+        if pair not in selected:
+            continue
+        p = float(row["mean_p_up"])
+        if p > 0.5:
+            long_probs.append(p)
+        elif p < 0.5:
+            short_probs.append(p)
+
+    if not long_probs or not short_probs:
+        all_probs = [float(row["mean_p_up"]) for row in pair_score_table]
+        long_probs = [p for p in all_probs if p > 0.5]
+        short_probs = [p for p in all_probs if p < 0.5]
+
+    t_long = max(0.5, float(np.quantile(np.array(long_probs, dtype=float), long_quantile)))
+    t_short = min(0.5, float(np.quantile(np.array(short_probs, dtype=float), short_quantile)))
+    return {"t_long": t_long, "t_short": t_short}
+
+
+def _default_output_path_from_metrics(
+    payload: dict[str, object],
+    metrics_path: Path,
+    *,
+    n_pairs: int,
+    train_from: datetime,
+    test_to: datetime,
+) -> Path:
+    ml_spec = payload.get("ml_spec")
+    if isinstance(ml_spec, dict):
+        studies = ml_spec.get("studies")
+        if isinstance(studies, list) and studies:
+            return ml_policy_path(resolve_ml_study(studies), n_pairs, train_from, test_to)
+    if str(metrics_path).find("research_outputs/day_of_week/") >= 0:
+        return weekday_ml_policy_path(n_pairs, train_from, test_to)
+    return metrics_path.parent.parent / "policies" / f"{metrics_path.stem.replace('_train_test', '')}_policy.json"
+
+
 def main() -> int:
     args = parse_args()
     train_from = parse_iso_utc(args.train_from)
@@ -177,6 +280,17 @@ def main() -> int:
     thresholds = _dynamic_thresholds(
         weekday_pair_metrics,
         selected_pairs_by_weekday,
+        long_quantile=args.long_quantile,
+        short_quantile=args.short_quantile,
+    )
+    selected_pairs_global, global_details, global_score_cutoff = _select_pairs_global(
+        weekday_pair_metrics,
+        score_quantile=args.score_quantile,
+        min_obs=args.min_obs,
+    )
+    thresholds_global = _dynamic_thresholds_global(
+        global_details,
+        selected_pairs_global,
         long_quantile=args.long_quantile,
         short_quantile=args.short_quantile,
     )
@@ -200,8 +314,25 @@ def main() -> int:
             str(k): len(v) for k, v in selected_pairs_by_weekday.items()
         },
         "weekday_pair_score_table": details,
+        "selected_pairs_global": selected_pairs_global,
+        "selected_pairs_global_count": len(selected_pairs_global),
+        "global_selection_policy": {
+            "score_quantile": args.score_quantile,
+            "score_cutoff": global_score_cutoff,
+            "min_obs": args.min_obs,
+            "long_quantile": args.long_quantile,
+            "short_quantile": args.short_quantile,
+        },
+        "global_thresholds": thresholds_global,
+        "pair_score_table": global_details,
     }
-    output_path = args.output or weekday_ml_policy_path(args.n_pairs, train_from, test_to)
+    output_path = args.output or _default_output_path_from_metrics(
+        payload,
+        metrics_path,
+        n_pairs=args.n_pairs,
+        train_from=train_from,
+        test_to=test_to,
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         json.dumps(_round_json_floats(out), indent=2, ensure_ascii=False),

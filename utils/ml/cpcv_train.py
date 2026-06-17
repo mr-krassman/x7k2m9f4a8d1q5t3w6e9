@@ -41,7 +41,7 @@ from purgedcv import CombinatorialPurgedCV
 from sklearn.metrics import accuracy_score, log_loss, roc_auc_score
 
 from crypto_research.utils.backtest.analytics import WEEKDAY_NAMES
-from crypto_research.utils.ml.dataset import WeekdayDirectionDataset, dataset_to_numpy
+from crypto_research.utils.ml.dataset import DirectionDataset, categorical_feature_names, dataset_to_numpy
 from crypto_research.utils.ml.oos_paths import (
     build_oos_predictions,
     collect_fold_predictions,
@@ -208,17 +208,20 @@ class CPCVTrainResult:
 def _default_lgbm_params() -> dict:
     """Базовые гиперпараметры LightGBM для бинарной классификации.
 
-    num_leaves=7 — мало листьев, т.к. признак один категориальный (день недели).
-    min_child_samples=50 — защита от переобучения на редких комбинациях weekday×pair.
+    num_leaves=7 — мало листьев при малом числе признаков.
+    max_depth=5, min_child_samples=80, reg_lambda=1.0 — умеренная регуляризация
+    против переобучения на хвосте train (см. learning curve).
     """
     return {
         "objective": "binary",
         "metric": "binary_logloss",
         "verbosity": -1,
-        "n_estimators": 300,
+        "n_estimators": 12,
         "learning_rate": 0.05,
         "num_leaves": 7,
-        "min_child_samples": 50,
+        "max_depth": 5,
+        "min_child_samples": 80,
+        "reg_lambda": 1.0,
         "subsample": 0.8,
         "colsample_bytree": 1.0,
         "random_state": 42,
@@ -335,7 +338,7 @@ def _oos_metrics_by_weekday(oos: pl.DataFrame) -> dict[str, dict[str, float]]:
 
 
 def train_lightgbm_cpcv(
-    dataset: WeekdayDirectionDataset,
+    dataset: DirectionDataset,
     *,
     n_splits: int = DEFAULT_N_SPLITS,
     n_test_groups: int = DEFAULT_N_TEST_GROUPS,
@@ -385,7 +388,7 @@ def train_lightgbm_cpcv(
     params = _default_lgbm_params()
     if lgbm_params:
         params.update(lgbm_params)
-    cat_features = list(dataset.feature_columns)
+    cat_features = categorical_feature_names(dataset.feature_columns)
 
     # Индексы 0..n_days-1 — «заглушка» для cv.split: CPCV смотрит только на длину
     # и на prediction_times, привязанные при создании cv.

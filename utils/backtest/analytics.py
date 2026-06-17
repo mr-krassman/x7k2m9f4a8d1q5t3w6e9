@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
+from typing import Literal
 
 import numpy as np
 import polars as pl
@@ -56,6 +57,7 @@ class PortfolioAnalytics:
     sharpe_per_exposure: float
     best_day: DayExtreme | None
     worst_day: DayExtreme | None
+    n_trades: int = 0
 
 
 def compute_cagr_pct(total_return_pct: float, n_obs: int) -> float:
@@ -182,11 +184,53 @@ def _day_extreme(dates: np.ndarray, weekdays: np.ndarray, returns: np.ndarray, b
     )
 
 
+def _active_trade_returns(pair_returns: pl.DataFrame, column: str) -> np.ndarray:
+    active = pair_returns.filter(pl.col("position") != 0)
+    if active.is_empty():
+        return np.array([], dtype=np.float64)
+    rets = active[column].to_numpy().astype(np.float64, copy=False)
+    return rets[np.isfinite(rets)]
+
+
+def trade_win_rate_pct(pair_returns: pl.DataFrame, column: str) -> float:
+    """Доля прибыльных сделок: строки pair_returns с position != 0."""
+    rets = _active_trade_returns(pair_returns, column)
+    if rets.size == 0:
+        return 0.0
+    return float(np.sum(rets > 0) / rets.size * 100.0)
+
+
+def trade_profit_factor(trade_returns: np.ndarray) -> float:
+    if trade_returns.size == 0:
+        return 0.0
+    wins = trade_returns[trade_returns > 0]
+    losses = trade_returns[trade_returns < 0]
+    gross_win = float(wins.sum()) if wins.size else 0.0
+    gross_loss = float(losses.sum()) if losses.size else 0.0
+    return gross_win / abs(gross_loss) if gross_loss < 0 else 0.0
+
+
+def build_strategy_portfolio_analytics(
+    portfolio: pl.DataFrame,
+    pair_returns: pl.DataFrame,
+    *,
+    trading_mask: np.ndarray,
+) -> tuple[PortfolioAnalytics, PortfolioAnalytics, PortfolioAnalytics]:
+    """Сводка портфеля (net / gross / net maker) с win rate по сделкам."""
+    kw = {"trading_mask": trading_mask, "pair_returns": pair_returns}
+    return (
+        build_portfolio_analytics(portfolio, "net_return_pct", **kw),
+        build_portfolio_analytics(portfolio, "gross_return_pct", **kw),
+        build_portfolio_analytics(portfolio, "net_maker_return_pct", **kw),
+    )
+
+
 def build_portfolio_analytics(
     portfolio: pl.DataFrame,
     column: str,
     *,
     trading_mask: np.ndarray | None = None,
+    pair_returns: pl.DataFrame | None = None,
 ) -> PortfolioAnalytics:
     dates = portfolio["day_utc"].to_numpy()
     returns = portfolio[column].to_numpy()
@@ -198,28 +242,41 @@ def build_portfolio_analytics(
         trade = np.asarray(trading_mask, dtype=bool)
 
     metrics = compute_metrics(returns, trading_mask=trade)
-    traded = returns[trade]
+    trade_rets = _active_trade_returns(pair_returns, column) if pair_returns is not None else None
+    if trade_rets is not None and trade_rets.size > 0:
+        metrics = replace(
+            metrics,
+            win_rate_pct=trade_win_rate_pct(pair_returns, column),
+            profit_factor=trade_profit_factor(trade_rets),
+        )
+        per_trade = trade_rets
+        n_trades = int(trade_rets.size)
+    else:
+        per_trade = returns[trade]
+        n_trades = 0
+
     exposure_frac = metrics.exposure_pct / 100.0
     sharpe_exp = metrics.sharpe / np.sqrt(exposure_frac) if exposure_frac > 0 else 0.0
-    skew, kurt = _distribution_stats(traded)
+    skew, kurt = _distribution_stats(per_trade)
 
     return PortfolioAnalytics(
         metrics=metrics,
         cagr_pct=compute_cagr_pct(metrics.total_return_pct, metrics.n_obs),
         avg_all_days_pct=float(returns.mean()) if returns.size else 0.0,
-        avg_trading_day_pct=float(traded.mean()) if traded.size else 0.0,
-        trade_std_pct=float(traded.std(ddof=1)) if traded.size > 1 else 0.0,
-        trade_median_pct=float(np.median(traded)) if traded.size else 0.0,
+        avg_trading_day_pct=float(per_trade.mean()) if per_trade.size else 0.0,
+        trade_std_pct=float(per_trade.std(ddof=1)) if per_trade.size > 1 else 0.0,
+        trade_median_pct=float(np.median(per_trade)) if per_trade.size else 0.0,
         skewness=skew,
         kurtosis=kurt,
-        var_1_pct=historical_var_pct(traded, 1.0),
-        var_5_pct=historical_var_pct(traded, 5.0),
-        cvar_1_pct=historical_cvar_pct(traded, 1.0),
-        cvar_5_pct=historical_cvar_pct(traded, 5.0),
+        var_1_pct=historical_var_pct(per_trade, 1.0),
+        var_5_pct=historical_var_pct(per_trade, 5.0),
+        cvar_1_pct=historical_cvar_pct(per_trade, 1.0),
+        cvar_5_pct=historical_cvar_pct(per_trade, 5.0),
         drawdown=compute_drawdown_stats(dates, returns),
         sharpe_per_exposure=sharpe_exp,
         best_day=_day_extreme(dates, weekdays, returns, best=True),
         worst_day=_day_extreme(dates, weekdays, returns, best=False),
+        n_trades=n_trades,
     )
 
 
@@ -295,11 +352,16 @@ def _weekday_portfolio_view(
 def analytics_by_weekday(
     portfolio: pl.DataFrame,
     column: str,
+    *,
+    pair_returns: pl.DataFrame | None = None,
 ) -> dict[int, PortfolioAnalytics]:
     by_wd: dict[int, PortfolioAnalytics] = {}
     for wd in range(7):
         view, trade = _weekday_portfolio_view(portfolio, wd, column)
-        by_wd[wd] = build_portfolio_analytics(view, column, trading_mask=trade)
+        pr = pair_returns.filter(pl.col("weekday") == wd) if pair_returns is not None else None
+        by_wd[wd] = build_portfolio_analytics(
+            view, column, trading_mask=trade, pair_returns=pr
+        )
     return by_wd
 
 
@@ -319,16 +381,31 @@ def peak_eligible_pairs_per_day(
     return max(n_pairs, 1)
 
 
-def build_portfolio_daily_peak_weighted(
+PositionWeightMode = Literal["peak", "active_daily"]
+POSITION_WEIGHT_PEAK = "peak"
+POSITION_WEIGHT_ACTIVE_DAILY = "active_daily"
+
+# Единственное место переключения режима веса позиций во всех бэктестах.
+# peak — фиксированно 1/peak_pairs; active_daily — 1/число активных позиций в день.
+BACKTEST_POSITION_WEIGHT_MODE: PositionWeightMode = POSITION_WEIGHT_PEAK
+
+
+def build_portfolio_daily_weighted(
     pair_returns: pl.DataFrame,
-    peak_pairs: int,
+    peak_pairs: int | None = None,
     *,
+    weight_mode: PositionWeightMode | None = None,
     first_cols: tuple[str, ...] = (),
 ) -> pl.DataFrame:
-    """Портфель: каждая активная пара получает долю 1/peak_pairs капитала."""
-    if peak_pairs < 1:
-        raise ValueError(f"peak_pairs must be >= 1, got {peak_pairs}")
-    weight = 1.0 / peak_pairs
+    """Портфель: вес позиции задаётся weight_mode (по умолчанию BACKTEST_POSITION_WEIGHT_MODE).
+
+    - active_daily: 1 / число активных позиций в этот день (10 позиций → 0.1 на каждую).
+    - peak: фиксированно 1 / peak_pairs на каждую активную позицию.
+    """
+    mode = weight_mode if weight_mode is not None else BACKTEST_POSITION_WEIGHT_MODE
+    if mode == POSITION_WEIGHT_PEAK:
+        if peak_pairs is None or peak_pairs < 1:
+            raise ValueError(f"peak_pairs must be >= 1 for weight_mode='peak', got {peak_pairs}")
     if "weekday" in pair_returns.columns:
         calendar = pair_returns.group_by("day_utc").agg(pl.col("weekday").first())
     else:
@@ -336,10 +413,16 @@ def build_portfolio_daily_peak_weighted(
             ((pl.col("day_utc").dt.weekday() - 1) % 7).first().alias("weekday")
         )
     active = pair_returns.filter(pl.col("position") != 0)
+    if mode == POSITION_WEIGHT_ACTIVE_DAILY:
+        active = active.with_columns(
+            (1.0 / pl.len().over("day_utc")).alias("_weight")
+        )
+    else:
+        active = active.with_columns(pl.lit(1.0 / peak_pairs).alias("_weight"))
     agg_exprs: list[pl.Expr] = [
-        (pl.col("gross_return_pct") * weight).sum().alias("gross_return_pct"),
-        (pl.col("net_return_pct") * weight).sum().alias("net_return_pct"),
-        (pl.col("net_maker_return_pct") * weight).sum().alias("net_maker_return_pct"),
+        (pl.col("gross_return_pct") * pl.col("_weight")).sum().alias("gross_return_pct"),
+        (pl.col("net_return_pct") * pl.col("_weight")).sum().alias("net_return_pct"),
+        (pl.col("net_maker_return_pct") * pl.col("_weight")).sum().alias("net_maker_return_pct"),
         pl.lit(1.0).alias("position"),
     ]
     for col in first_cols:
@@ -359,6 +442,20 @@ def build_portfolio_daily_peak_weighted(
         if col in out.columns:
             out = out.with_columns(pl.col(col).fill_null(""))
     return out
+
+
+def build_portfolio_daily_peak_weighted(
+    pair_returns: pl.DataFrame,
+    peak_pairs: int,
+    *,
+    first_cols: tuple[str, ...] = (),
+) -> pl.DataFrame:
+    return build_portfolio_daily_weighted(
+        pair_returns,
+        peak_pairs,
+        weight_mode=POSITION_WEIGHT_PEAK,
+        first_cols=first_cols,
+    )
 
 
 def avg_active_long_short_pairs_by_weekday(

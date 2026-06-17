@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from crypto_research.utils.backtest.context import BacktestContext
 from crypto_research.utils.backtest.report import BacktestResult
-from crypto_research.utils.backtest.strategies.registry import STRATEGY_HANDLERS
+from crypto_research.utils.backtest.strategies.registry import get_strategy_handler
 from crypto_research.utils.pipeline.daily_pool import build_pooled_daily
 from crypto_research.utils.pipeline.load_pairs import load_klines_for_period
 from crypto_research.utils.pipeline.load_summary import log_load_summary
@@ -28,7 +28,11 @@ def _load_full_pool_daily(ctx: BacktestContext):
 
 
 def run_backtest(ctx: BacktestContext) -> BacktestResult:
-    handler = STRATEGY_HANDLERS[ctx.strategy]
+    handler = get_strategy_handler(
+        ctx.strategy,
+        algo_spec=ctx.algo_spec,
+        ml_spec=ctx.ml_spec,
+    )
     prepare = handler.prepare(ctx)
 
     pair_filter = prepare.pair_filter if prepare.pair_filter is not None else ctx.pairs

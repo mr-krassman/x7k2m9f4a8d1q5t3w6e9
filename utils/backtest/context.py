@@ -15,6 +15,8 @@ from crypto_research.utils.backtest.scenarios import (
     VAL_TO,
     normalize_scenario,
 )
+from crypto_research.utils.backtest.bundle_registry import AlgoBundleSpec, CombineMode
+from crypto_research.utils.ml.registry import MlStudySpec
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.load_pairs import _DEFAULT_WORKERS
 from crypto_research.utils.pipeline.paths import (
@@ -36,12 +38,21 @@ class BacktestContext:
     workers: int
     ml_policy_path: Path | None = None
     ml_model_path: Path | None = None
+    ml_output_study: str | None = None
+    ml_spec: MlStudySpec | None = None
+    algo_spec: AlgoBundleSpec | None = None
+    bundle_id: str | None = None
+    bundle_kind: str | None = None
+    combine_mode: CombineMode | None = None
     fee: FeeSchedule = DEFAULT_FEE
 
 
 def build_backtest_context(args) -> BacktestContext:
     scenario = normalize_scenario(args.scenario)
-    if args.strategy == "day_of_week_ml":
+    if getattr(args, "ml_spec", None) is not None:
+        from_date = parse_iso_utc(args.from_date or VAL_FROM)
+        to_date = parse_iso_utc(args.to_date or VAL_TO)
+    elif getattr(args, "algo_spec", None) is not None:
         from_date = parse_iso_utc(args.from_date or VAL_FROM)
         to_date = parse_iso_utc(args.to_date or VAL_TO)
     elif scenario in (SCENARIO_OPTIMISTIC, SCENARIO_CONSERVATIVE):
@@ -63,4 +74,10 @@ def build_backtest_context(args) -> BacktestContext:
         workers=workers,
         ml_policy_path=getattr(args, "ml_policy_path", None),
         ml_model_path=getattr(args, "ml_model_path", None),
+        ml_output_study=getattr(args, "ml_output_study", None),
+        ml_spec=getattr(args, "ml_spec", None),
+        algo_spec=getattr(args, "algo_spec", None),
+        bundle_id=getattr(args, "bundle_id", None),
+        bundle_kind=getattr(args, "bundle_kind", None),
+        combine_mode=getattr(args, "combine_mode", None),
     )

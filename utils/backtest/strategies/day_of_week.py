@@ -12,13 +12,16 @@ from crypto_research.utils.backtest.analytics import (
     PortfolioAnalytics,
     analytics_by_weekday,
     avg_active_long_short_pairs_by_weekday,
+    build_strategy_portfolio_analytics,
     build_portfolio_analytics,
-    build_portfolio_daily_peak_weighted,
+    build_portfolio_daily_weighted,
     information_ratio,
     peak_eligible_pairs_per_day,
     weekday_correlation_matrix,
 )
 from crypto_research.utils.backtest.benchmark import (
+    BTC_PAIR,
+    benchmark_pair_returns,
     build_btc_buy_hold_portfolio,
     build_buy_hold_portfolio,
     filter_daily_by_weekday_pairs,
@@ -139,8 +142,9 @@ def build_pair_returns(
 def _analytics_by_weekday(
     portfolio: pl.DataFrame,
     column: str,
+    pair_returns: pl.DataFrame,
 ) -> dict[int, PortfolioAnalytics]:
-    return analytics_by_weekday(portfolio, column)
+    return analytics_by_weekday(portfolio, column, pair_returns=pair_returns)
 
 
 def _path_kwargs(ctx: DayOfWeekBacktestContext) -> dict:
@@ -182,32 +186,30 @@ def run_day_of_week_backtest(
     peak_pairs = peak_eligible_pairs_per_day(
         ctx.pairs_by_weekday, len(pairs), trading_weekdays=TRADING_WEEKDAYS
     )
-    portfolio = build_portfolio_daily_peak_weighted(pair_returns, peak_pairs)
+    portfolio = build_portfolio_daily_weighted(pair_returns, peak_pairs)
     bh_daily = ctx.daily_benchmark_49 if ctx.daily_benchmark_49 is not None else daily
     benchmark_df = build_buy_hold_portfolio(bh_daily)
     btc_df = build_btc_buy_hold_portfolio(bh_daily)
     active = portfolio["position"].to_numpy() != 0
+    bh_pairs = benchmark_pair_returns(bh_daily)
 
-    portfolio_net = build_portfolio_analytics(
-        portfolio, "net_return_pct", trading_mask=active
-    )
-    portfolio_gross = build_portfolio_analytics(
-        portfolio, "gross_return_pct", trading_mask=active
-    )
-    portfolio_net_maker = build_portfolio_analytics(
-        portfolio, "net_maker_return_pct", trading_mask=active
+    portfolio_net, portfolio_gross, portfolio_net_maker = build_strategy_portfolio_analytics(
+        portfolio, pair_returns, trading_mask=active
     )
     benchmark = build_portfolio_analytics(
         benchmark_df,
         "gross_return_pct",
         trading_mask=np.ones(benchmark_df.height, dtype=bool),
+        pair_returns=bh_pairs,
     )
     benchmark_btc = None
     if btc_df is not None:
+        btc_sub = bh_daily.filter(pl.col("pair").str.to_lowercase() == BTC_PAIR)
         benchmark_btc = build_portfolio_analytics(
             btc_df,
             "gross_return_pct",
             trading_mask=np.ones(btc_df.height, dtype=bool),
+            pair_returns=benchmark_pair_returns(btc_sub) if not btc_sub.is_empty() else None,
         )
     strat_ret, bh_ret = _aligned_benchmark_returns(portfolio, benchmark_df)
     ir = information_ratio(strat_ret, bh_ret)
@@ -232,8 +234,9 @@ def run_day_of_week_backtest(
         benchmark_btc=benchmark_btc,
         information_ratio_net=ir,
         information_ratio_net_maker=ir_maker,
-        by_weekday_net=_analytics_by_weekday(portfolio, "net_return_pct"),
-        by_weekday_gross=_analytics_by_weekday(portfolio, "gross_return_pct"),
+        by_weekday_net=_analytics_by_weekday(portfolio, "net_return_pct", pair_returns),
+        by_weekday_net_maker=_analytics_by_weekday(portfolio, "net_maker_return_pct", pair_returns),
+        by_weekday_gross=_analytics_by_weekday(portfolio, "gross_return_pct", pair_returns),
         weekday_corr=corr,
         trading_weekdays=TRADING_WEEKDAYS,
         scenario=ctx.scenario,

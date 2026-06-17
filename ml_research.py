@@ -9,7 +9,6 @@ import pickle
 import sys
 from pathlib import Path
 
-import lightgbm as lgb
 import numpy as np
 import polars as pl
 from sklearn.metrics import accuracy_score, log_loss, roc_auc_score
@@ -23,13 +22,29 @@ from crypto_research.utils.ml.cpcv_train import (
     DEFAULT_N_SPLITS,
     DEFAULT_N_TEST_GROUPS,
     CPCVTrainResult,
-    _default_lgbm_params,
     train_lightgbm_cpcv,
 )
 from crypto_research.utils.ml.dataset import (
+    DirectionDataset,
+    build_direction_dataset,
     build_weekday_direction_dataset,
     dataset_to_numpy,
     load_full_pool_daily,
+)
+from crypto_research.utils.ml.ema_dev_norm import (
+    fit_pair_ema_dev_bounds_from_daily,
+    pair_ema_dev_bounds_to_dict,
+)
+from crypto_research.utils.ml.feature_predictive_plot import save_feature_curve_plot
+from crypto_research.utils.ml.learning_curve import (
+    fit_lightgbm_full_train,
+    fit_lightgbm_with_eval_curve,
+)
+from crypto_research.utils.ml.registry import (
+    FEATURE_EMA_DEV_PAIR_NORM,
+    ML_STUDY_CHOICES,
+    ml_spec_to_dict,
+    resolve_ml_study,
 )
 from crypto_research.utils.ml.oos_paths import (
     oos_calibration_metrics,
@@ -50,15 +65,19 @@ from crypto_research.utils.pipeline.paths import (
     TEMPORAL_TRAIN_TO,
     TEMPORAL_VAL_FROM,
     TEMPORAL_VAL_TO,
+    TRAIN_EVAL_FROM,
     VAL_MAX_PAIR_START,
-    weekday_ml_log_path,
-    weekday_ml_model_bundle_path,
-    weekday_ml_metrics_path,
-    weekday_ml_oos_calibration_plot_path,
-    weekday_ml_oos_plot_path,
-    weekday_ml_roc_auc_plot_path,
-    weekday_ml_train_test_metrics_path,
-    weekday_ml_weekday_pair_summary_plot_path,
+    ml_feature_predictive_plot_path,
+    ml_learning_curve_log_path,
+    ml_learning_curve_plot_path,
+    ml_log_path,
+    ml_model_bundle_path,
+    ml_metrics_path,
+    ml_oos_calibration_plot_path,
+    ml_oos_plot_path,
+    ml_roc_auc_plot_path,
+    ml_train_test_metrics_path,
+    ml_weekday_pair_summary_plot_path,
 )
 
 log = get_logger("ml_research")
@@ -67,7 +86,14 @@ JSON_FLOAT_PRECISION = 4
 
 def parse_ml_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="ML: день недели → направление дневной доходности, CPCV + LightGBM.",
+        description="ML: direction_up, CPCV + LightGBM (day_of_week_ml / ema_spreads_ml).",
+    )
+    parser.add_argument(
+        "studies",
+        nargs="*",
+        choices=list(ML_STUDY_CHOICES),
+        metavar="STUDY",
+        help="Исследования: day_of_week_ml, ema_spreads_ml (по умолчанию day_of_week_ml)",
     )
     parser.add_argument(
         "--data-dir",
@@ -164,6 +190,23 @@ def parse_ml_args() -> argparse.Namespace:
         default=VAL_MAX_PAIR_START,
         help=f"Отбор пула пар по первой свече (UTC), по умолчанию {VAL_MAX_PAIR_START} (49 пар).",
     )
+    parser.add_argument(
+        "--early-stopping",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Early stopping на хвосте train перед финальным fit (по умолчанию выкл.)",
+    )
+    parser.add_argument(
+        "--train-eval-from",
+        default=TRAIN_EVAL_FROM,
+        help=f"Начало eval-хвоста train для --early-stopping (UTC), по умолчанию {TRAIN_EVAL_FROM}",
+    )
+    parser.add_argument(
+        "--early-stopping-rounds",
+        type=int,
+        default=50,
+        help="Раунды без улучшения eval logloss при --early-stopping",
+    )
     return parser.parse_args()
 
 
@@ -194,9 +237,17 @@ def _round_json_floats(value, *, digits: int = JSON_FLOAT_PRECISION):
     return value
 
 
-def _save_result(result: CPCVTrainResult, path: Path, *, n_pairs: int, n_rows: int) -> Path:
+def _save_result(
+    result: CPCVTrainResult,
+    path: Path,
+    *,
+    n_pairs: int,
+    n_rows: int,
+    spec,
+) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
+        "ml_spec": ml_spec_to_dict(spec),
         "n_pairs": n_pairs,
         "n_rows": n_rows,
         "n_splits": result.n_splits,
@@ -333,15 +384,52 @@ def _attach_train_and_test_base_rates(
     return out
 
 
-def _default_train_test_output_path(n_pairs: int, train_from, test_to) -> Path:
-    return weekday_ml_train_test_metrics_path(n_pairs, train_from, test_to)
+def _model_oos_frame(dataset: DirectionDataset, y_prob: np.ndarray) -> pl.DataFrame:
+    cols = ["day_utc", "pair", "direction_up"]
+    if dataset.ml_spec.predictive_feature is not None:
+        cols.append(dataset.ml_spec.predictive_feature)
+    return dataset.frame.select(*cols).rename({"direction_up": "y_true"}).with_columns(
+        pl.Series("y_prob", y_prob),
+        pl.lit(1).alias("n_folds"),
+    )
+
+
+def _default_train_test_output_path(spec, n_pairs: int, train_from, test_to) -> Path:
+    return ml_train_test_metrics_path(spec, n_pairs, train_from, test_to)
+
+
+def _build_model_bundle(
+    model,
+    dataset: DirectionDataset,
+    *,
+    train_period: dict[str, str],
+    early_stopping: dict[str, object] | None = None,
+) -> dict[str, object]:
+    bundle: dict[str, object] = {
+        "model": model,
+        "feature_columns": list(dataset.feature_columns),
+        "ml_spec": ml_spec_to_dict(dataset.ml_spec),
+        "pair_encoder_classes": dataset.pair_encoder.classes_.tolist(),
+        "train_period": train_period,
+    }
+    if dataset.weekday_encoder is not None and "weekday_enc" in dataset.feature_columns:
+        bundle["weekday_encoder_classes"] = dataset.weekday_encoder.classes_.tolist()
+    if dataset.ema_period is not None:
+        bundle["ema_period"] = dataset.ema_period
+    if dataset.pair_ema_dev_bounds is not None:
+        bundle["pair_ema_dev_bounds"] = pair_ema_dev_bounds_to_dict(dataset.pair_ema_dev_bounds)
+    if early_stopping is not None:
+        bundle["early_stopping"] = early_stopping
+    return bundle
 
 
 def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
+    spec = resolve_ml_study(args.studies)
     workers = args.workers if args.workers is not None else _DEFAULT_WORKERS
     pair_start_limit = parse_iso_utc(args.max_pair_start)
     train_from = parse_iso_utc(args.train_from)
     train_to = parse_iso_utc(args.train_to)
+    eval_from = parse_iso_utc(args.train_eval_from)
     test_from = parse_iso_utc(args.test_from)
     test_to = parse_iso_utc(args.test_to)
 
@@ -361,9 +449,20 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     )
     if train_pairs != test_pairs:
         raise RuntimeError("Train/test загрузили разный пул пар; проверьте max-pair-start и data-dir")
+    if args.early_stopping:
+        if eval_from <= train_from or eval_from >= train_to:
+            raise RuntimeError(
+                f"--train-eval-from ({args.train_eval_from}) должен быть строго внутри train "
+                f"({args.train_from} .. {args.train_to})"
+            )
 
-    train_dataset = build_weekday_direction_dataset(train_daily)
-    test_dataset = build_weekday_direction_dataset(test_daily)
+    pair_bounds = (
+        fit_pair_ema_dev_bounds_from_daily(train_daily)
+        if FEATURE_EMA_DEV_PAIR_NORM in spec.feature_columns
+        else None
+    )
+    train_dataset = build_direction_dataset(train_daily, spec, pair_ema_dev_bounds=pair_bounds)
+    test_dataset = build_direction_dataset(test_daily, spec, pair_ema_dev_bounds=pair_bounds)
     train_weekday_base = _weekday_base_rate_from_frame(train_dataset.frame)
     _log_dataset_preview(train_dataset.frame, head=args.preview_rows)
 
@@ -372,44 +471,55 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         n_splits=args.n_splits,
         n_test_groups=args.n_test_groups,
         embargo_days=args.embargo_days,
-        oos_plot_path=weekday_ml_oos_plot_path(len(train_pairs), train_from, train_to),
-        oos_calibration_plot_path=weekday_ml_oos_calibration_plot_path(len(train_pairs), train_from, train_to),
+        oos_plot_path=ml_oos_plot_path(spec, len(train_pairs), train_from, train_to),
+        oos_calibration_plot_path=ml_oos_calibration_plot_path(spec, len(train_pairs), train_from, train_to),
     )
 
     x_train, y_train, _, _ = dataset_to_numpy(train_dataset)
     x_test, y_test, _, _ = dataset_to_numpy(test_dataset)
-    model = lgb.LGBMClassifier(**_default_lgbm_params())
-    model.fit(x_train, y_train, categorical_feature=list(train_dataset.feature_columns))
+    if args.early_stopping:
+        fit_result = fit_lightgbm_with_eval_curve(
+            train_dataset,
+            eval_from=eval_from,
+            eval_to=train_to,
+            plot_path=ml_learning_curve_plot_path(spec, len(train_pairs), train_from, train_to),
+            log_path=ml_learning_curve_log_path(spec, len(train_pairs), train_from, train_to),
+            early_stopping_rounds=args.early_stopping_rounds,
+        )
+    else:
+        fit_result = fit_lightgbm_full_train(train_dataset)
+    model = fit_result.model
     y_train_prob = model.predict_proba(x_train)[:, 1]
     y_test_prob = model.predict_proba(x_test)[:, 1]
 
-    train_fit_oos = train_dataset.frame.select("day_utc", "pair", "direction_up").rename(
-        {"direction_up": "y_true"}
-    ).with_columns(
-        pl.Series("y_prob", y_train_prob),
-        pl.lit(1).alias("n_folds"),
-    )
-
-    test_oos = test_dataset.frame.select("day_utc", "pair", "direction_up").rename(
-        {"direction_up": "y_true"}
-    ).with_columns(
-        pl.Series("y_prob", y_test_prob),
-        pl.lit(1).alias("n_folds"),
-    )
+    train_fit_oos = _model_oos_frame(train_dataset, y_train_prob)
+    test_oos = _model_oos_frame(test_dataset, y_test_prob)
 
     test_plot_path = save_oos_probability_plot(
         test_oos,
-        weekday_ml_oos_plot_path(len(train_pairs), test_from, test_to),
+        ml_oos_plot_path(spec, len(train_pairs), test_from, test_to),
     )
     test_calibration_plot_path = save_oos_calibration_plot(
         test_oos,
-        weekday_ml_oos_calibration_plot_path(len(train_pairs), test_from, test_to),
+        ml_oos_calibration_plot_path(spec, len(train_pairs), test_from, test_to),
     )
     test_weekday_pair_summary_plot_path = save_weekday_pair_summary_plot(
         test_oos,
-        weekday_ml_weekday_pair_summary_plot_path(len(train_pairs), test_from, test_to),
+        ml_weekday_pair_summary_plot_path(spec, len(train_pairs), test_from, test_to),
         title="Holdout test: weekday × pair metrics",
     )
+    feature_predictive_plot_path = None
+    if spec.predictive_feature and spec.predictive_plot_slug:
+        feature_predictive_plot_path = save_feature_curve_plot(
+            train_fit_oos,
+            test_oos,
+            ml_feature_predictive_plot_path(
+                spec, len(train_pairs), test_from, test_to, spec.predictive_plot_slug
+            ),
+            feature_column=spec.predictive_feature,
+            train_title=f"Train {args.train_from}..{args.train_to}",
+            val_title=f"Val {args.test_from}..{args.test_to}",
+        )
     train_oos = train_cpcv.oos_paths
     if train_oos is None:
         raise RuntimeError("Train CPCV не вернул OOS-предсказания для ROC AUC plot")
@@ -417,7 +527,7 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         raise RuntimeError("Train CPCV не вернул OOS-предсказания для weekday×pair summary plot")
     train_weekday_pair_summary_plot_path = save_weekday_pair_summary_plot(
         train_cpcv.oos_predictions,
-        weekday_ml_weekday_pair_summary_plot_path(len(train_pairs), train_from, train_to),
+        ml_weekday_pair_summary_plot_path(spec, len(train_pairs), train_from, train_to),
         title="Train CPCV OOS: weekday × pair metrics",
     )
     roc_auc_plot_path = save_roc_auc_comparison_plot(
@@ -425,7 +535,7 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         train_oos[:, 1],
         y_test,
         y_test_prob,
-        weekday_ml_roc_auc_plot_path(len(train_pairs), train_from, test_to),
+        ml_roc_auc_plot_path(spec, len(train_pairs), train_from, test_to),
     )
     test_metrics = _binary_metrics(y_test, y_test_prob)
     train_fit_metrics = _binary_metrics(y_train, y_train_prob)
@@ -441,20 +551,34 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         train_weekday_base=train_weekday_base,
     )
 
-    model_path = weekday_ml_model_bundle_path(len(train_pairs), train_from, train_to)
+    model_path = ml_model_bundle_path(spec, len(train_pairs), train_from, train_to)
     model_path.parent.mkdir(parents=True, exist_ok=True)
-    model_bundle = {
-        "model": model,
-        "feature_columns": list(train_dataset.feature_columns),
-        "pair_encoder_classes": train_dataset.pair_encoder.classes_.tolist(),
-        "weekday_encoder_classes": train_dataset.weekday_encoder.classes_.tolist(),
-        "train_period": {"from": args.train_from, "to": args.train_to},
-    }
+    early_stopping_meta = None
+    if args.early_stopping:
+        early_stopping_meta = {
+            "eval_period": fit_result.eval_period,
+            "best_iteration": fit_result.best_iteration,
+            "n_fit_rows": fit_result.n_fit_rows,
+            "n_eval_rows": fit_result.n_eval_rows,
+            "learning_curve_plot_path": (
+                str(fit_result.learning_curve_plot_path) if fit_result.learning_curve_plot_path else None
+            ),
+            "learning_curve_log_path": (
+                str(fit_result.learning_curve_log_path) if fit_result.learning_curve_log_path else None
+            ),
+        }
+    model_bundle = _build_model_bundle(
+        model,
+        train_dataset,
+        train_period={"from": args.train_from, "to": args.train_to},
+        early_stopping=early_stopping_meta,
+    )
     with model_path.open("wb") as f:
         pickle.dump(model_bundle, f)
 
     payload = {
         "mode": "train_test",
+        "ml_spec": ml_spec_to_dict(spec),
         "n_pairs": len(train_pairs),
         "pair_start_limit": args.max_pair_start,
         "train_period": {"from": args.train_from, "to": args.train_to},
@@ -483,6 +607,8 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         "final_model_path": str(model_path),
         "train_fit": {
             "n_rows": train_dataset.frame.height,
+            "n_estimators": fit_result.best_iteration,
+            "early_stopping": early_stopping_meta,
             "metrics": train_fit_metrics,
             "calibration_metrics": train_fit_calibration,
             "pair_metrics": _group_metrics(train_fit_oos, "pair"),
@@ -498,9 +624,12 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
             "oos_plot_path": str(test_plot_path),
             "oos_calibration_plot_path": str(test_calibration_plot_path),
             "weekday_pair_summary_plot_path": str(test_weekday_pair_summary_plot_path),
+            "feature_predictive_plot_path": (
+                str(feature_predictive_plot_path) if feature_predictive_plot_path else None
+            ),
         },
     }
-    out_path = args.output or _default_train_test_output_path(len(train_pairs), train_from, test_to)
+    out_path = args.output or _default_train_test_output_path(spec, len(train_pairs), train_from, test_to)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         json.dumps(_round_json_floats(payload), indent=2, ensure_ascii=False),
@@ -511,6 +640,7 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
 
 
 def run_ml_pipeline(args: argparse.Namespace) -> CPCVTrainResult:
+    spec = resolve_ml_study(args.studies)
     workers = args.workers if args.workers is not None else _DEFAULT_WORKERS
     from_date = parse_iso_utc(args.from_date)
     to_date = parse_iso_utc(args.to_date)
@@ -522,36 +652,41 @@ def run_ml_pipeline(args: argparse.Namespace) -> CPCVTrainResult:
         workers=workers,
     )
     log.info("Loaded %d pairs with %d daily rows", len(pairs), daily.height)
-    dataset = build_weekday_direction_dataset(daily)
+    pair_bounds = (
+        fit_pair_ema_dev_bounds_from_daily(daily)
+        if FEATURE_EMA_DEV_PAIR_NORM in spec.feature_columns
+        else None
+    )
+    dataset = build_direction_dataset(daily, spec, pair_ema_dev_bounds=pair_bounds)
     _log_dataset_preview(dataset.frame, head=args.preview_rows)
     result = train_lightgbm_cpcv(
         dataset,
         n_splits=args.n_splits,
         n_test_groups=args.n_test_groups,
         embargo_days=args.embargo_days,
-        oos_plot_path=weekday_ml_oos_plot_path(len(pairs), from_date, to_date),
-        oos_calibration_plot_path=weekday_ml_oos_calibration_plot_path(
-            len(pairs), from_date, to_date
-        ),
+        oos_plot_path=ml_oos_plot_path(spec, len(pairs), from_date, to_date),
+        oos_calibration_plot_path=ml_oos_calibration_plot_path(spec, len(pairs), from_date, to_date),
     )
 
     out_path = args.output
     if out_path is None:
-        out_path = weekday_ml_metrics_path(len(pairs), from_date, to_date)
-    saved = _save_result(result, out_path, n_pairs=len(pairs), n_rows=dataset.frame.height)
+        out_path = ml_metrics_path(spec, len(pairs), from_date, to_date)
+    saved = _save_result(result, out_path, n_pairs=len(pairs), n_rows=dataset.frame.height, spec=spec)
     log.info("[ml] metrics saved: %s", saved)
     return result
 
 
 def main() -> int:
     args = parse_ml_args()
+    spec = resolve_ml_study(args.studies)
+    log.info("[ml] studies=%s features=%s output=%s", list(spec.studies), list(spec.feature_columns), spec.output_study)
     if args.train_test:
         from_date = parse_iso_utc(args.train_from)
         to_date = parse_iso_utc(args.test_to)
     else:
         from_date = parse_iso_utc(args.from_date)
         to_date = parse_iso_utc(args.to_date)
-    log_file = add_file_logging(weekday_ml_log_path(from_date, to_date))
+    log_file = add_file_logging(ml_log_path(spec, from_date, to_date))
     log.info("[ml] log file: %s", log_file)
     if args.train_test:
         run_ml_train_test_pipeline(args)

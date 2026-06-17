@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 from crypto_research.utils.pipeline.study_ids import (
+    STUDY_COMBINED,
     STUDY_DAY_OF_WEEK,
     STUDY_EMA_PERIOD_SCREEN,
     STUDY_EMA_SPREADS,
@@ -43,6 +44,7 @@ PAIR_UNIVERSALITY_TO = "2026-05-31"
 TEMPORAL_POOL_MAX_PAIR_START = VAL_MAX_PAIR_START
 TEMPORAL_TRAIN_FROM = "2022-01-01"
 TEMPORAL_TRAIN_TO = "2024-04-01"
+TRAIN_EVAL_FROM = "2023-10-01"
 TEMPORAL_VAL_FROM = "2024-04-01"
 TEMPORAL_VAL_TO = "2026-05-31"
 
@@ -54,6 +56,8 @@ FULL_POOL_TO = PAIR_UNIVERSALITY_TO
 
 def study_research_root(study: str) -> Path:
     """Корень артефактов исследования в research_outputs (без statistics/backtest)."""
+    if study == STUDY_COMBINED:
+        return RESEARCH_ROOT / "research_outputs" / "combined"
     stats = _STUDY_STATS_REL[study]
     return RESEARCH_ROOT / "research_outputs" / stats.parent
 
@@ -145,7 +149,119 @@ def weekday_ml_output_tag(
     from_date: datetime,
     to_date: datetime,
 ) -> str:
-    return f"weekday_direction_{n_pairs}pairs_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+    from crypto_research.utils.ml.spec import ML_STUDY_DAY_OF_WEEK, resolve_ml_study
+
+    return ml_output_tag(resolve_ml_study([ML_STUDY_DAY_OF_WEEK]), n_pairs, from_date, to_date)
+
+
+def ml_output_tag(
+    spec,
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+) -> str:
+    if spec.legacy_output_tag:
+        return f"weekday_direction_{n_pairs}pairs_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+    return f"direction_{spec.feature_slug}_{n_pairs}pairs_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+
+
+def ml_log_tag(spec, from_date: datetime, to_date: datetime) -> str:
+    if spec.legacy_output_tag:
+        return f"weekday_direction_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+    return f"direction_{spec.feature_slug}_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+
+
+def ml_dir(spec) -> Path:
+    if spec.bundle_id:
+        from crypto_research.utils.backtest.bundle_registry import bundle_ml_root
+
+        return bundle_ml_root(spec.bundle_id)
+    return study_research_root(spec.output_study) / spec.ml_subdir
+
+
+def ml_models_dir(spec) -> Path:
+    return ml_dir(spec) / "models"
+
+
+def ml_metrics_dir(spec) -> Path:
+    return ml_dir(spec) / "metrics"
+
+
+def ml_plots_dir(spec) -> Path:
+    return ml_dir(spec) / "plots"
+
+
+def ml_policies_dir(spec) -> Path:
+    return ml_dir(spec) / "policies"
+
+
+def ml_log_path(spec, from_date: datetime, to_date: datetime) -> Path:
+    return ml_dir(spec) / f"{ml_log_tag(spec, from_date, to_date)}.log"
+
+
+def ml_metrics_path(spec, n_pairs: int, from_date: datetime, to_date: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, from_date, to_date)
+    return ml_metrics_dir(spec) / f"{tag}_cpcv.json"
+
+
+def ml_oos_plot_path(spec, n_pairs: int, from_date: datetime, to_date: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, from_date, to_date)
+    return ml_plots_dir(spec) / f"{tag}_oos_prob.png"
+
+
+def ml_oos_calibration_plot_path(spec, n_pairs: int, from_date: datetime, to_date: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, from_date, to_date)
+    return ml_plots_dir(spec) / f"{tag}_oos_calibration.png"
+
+
+def ml_roc_auc_plot_path(spec, n_pairs: int, train_from: datetime, val_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, val_to)
+    return ml_plots_dir(spec) / f"{tag}_roc_auc.png"
+
+
+def ml_weekday_pair_summary_plot_path(spec, n_pairs: int, from_date: datetime, to_date: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, from_date, to_date)
+    return ml_plots_dir(spec) / f"{tag}_weekday_pair_summary.png"
+
+
+def ml_learning_curve_plot_path(spec, n_pairs: int, train_from: datetime, train_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, train_to)
+    return ml_plots_dir(spec) / f"{tag}_learning_curve.png"
+
+
+def ml_learning_curve_log_path(spec, n_pairs: int, train_from: datetime, train_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, train_to)
+    return ml_dir(spec) / f"{tag}_learning_curve.log"
+
+
+def ml_feature_predictive_plot_path(
+    spec,
+    n_pairs: int,
+    test_from: datetime,
+    test_to: datetime,
+    plot_slug: str,
+) -> Path:
+    tag = ml_output_tag(spec, n_pairs, test_from, test_to)
+    return ml_plots_dir(spec) / f"{tag}_{plot_slug}_predictive.png"
+
+
+def ml_ema_dev_predictive_plot_path(spec, n_pairs: int, test_from: datetime, test_to: datetime) -> Path:
+    return ml_feature_predictive_plot_path(spec, n_pairs, test_from, test_to, "ema_dev")
+
+
+def ml_model_bundle_path(spec, n_pairs: int, train_from: datetime, train_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, train_to)
+    return ml_models_dir(spec) / f"{tag}_model_bundle.pkl"
+
+
+def ml_train_test_metrics_path(spec, n_pairs: int, train_from: datetime, test_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, test_to)
+    return ml_metrics_dir(spec) / f"{tag}_train_test.json"
+
+
+def ml_policy_path(spec, n_pairs: int, train_from: datetime, test_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, test_to)
+    return ml_policies_dir(spec) / f"{tag}_policy.json"
 
 
 def weekday_ml_log_path(
@@ -209,7 +325,14 @@ def weekday_ml_train_test_metrics_path(
     train_from: datetime,
     test_to: datetime,
 ) -> Path:
-    return WEEKDAY_ML_METRICS_DIR / f"{weekday_ml_output_tag(n_pairs, train_from, test_to)}_train_test.json"
+    from crypto_research.utils.ml.spec import ML_STUDY_DAY_OF_WEEK, resolve_ml_study
+
+    return ml_train_test_metrics_path(
+        resolve_ml_study([ML_STUDY_DAY_OF_WEEK]),
+        n_pairs,
+        train_from,
+        test_to,
+    )
 
 
 def weekday_ml_policy_path(
@@ -217,7 +340,9 @@ def weekday_ml_policy_path(
     train_from: datetime,
     test_to: datetime,
 ) -> Path:
-    return WEEKDAY_ML_POLICIES_DIR / f"{weekday_ml_output_tag(n_pairs, train_from, test_to)}_policy.json"
+    from crypto_research.utils.ml.spec import ML_STUDY_DAY_OF_WEEK, resolve_ml_study
+
+    return ml_policy_path(resolve_ml_study([ML_STUDY_DAY_OF_WEEK]), n_pairs, train_from, test_to)
 
 
 def ema_spreads_output_tag(
