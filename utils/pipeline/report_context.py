@@ -10,8 +10,15 @@ from crypto_research.utils.ema_spreads.constants import (
     DEFAULT_EMA_PERIODS,
     DEFAULT_SCREEN_EMA_PERIODS,
 )
-from crypto_research.utils.pipeline.study_ids import STUDY_EMA_PERIOD_SCREEN
-from crypto_research.utils.rsi.constants import DEFAULT_SCREEN_RSI_PERIODS
+from crypto_research.utils.pipeline.study_ids import (
+    STUDY_EMA_PERIOD_SCREEN,
+    STUDY_RSI_PERIOD_SCREEN,
+    STUDY_RSI_SPREADS,
+)
+from crypto_research.utils.rsi.constants import (
+    DEFAULT_RSI_PERIODS,
+    DEFAULT_SCREEN_RSI_PERIODS,
+)
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.load_pairs import _DEFAULT_WORKERS
 from crypto_research.utils.pipeline.paths import TRAIN_MAX_PAIR_START, VAL_MAX_PAIR_START
@@ -118,5 +125,12 @@ def build_report_context(args) -> ReportContext:
                 else DEFAULT_EMA_PERIODS
             ),
         ),
-        rsi_periods=parse_rsi_periods(args.rsi_periods),
+        rsi_periods=parse_rsi_periods(
+            args.rsi_periods,
+            default=(
+                DEFAULT_SCREEN_RSI_PERIODS
+                if args.study == STUDY_RSI_PERIOD_SCREEN
+                else DEFAULT_RSI_PERIODS
+            ),
+        ),
     )

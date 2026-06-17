@@ -10,7 +10,7 @@ import numpy as np
 
 from crypto_research.utils.backtest.analytics import PortfolioAnalytics, WEEKDAY_NAMES
 from crypto_research.utils.backtest.fees import FeeSchedule
-from crypto_research.utils.backtest.scenarios import SCENARIO_REPORT_HEADER, EMA_SCENARIO_REPORT_HEADER
+from crypto_research.utils.backtest.scenarios import SCENARIO_REPORT_HEADER, EMA_SCENARIO_REPORT_HEADER, RSI_SCENARIO_REPORT_HEADER
 from crypto_research.utils.backtest.bundle_registry import is_algo_bundle_id
 from crypto_research.utils.ml.registry import is_ml_backtest_strategy, is_ml_study_id
 
@@ -361,6 +361,8 @@ def format_backtest_report(result: BacktestResult) -> str:
     header = SCENARIO_REPORT_HEADER.get(result.scenario)
     if result.strategy == "ema_spreads":
         header = EMA_SCENARIO_REPORT_HEADER.get(result.scenario, header)
+    if result.strategy == "rsi_spreads":
+        header = RSI_SCENARIO_REPORT_HEADER.get(result.scenario, header)
     if header:
         lines.append(header)
     lines.extend([

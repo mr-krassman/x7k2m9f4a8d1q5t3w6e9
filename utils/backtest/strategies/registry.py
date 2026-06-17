@@ -2,13 +2,16 @@
 
 from crypto_research.utils.backtest.strategies.day_of_week import STRATEGY_NAME as DOW_NAME
 from crypto_research.utils.backtest.strategies.ema_spreads import STRATEGY_NAME as EMA_NAME
+from crypto_research.utils.backtest.strategies.rsi_spreads import STRATEGY_NAME as RSI_NAME
 from crypto_research.utils.backtest.strategies.handler_combined_algo import CombinedAlgoStrategyHandler
 from crypto_research.utils.backtest.strategies.handler_day_of_week import DayOfWeekStrategyHandler
 from crypto_research.utils.backtest.strategies.handler_ema_spreads import EmaSpreadsStrategyHandler
+from crypto_research.utils.backtest.strategies.handler_rsi_spreads import RsiSpreadsStrategyHandler
 from crypto_research.utils.backtest.strategies.handler_ml import MlStrategyHandler
 from crypto_research.utils.ml.registry import (
     ML_STUDY_DAY_OF_WEEK,
     ML_STUDY_EMA_SPREADS,
+    ML_STUDY_RSI_SPREADS,
     is_ml_study_id,
 )
 
@@ -18,8 +21,10 @@ _COMBINED_ALGO_HANDLER = CombinedAlgoStrategyHandler()
 STRATEGY_HANDLERS = {
     DOW_NAME: DayOfWeekStrategyHandler(),
     EMA_NAME: EmaSpreadsStrategyHandler(),
+    RSI_NAME: RsiSpreadsStrategyHandler(),
     ML_STUDY_DAY_OF_WEEK: _ML_HANDLER,
     ML_STUDY_EMA_SPREADS: _ML_HANDLER,
+    ML_STUDY_RSI_SPREADS: _ML_HANDLER,
 }
 
 

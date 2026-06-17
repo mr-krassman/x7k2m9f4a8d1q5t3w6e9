@@ -12,17 +12,16 @@ import polars as pl
 from sklearn.preprocessing import LabelEncoder
 
 from crypto_research.utils.ema_spreads.constants import SELECTED_EMA_PERIOD
-from crypto_research.utils.ema_spreads.ema import attach_ema_columns, ema_dev_prev_column
-from crypto_research.utils.ml.ema_dev_norm import (
-    PairEmaDevBounds,
-    apply_pair_ema_dev_norm,
-    fit_pair_ema_dev_bounds_from_daily,
+from crypto_research.utils.ml.ema_dev_norm import PairEmaDevBounds
+from crypto_research.utils.ml.numeric_features import (
+    active_numeric_specs,
+    attach_normalized_features,
+    needs_day_close,
 )
+from crypto_research.utils.ml.pair_bounds import PairBounds
+from crypto_research.utils.ml.registry import FEATURE_EMA_DEV_PAIR_NORM, FEATURE_PAIR_ID, FEATURE_WEEKDAY_ENC
 from crypto_research.utils.ml.spec import (
     CATEGORICAL_FEATURES,
-    FEATURE_EMA_DEV_PAIR_NORM,
-    FEATURE_PAIR_ID,
-    FEATURE_WEEKDAY_ENC,
     ML_STUDY_DAY_OF_WEEK,
     MlStudySpec,
     resolve_ml_study,
@@ -37,6 +36,7 @@ from crypto_research.utils.pipeline.load_pairs import (
 from crypto_research.utils.pipeline.load_summary import log_load_summary
 from crypto_research.utils.pipeline.logger import get_logger
 from crypto_research.utils.pipeline.paths import FULL_POOL_FROM, FULL_POOL_TO
+from crypto_research.utils.rsi.constants import SELECTED_RSI_PERIOD
 
 log = get_logger("ml_dataset")
 
@@ -50,8 +50,24 @@ class DirectionDataset:
     feature_columns: tuple[str, ...]
     ml_spec: MlStudySpec
     target_column: str = "direction_up"
-    ema_period: int | None = None
-    pair_ema_dev_bounds: dict[str, PairEmaDevBounds] | None = None
+    pair_norm_bounds: dict[str, dict[str, PairBounds | PairEmaDevBounds]] | None = None
+
+    @property
+    def pair_ema_dev_bounds(self) -> dict[str, PairEmaDevBounds] | None:
+        if not self.pair_norm_bounds:
+            return None
+        bounds = self.pair_norm_bounds.get(FEATURE_EMA_DEV_PAIR_NORM)
+        return bounds  # type: ignore[return-value]
+
+    @property
+    def ema_period(self) -> int | None:
+        return SELECTED_EMA_PERIOD if FEATURE_EMA_DEV_PAIR_NORM in self.feature_columns else None
+
+    @property
+    def rsi_period(self) -> int | None:
+        from crypto_research.utils.ml.registry import FEATURE_RSI_PAIR_NORM
+
+        return SELECTED_RSI_PERIOD if FEATURE_RSI_PAIR_NORM in self.feature_columns else None
 
 
 WeekdayDirectionDataset = DirectionDataset
@@ -113,25 +129,16 @@ def build_direction_dataset(
     spec: MlStudySpec,
     *,
     pair_ema_dev_bounds: dict[str, PairEmaDevBounds] | None = None,
+    pair_norm_bounds: dict[str, dict[str, PairBounds | PairEmaDevBounds]] | None = None,
 ) -> DirectionDataset:
     """Фичи по spec, таргет direction_up (1 = close > open)."""
-    need_ema = FEATURE_EMA_DEV_PAIR_NORM in spec.feature_columns
-    weekday_daily = _base_weekday_frame(daily, need_close=need_ema)
-    resolved_bounds = pair_ema_dev_bounds
-    if need_ema:
-        weekday_daily = attach_ema_columns(
-            weekday_daily.sort(["pair", "day_utc"]),
-            (SELECTED_EMA_PERIOD,),
-        )
-        ema_prev_col = ema_dev_prev_column(SELECTED_EMA_PERIOD)
-        raw_dev = weekday_daily[ema_prev_col].to_numpy().astype(np.float64, copy=False)
-        pairs_arr = weekday_daily["pair"].to_numpy().astype(object, copy=False)
-        if resolved_bounds is None:
-            resolved_bounds = fit_pair_ema_dev_bounds_from_daily(daily)
-        norm_dev = apply_pair_ema_dev_norm(raw_dev, pairs_arr, resolved_bounds)
-        weekday_daily = weekday_daily.with_columns(
-            pl.Series(FEATURE_EMA_DEV_PAIR_NORM, norm_dev, dtype=pl.Float64),
-        )
+    numeric_cols = [s.column for s in active_numeric_specs(spec.feature_columns)]
+    resolved_bounds = pair_norm_bounds
+    if resolved_bounds is None and pair_ema_dev_bounds is not None:
+        resolved_bounds = {FEATURE_EMA_DEV_PAIR_NORM: pair_ema_dev_bounds}
+
+    weekday_daily = _base_weekday_frame(daily, need_close=needs_day_close(spec.feature_columns))
+    weekday_daily = attach_normalized_features(weekday_daily, spec.feature_columns, resolved_bounds)
 
     frame = (
         weekday_daily.with_columns(
@@ -139,15 +146,16 @@ def build_direction_dataset(
         )
         .filter(pl.col("return_pct").is_finite())
     )
-    if need_ema:
-        frame = frame.filter(pl.col(FEATURE_EMA_DEV_PAIR_NORM).is_finite())
+    for col in numeric_cols:
+        frame = frame.filter(pl.col(col).is_finite())
+
     frame = frame.select(
         "day_utc",
         "pair",
         "weekday",
         "return_pct",
         "direction_up",
-        *([FEATURE_EMA_DEV_PAIR_NORM] if need_ema else []),
+        *numeric_cols,
     ).sort("day_utc", "pair")
 
     pair_encoder = LabelEncoder()
@@ -169,10 +177,11 @@ def build_direction_dataset(
         weekday_encoder = LabelEncoder()
         weekday_encoder.fit(frame["weekday"].to_list())
 
-    if need_ema:
-        norm_col = frame[FEATURE_EMA_DEV_PAIR_NORM]
+    for col in numeric_cols:
+        norm_col = frame[col]
         log.info(
-            "[ml] ema_dev_pair_norm: min=%.3f max=%.3f mean=%.3f",
+            "[ml] %s: min=%.3f max=%.3f mean=%.3f",
+            col,
             float(norm_col.min()),
             float(norm_col.max()),
             float(norm_col.mean()),
@@ -193,8 +202,7 @@ def build_direction_dataset(
         weekday_encoder=weekday_encoder,
         feature_columns=spec.feature_columns,
         ml_spec=spec,
-        ema_period=SELECTED_EMA_PERIOD if need_ema else None,
-        pair_ema_dev_bounds=resolved_bounds if need_ema else None,
+        pair_norm_bounds=resolved_bounds,
     )
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ import numpy as np
 import polars as pl
 from sklearn.metrics import accuracy_score, roc_auc_score
 
+from crypto_research.utils.ml.numeric_features import NUMERIC_FEATURE_SPECS
 from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("ml_feature_predictive_plot")
@@ -17,9 +19,35 @@ PLOT_DPI = 200
 FIG_W = 14.0
 FIG_H = 5.0
 BASELINE = 0.5
+BASE_RATE_COLOR = "#94a3b8"
 DEFAULT_BIN_WIDTH = 0.1
 DEFAULT_MIN_N = 40
 Y_PAD_FRAC = 0.05
+
+
+@dataclass(frozen=True)
+class MetricsOverFeaturePlotConfig:
+    feature_column: str
+    plot_slug: str
+    x_label: str
+    bin_width: float = DEFAULT_BIN_WIDTH
+
+
+def resolve_metrics_over_feature_plot_config(
+    predictive_feature: str | None,
+    predictive_plot_slug: str | None,
+) -> MetricsOverFeaturePlotConfig | None:
+    if not predictive_feature or not predictive_plot_slug:
+        return None
+    numeric = NUMERIC_FEATURE_SPECS.get(predictive_feature)
+    x_label = numeric.plot_x_label if numeric and numeric.plot_x_label else predictive_feature
+    bin_width = numeric.plot_bin_width if numeric else DEFAULT_BIN_WIDTH
+    return MetricsOverFeaturePlotConfig(
+        feature_column=predictive_feature,
+        plot_slug=predictive_plot_slug,
+        x_label=x_label,
+        bin_width=bin_width,
+    )
 
 
 def _metrics_for_slice(y_true: np.ndarray, y_prob: np.ndarray) -> dict[str, float | int]:
@@ -64,6 +92,7 @@ def build_feature_bin_curve_metrics(
                 "feature_center": pl.Float64,
                 "roc_auc": pl.Float64,
                 "accuracy": pl.Float64,
+                "base_rate_up": pl.Float64,
                 "n": pl.Int64,
             }
         )
@@ -79,22 +108,33 @@ def build_feature_bin_curve_metrics(
             mask = (values >= left) & (values <= right)
         else:
             mask = (values >= left) & (values < right)
-        m = _metrics_for_slice(y_true[mask], y_prob[mask])
+        y_bin = y_true[mask]
+        m = _metrics_for_slice(y_bin, y_prob[mask])
         center = (left + right) / 2.0
         auc = float(m["roc_auc"])
         acc = float(m["accuracy"])
         n = int(m["n"])
+        base_rate = float(y_bin.mean()) if n > 0 else float("nan")
         if n < min_n:
             auc = float("nan")
             acc = float("nan")
-        rows.append({"feature_center": center, "roc_auc": auc, "accuracy": acc, "n": n})
+            base_rate = float("nan")
+        rows.append(
+            {
+                "feature_center": center,
+                "roc_auc": auc,
+                "accuracy": acc,
+                "base_rate_up": base_rate,
+                "n": n,
+            }
+        )
     return pl.DataFrame(rows)
 
 
 def _y_limits_from_metrics(*metrics_frames: pl.DataFrame) -> tuple[float, float]:
     values: list[float] = []
     for frame in metrics_frames:
-        for col in ("roc_auc", "accuracy"):
+        for col in ("roc_auc", "accuracy", "base_rate_up"):
             arr = frame[col].to_numpy()
             values.extend(float(v) for v in arr if np.isfinite(v))
     if not values:
@@ -120,10 +160,20 @@ def _plot_curve_panel(
     x = metrics["feature_center"].to_numpy()
     auc = metrics["roc_auc"].to_numpy()
     acc = metrics["accuracy"].to_numpy()
+    base_rate = metrics["base_rate_up"].to_numpy()
 
     ax.axhline(BASELINE, color="#64748b", linewidth=1.0, linestyle="--", zorder=1)
-    ax.plot(x, auc, color="#16a34a", linewidth=1.8, marker="o", markersize=3.5, label="ROC AUC", zorder=3)
-    ax.plot(x, acc, color="#2563eb", linewidth=1.8, marker="o", markersize=3.5, label="Accuracy", zorder=3)
+    ax.plot(x, auc, color="#16a34a", linewidth=1.8, marker="o", markersize=3.5, label="ROC AUC", zorder=2)
+    ax.plot(x, acc, color="#2563eb", linewidth=1.8, marker="o", markersize=3.5, label="Accuracy", zorder=2)
+    ax.plot(
+        x,
+        base_rate,
+        color=BASE_RATE_COLOR,
+        linewidth=1.0,
+        linestyle="-",
+        label="Base rate up",
+        zorder=4,
+    )
     ax.set_ylim(y_min, y_max)
     ax.set_xlabel(x_label)
     ax.set_ylabel("Метрика")
@@ -167,3 +217,30 @@ def save_feature_curve_plot(
     plt.close(fig)
     log.info("[ml] feature curve plot saved: %s (%s)", path, feature_column)
     return path
+
+
+def save_metrics_over_feature_plot(
+    train_oos: pl.DataFrame,
+    val_oos: pl.DataFrame,
+    path: Path,
+    *,
+    predictive_feature: str | None,
+    predictive_plot_slug: str | None,
+    train_title: str = "Train",
+    val_title: str = "Val (holdout)",
+) -> Path | None:
+    """Универсальный график метрик по бинам predictive-фичи исследования."""
+    cfg = resolve_metrics_over_feature_plot_config(predictive_feature, predictive_plot_slug)
+    if cfg is None:
+        log.warning("[ml] metrics-over-feature plot skipped: исследование без predictive_feature")
+        return None
+    return save_feature_curve_plot(
+        train_oos,
+        val_oos,
+        path,
+        feature_column=cfg.feature_column,
+        x_label=cfg.x_label,
+        train_title=train_title,
+        val_title=val_title,
+        bin_width=cfg.bin_width,
+    )

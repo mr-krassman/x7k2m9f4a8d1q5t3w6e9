@@ -51,6 +51,15 @@ EMA_SCENARIO_REPORT_HEADER: dict[str, str] = {
     ),
 }
 
+RSI_SCENARIO_REPORT_HEADER: dict[str, str] = {
+    SCENARIO_CONSERVATIVE: (
+        "Сценарий: консервативный (val, все 49 пар, b0 long, границы frozen train)"
+    ),
+    SCENARIO_OPTIMISTIC: (
+        "Сценарий: оптимистичный (val, train-отбор пар по b0 × «Цена росла»)"
+    ),
+}
+
 VAL_FROM = TEMPORAL_VAL_FROM
 VAL_TO = TEMPORAL_VAL_TO
 OPTIMISTIC_TRAIN_FROM = TEMPORAL_TRAIN_FROM

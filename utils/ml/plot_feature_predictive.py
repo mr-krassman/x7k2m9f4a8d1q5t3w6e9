@@ -20,9 +20,9 @@ from crypto_research.utils.ml.dataset import (
     dataset_to_numpy,
     load_full_pool_daily,
 )
-from crypto_research.utils.ml.ema_dev_norm import pair_ema_dev_bounds_from_dict
-from crypto_research.utils.ml.feature_predictive_plot import save_feature_curve_plot
-from crypto_research.utils.ml.spec import FEATURE_EMA_DEV_PAIR_NORM, resolve_ml_study
+from crypto_research.utils.ml.feature_predictive_plot import save_metrics_over_feature_plot
+from crypto_research.utils.ml.numeric_features import bounds_map_from_bundle
+from crypto_research.utils.ml.spec import ML_STUDY_CHOICES, resolve_ml_study
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.load_pairs import _DEFAULT_WORKERS
 from crypto_research.utils.pipeline.paths import (
@@ -39,6 +39,13 @@ from crypto_research.utils.pipeline.paths import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="График ML vs непрерывный признак (train + val).")
+    parser.add_argument(
+        "studies",
+        nargs="*",
+        choices=list(ML_STUDY_CHOICES),
+        metavar="STUDY",
+        help="ML-исследование с predictive-фичей (например ema_spreads_ml, rsi_spreads_ml)",
+    )
     parser.add_argument("--model-bundle", type=Path, default=None)
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--train-from", default=TEMPORAL_TRAIN_FROM)
@@ -51,8 +58,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _predict_oos(daily, spec, bounds, model) -> pl.DataFrame:
-    dataset = build_direction_dataset(daily, spec, pair_ema_dev_bounds=bounds)
+def _predict_oos(daily, spec, bounds_map, model) -> pl.DataFrame:
+    dataset = build_direction_dataset(daily, spec, pair_norm_bounds=bounds_map)
     x, _, _, _ = dataset_to_numpy(dataset)
     y_prob = model.predict_proba(x)[:, 1]
     cols = ["day_utc", "pair", "direction_up"]
@@ -65,7 +72,8 @@ def _predict_oos(daily, spec, bounds, model) -> pl.DataFrame:
 
 def main() -> int:
     args = parse_args()
-    spec = resolve_ml_study(["ema_spreads_ml"])
+    studies = args.studies or ["ema_spreads_ml"]
+    spec = resolve_ml_study(studies)
     if not spec.predictive_feature or not spec.predictive_plot_slug:
         raise SystemExit("Исследование не задаёт predictive_feature")
     train_from = parse_iso_utc(args.train_from)
@@ -80,11 +88,7 @@ def main() -> int:
     with bundle_path.open("rb") as f:
         bundle = pickle.load(f)
     model: lgb.LGBMClassifier = bundle["model"]
-    bounds = (
-        pair_ema_dev_bounds_from_dict(bundle["pair_ema_dev_bounds"])
-        if FEATURE_EMA_DEV_PAIR_NORM in spec.feature_columns
-        else None
-    )
+    bounds_map = bounds_map_from_bundle(bundle, spec.feature_columns)
 
     train_daily, _ = load_full_pool_daily(
         data_dir, max_pair_start=pair_start, from_date=train_from, to_date=train_to, workers=workers
@@ -92,17 +96,18 @@ def main() -> int:
     test_daily, test_pairs = load_full_pool_daily(
         data_dir, max_pair_start=pair_start, from_date=test_from, to_date=test_to, workers=workers
     )
-    train_oos = _predict_oos(train_daily, spec, bounds, model)
-    val_oos = _predict_oos(test_daily, spec, bounds, model)
+    train_oos = _predict_oos(train_daily, spec, bounds_map, model)
+    val_oos = _predict_oos(test_daily, spec, bounds_map, model)
 
     out = args.output or ml_feature_predictive_plot_path(
         spec, len(test_pairs), test_from, test_to, spec.predictive_plot_slug
     )
-    save_feature_curve_plot(
+    save_metrics_over_feature_plot(
         train_oos,
         val_oos,
         out,
-        feature_column=spec.predictive_feature,
+        predictive_feature=spec.predictive_feature,
+        predictive_plot_slug=spec.predictive_plot_slug,
         train_title=f"Train {args.train_from}..{args.train_to}",
         val_title=f"Val {args.test_from}..{args.test_to}",
     )

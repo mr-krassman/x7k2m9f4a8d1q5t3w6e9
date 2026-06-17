@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 DEFAULT_SCREEN_RSI_PERIODS: tuple[int, ...] = (5, 9, 14, 21, 50)
+SELECTED_RSI_PERIOD = 9
+DEFAULT_RSI_PERIODS: tuple[int, ...] = (SELECTED_RSI_PERIOD,)
 N_RSI_QUANTILES = 6
 SCREEN_MIN_POOLED_DELTA_PP = 2.0
 

@@ -41,10 +41,12 @@ from crypto_research.utils.backtest.plots import (
     save_weekday_corr_plot,
 )
 from crypto_research.utils.backtest.report import BacktestResult, save_backtest_report
-from crypto_research.utils.ema_spreads.constants import SELECTED_EMA_PERIOD
-from crypto_research.utils.ema_spreads.ema import attach_ema_columns, ema_dev_prev_column
-from crypto_research.utils.ml.ema_dev_norm import apply_pair_ema_dev_norm, pair_ema_dev_bounds_from_dict
-from crypto_research.utils.ml.spec import FEATURE_EMA_DEV_PAIR_NORM, FEATURE_PAIR_ID, FEATURE_WEEKDAY_ENC
+from crypto_research.utils.ml.numeric_features import (
+    NUMERIC_FEATURE_SPECS,
+    attach_normalized_features,
+    bounds_map_from_bundle,
+)
+from crypto_research.utils.ml.registry import FEATURE_PAIR_ID, FEATURE_WEEKDAY_ENC
 from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("strategy_day_of_week_ml")
@@ -107,31 +109,23 @@ def _normalize_weekday(daily: pl.DataFrame) -> pl.DataFrame:
     return daily.with_columns(wd.alias("weekday"))
 
 
-def _build_ema_feature(df: pl.DataFrame, model_bundle: dict) -> np.ndarray:
-    if "pair_ema_dev_bounds" not in model_bundle:
-        raise RuntimeError("model_bundle не содержит pair_ema_dev_bounds для ema_dev_pair_norm")
+def _attach_numeric_features(df: pl.DataFrame, model_bundle: dict) -> pl.DataFrame:
+    feature_columns = list(model_bundle["feature_columns"])
+    if not any(c in NUMERIC_FEATURE_SPECS for c in feature_columns):
+        return df
     work = (
         df.select("day_utc", "pair", "day_close")
         .with_row_count("row_idx")
         .sort(["pair", "day_utc"])
     )
-    period = int(model_bundle.get("ema_period", SELECTED_EMA_PERIOD))
-    work = attach_ema_columns(work, (period,))
-    prev_col = ema_dev_prev_column(period)
-    bounds = pair_ema_dev_bounds_from_dict(model_bundle["pair_ema_dev_bounds"])
-    dev = work[prev_col].to_numpy().astype(np.float64, copy=False)
-    pairs = work["pair"].to_numpy().astype(object, copy=False)
-    norm = apply_pair_ema_dev_norm(dev, pairs, bounds)
-    return (
-        work.with_columns(pl.Series(FEATURE_EMA_DEV_PAIR_NORM, norm))
-        .sort("row_idx")[FEATURE_EMA_DEV_PAIR_NORM]
-        .to_numpy()
-        .astype(np.float64, copy=False)
-    )
+    bounds_map = bounds_map_from_bundle(model_bundle, feature_columns)
+    enriched = attach_normalized_features(work, feature_columns, bounds_map)
+    return enriched.sort("row_idx")
 
 
 def _build_model_features(df: pl.DataFrame, model_bundle: dict) -> pd.DataFrame:
     feature_columns: list[str] = list(model_bundle["feature_columns"])
+    numeric_frame = _attach_numeric_features(df, model_bundle)
     frame: dict[str, pd.Series] = {}
     if FEATURE_PAIR_ID in feature_columns:
         pair_classes = list(model_bundle["pair_encoder_classes"])
@@ -143,8 +137,12 @@ def _build_model_features(df: pl.DataFrame, model_bundle: dict) -> pd.DataFrame:
         wd_map = {wd: i for i, wd in enumerate(weekday_classes)}
         weekday_enc = np.array([wd_map[int(w)] for w in df["weekday"].to_list()], dtype=np.int32)
         frame[FEATURE_WEEKDAY_ENC] = pd.Series(weekday_enc.astype(str), dtype="category")
-    if FEATURE_EMA_DEV_PAIR_NORM in feature_columns:
-        frame[FEATURE_EMA_DEV_PAIR_NORM] = pd.Series(_build_ema_feature(df, model_bundle), dtype=np.float64)
+    for column in feature_columns:
+        if column in NUMERIC_FEATURE_SPECS:
+            frame[column] = pd.Series(
+                numeric_frame[column].to_numpy().astype(np.float64, copy=False),
+                dtype=np.float64,
+            )
     x = pd.DataFrame(frame)
     missing = [c for c in feature_columns if c not in x.columns]
     if missing:

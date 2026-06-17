@@ -14,8 +14,8 @@ from crypto_research.utils.pipeline.paths import DEFAULT_DATA_DIR
 
 def _strategy_help() -> str:
     return (
-        "rule-based: day_of_week | ema_spreads | day_of_week ema_spreads --mode and|or; "
-        "ML: day_of_week_ml | ema_spreads_ml | day_of_week_ml ema_spreads_ml"
+        "rule-based: day_of_week | ema_spreads | rsi_spreads | day_of_week ema_spreads --mode and|or; "
+        "ML: day_of_week_ml | ema_spreads_ml | rsi_spreads_ml | day_of_week_ml ema_spreads_ml"
     )
 
 
@@ -84,6 +84,12 @@ def parse_backtest_args() -> argparse.Namespace:
         help="Период EMA (только ema_spreads; по умолчанию 9)",
     )
     parser.add_argument(
+        "--rsi-period",
+        type=int,
+        default=None,
+        help="Период RSI (только rsi_spreads; по умолчанию 9)",
+    )
+    parser.add_argument(
         "--ml-policy-path",
         type=Path,
         default=None,
@@ -123,6 +129,8 @@ def parse_backtest_args() -> argparse.Namespace:
 
     if args.ema_period is not None and args.strategy not in ("ema_spreads",) and args.algo_spec is None:
         parser.error("--ema-period применим только к ema_spreads")
+    if args.rsi_period is not None and args.strategy not in ("rsi_spreads",) and args.algo_spec is None:
+        parser.error("--rsi-period применим только к rsi_spreads")
     if args.ml_spec is None and args.algo_spec is None and (
         args.ml_policy_path is not None or args.ml_model_path is not None
     ):
@@ -133,5 +141,9 @@ def parse_backtest_args() -> argparse.Namespace:
         from crypto_research.utils.ema_spreads.constants import SELECTED_EMA_PERIOD
 
         args.ema_period = SELECTED_EMA_PERIOD
+    if args.rsi_period is None and args.strategy == "rsi_spreads":
+        from crypto_research.utils.rsi.constants import SELECTED_RSI_PERIOD
+
+        args.rsi_period = SELECTED_RSI_PERIOD
     handler.validate_args(parser, args)
     return args

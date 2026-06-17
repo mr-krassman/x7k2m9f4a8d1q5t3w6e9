@@ -4,6 +4,7 @@ from pathlib import Path
 from crypto_research.utils.ml.registry import (
     ML_STUDY_DAY_OF_WEEK,
     ML_STUDY_EMA_SPREADS,
+    ML_STUDY_RSI_SPREADS,
     is_ml_study_id,
 )
 from crypto_research.utils.pipeline.paths import study_backtest_dir, study_backtest_plots_dir
@@ -12,6 +13,7 @@ from crypto_research.utils.pipeline.paths import study_backtest_dir, study_backt
 _ML_BACKTEST_OUTPUT_STUDY: dict[str, str] = {
     ML_STUDY_DAY_OF_WEEK: "day_of_week",
     ML_STUDY_EMA_SPREADS: "ema_spreads",
+    ML_STUDY_RSI_SPREADS: "rsi_spreads",
 }
 
 
@@ -57,9 +59,11 @@ def backtest_output_tag(
     scenario: str | None = None,
     pairs_by_weekday: dict[int, list[str]] | None = None,
     selected_pairs: list[str] | None = None,
+    optimistic_segment: str | None = None,
 ) -> str:
     if scenario == "optimistic" and selected_pairs is not None:
-        return f"optimistic_b6_{len(selected_pairs)}pairs_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+        segment = optimistic_segment or "b6"
+        return f"optimistic_{segment}_{len(selected_pairs)}pairs_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
     if scenario == "optimistic" and pairs_by_weekday:
         thu = len(pairs_by_weekday.get(3, ()))
         pt = len(pairs_by_weekday.get(4, ()))
@@ -78,6 +82,7 @@ def _tag(
     selected_pairs: list[str] | None = None,
     combine_mode: str | None = None,
     bundle_kind: str | None = None,
+    optimistic_segment: str | None = None,
 ) -> str:
     tag = backtest_output_tag(
         n_pairs,
@@ -86,6 +91,7 @@ def _tag(
         scenario=scenario,
         pairs_by_weekday=pairs_by_weekday,
         selected_pairs=selected_pairs,
+        optimistic_segment=optimistic_segment,
     )
     if combine_mode:
         tag = f"{combine_mode}_{tag}"
@@ -103,6 +109,7 @@ def _path_kw(
     bundle_id: str | None = None,
     bundle_kind: str | None = None,
     combine_mode: str | None = None,
+    optimistic_segment: str | None = None,
 ) -> dict:
     return {
         "scenario": scenario,
@@ -112,6 +119,7 @@ def _path_kw(
         "bundle_id": bundle_id,
         "bundle_kind": bundle_kind,
         "combine_mode": combine_mode,
+        "optimistic_segment": optimistic_segment,
     }
 
 
@@ -128,6 +136,7 @@ def backtest_report_path(
     bundle_id: str | None = None,
     bundle_kind: str | None = None,
     combine_mode: str | None = None,
+    optimistic_segment: str | None = None,
 ) -> Path:
     tag = _tag(
         strategy,
@@ -139,6 +148,7 @@ def backtest_report_path(
         selected_pairs,
         combine_mode=combine_mode,
         bundle_kind=bundle_kind,
+        optimistic_segment=optimistic_segment,
     )
     return strategy_backtest_dir(
         strategy,
@@ -161,6 +171,7 @@ def backtest_equity_plot_path(
     bundle_id: str | None = None,
     bundle_kind: str | None = None,
     combine_mode: str | None = None,
+    optimistic_segment: str | None = None,
 ) -> Path:
     tag = _tag(
         strategy,
@@ -172,6 +183,7 @@ def backtest_equity_plot_path(
         selected_pairs,
         combine_mode=combine_mode,
         bundle_kind=bundle_kind,
+        optimistic_segment=optimistic_segment,
     )
     return strategy_backtest_plots_dir(
         strategy,
@@ -194,6 +206,7 @@ def backtest_drawdown_plot_path(
     bundle_id: str | None = None,
     bundle_kind: str | None = None,
     combine_mode: str | None = None,
+    optimistic_segment: str | None = None,
 ) -> Path:
     tag = _tag(
         strategy,
@@ -205,6 +218,7 @@ def backtest_drawdown_plot_path(
         selected_pairs,
         combine_mode=combine_mode,
         bundle_kind=bundle_kind,
+        optimistic_segment=optimistic_segment,
     )
     return strategy_backtest_plots_dir(
         strategy,
@@ -227,6 +241,7 @@ def backtest_returns_hist_plot_path(
     bundle_id: str | None = None,
     bundle_kind: str | None = None,
     combine_mode: str | None = None,
+    optimistic_segment: str | None = None,
 ) -> Path:
     tag = _tag(
         strategy,
@@ -238,6 +253,7 @@ def backtest_returns_hist_plot_path(
         selected_pairs,
         combine_mode=combine_mode,
         bundle_kind=bundle_kind,
+        optimistic_segment=optimistic_segment,
     )
     return strategy_backtest_plots_dir(
         strategy,
@@ -260,6 +276,7 @@ def backtest_weekday_corr_plot_path(
     bundle_id: str | None = None,
     bundle_kind: str | None = None,
     combine_mode: str | None = None,
+    optimistic_segment: str | None = None,
 ) -> Path:
     tag = _tag(
         strategy,
@@ -271,6 +288,7 @@ def backtest_weekday_corr_plot_path(
         selected_pairs,
         combine_mode=combine_mode,
         bundle_kind=bundle_kind,
+        optimistic_segment=optimistic_segment,
     )
     return strategy_backtest_plots_dir(
         strategy,

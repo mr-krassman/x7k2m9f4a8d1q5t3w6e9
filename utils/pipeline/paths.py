@@ -8,6 +8,7 @@ from crypto_research.utils.pipeline.study_ids import (
     STUDY_EMA_PERIOD_SCREEN,
     STUDY_EMA_SPREADS,
     STUDY_RSI_PERIOD_SCREEN,
+    STUDY_RSI_SPREADS,
 )
 
 RESEARCH_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -19,6 +20,7 @@ _STUDY_STATS_REL: dict[str, Path] = {
     STUDY_EMA_SPREADS: Path("ema") / "ema_spreads" / "statistics",
     STUDY_EMA_PERIOD_SCREEN: Path("ema") / "ema_spreads" / "statistics",
     STUDY_RSI_PERIOD_SCREEN: Path("rsi") / "rsi_quantiles" / "statistics",
+    STUDY_RSI_SPREADS: Path("rsi") / "rsi_quantiles" / "statistics",
 }
 
 
@@ -426,3 +428,21 @@ def rsi_period_screen_plot_path(
 ) -> Path:
     tag = rsi_screen_output_tag(n_pairs, from_date, to_date, periods)
     return study_plots_dir(STUDY_RSI_PERIOD_SCREEN) / f"rsi_period_screen_{plot_kind}_{tag}.png"
+
+
+def rsi_spreads_stats_log_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+) -> Path:
+    tag = rsi_screen_output_tag(n_pairs, from_date, to_date, periods)
+    return RSI_QUANTILES_STATS_DIR / f"rsi_spreads_{tag}.log"
+
+
+def rsi_summary_log_path(rsi_period: int) -> Path:
+    return RSI_QUANTILES_STATS_DIR / f"rsi_summary_rsi{rsi_period}.log"
+
+
+def rsi_summary_plot_path(rsi_period: int, plot_kind: str) -> Path:
+    return study_plots_dir(STUDY_RSI_SPREADS) / f"rsi_summary_{plot_kind}_rsi{rsi_period}.png"

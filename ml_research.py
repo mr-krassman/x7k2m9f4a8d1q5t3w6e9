@@ -31,17 +31,13 @@ from crypto_research.utils.ml.dataset import (
     dataset_to_numpy,
     load_full_pool_daily,
 )
-from crypto_research.utils.ml.ema_dev_norm import (
-    fit_pair_ema_dev_bounds_from_daily,
-    pair_ema_dev_bounds_to_dict,
-)
-from crypto_research.utils.ml.feature_predictive_plot import save_feature_curve_plot
+from crypto_research.utils.ml.numeric_features import bounds_map_from_bundle, bounds_map_to_bundle, fit_bounds_for_features
+from crypto_research.utils.ml.feature_predictive_plot import save_metrics_over_feature_plot
 from crypto_research.utils.ml.learning_curve import (
     fit_lightgbm_full_train,
     fit_lightgbm_with_eval_curve,
 )
 from crypto_research.utils.ml.registry import (
-    FEATURE_EMA_DEV_PAIR_NORM,
     ML_STUDY_CHOICES,
     ml_spec_to_dict,
     resolve_ml_study,
@@ -86,14 +82,14 @@ JSON_FLOAT_PRECISION = 4
 
 def parse_ml_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="ML: direction_up, CPCV + LightGBM (day_of_week_ml / ema_spreads_ml).",
+        description="ML: direction_up, CPCV + LightGBM (day_of_week_ml / ema_spreads_ml / rsi_spreads_ml).",
     )
     parser.add_argument(
         "studies",
         nargs="*",
         choices=list(ML_STUDY_CHOICES),
         metavar="STUDY",
-        help="Исследования: day_of_week_ml, ema_spreads_ml (по умолчанию day_of_week_ml)",
+        help="Исследования: day_of_week_ml, ema_spreads_ml, rsi_spreads_ml (по умолчанию day_of_week_ml)",
     )
     parser.add_argument(
         "--data-dir",
@@ -206,6 +202,17 @@ def parse_ml_args() -> argparse.Namespace:
         type=int,
         default=50,
         help="Раунды без улучшения eval logloss при --early-stopping",
+    )
+    parser.add_argument(
+        "--plot-metrics-over-feature",
+        "--plot_metrics_over_feature",
+        dest="plot_metrics_over_feature",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "График ROC AUC / accuracy по бинам predictive-фичи (train-fit | holdout test). "
+            "Для ema_spreads_ml — ema_dev_pair_norm, для rsi_spreads_ml — rsi_pair_norm."
+        ),
     )
     return parser.parse_args()
 
@@ -416,8 +423,9 @@ def _build_model_bundle(
         bundle["weekday_encoder_classes"] = dataset.weekday_encoder.classes_.tolist()
     if dataset.ema_period is not None:
         bundle["ema_period"] = dataset.ema_period
-    if dataset.pair_ema_dev_bounds is not None:
-        bundle["pair_ema_dev_bounds"] = pair_ema_dev_bounds_to_dict(dataset.pair_ema_dev_bounds)
+    if dataset.rsi_period is not None:
+        bundle["rsi_period"] = dataset.rsi_period
+    bundle.update(bounds_map_to_bundle(dataset.pair_norm_bounds))
     if early_stopping is not None:
         bundle["early_stopping"] = early_stopping
     return bundle
@@ -456,13 +464,9 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
                 f"({args.train_from} .. {args.train_to})"
             )
 
-    pair_bounds = (
-        fit_pair_ema_dev_bounds_from_daily(train_daily)
-        if FEATURE_EMA_DEV_PAIR_NORM in spec.feature_columns
-        else None
-    )
-    train_dataset = build_direction_dataset(train_daily, spec, pair_ema_dev_bounds=pair_bounds)
-    test_dataset = build_direction_dataset(test_daily, spec, pair_ema_dev_bounds=pair_bounds)
+    pair_bounds = fit_bounds_for_features(train_daily, spec.feature_columns)
+    train_dataset = build_direction_dataset(train_daily, spec, pair_norm_bounds=pair_bounds)
+    test_dataset = build_direction_dataset(test_daily, spec, pair_norm_bounds=pair_bounds)
     train_weekday_base = _weekday_base_rate_from_frame(train_dataset.frame)
     _log_dataset_preview(train_dataset.frame, head=args.preview_rows)
 
@@ -509,17 +513,24 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         title="Holdout test: weekday × pair metrics",
     )
     feature_predictive_plot_path = None
-    if spec.predictive_feature and spec.predictive_plot_slug:
-        feature_predictive_plot_path = save_feature_curve_plot(
-            train_fit_oos,
-            test_oos,
-            ml_feature_predictive_plot_path(
-                spec, len(train_pairs), test_from, test_to, spec.predictive_plot_slug
-            ),
-            feature_column=spec.predictive_feature,
-            train_title=f"Train {args.train_from}..{args.train_to}",
-            val_title=f"Val {args.test_from}..{args.test_to}",
-        )
+    if args.plot_metrics_over_feature:
+        if not spec.predictive_feature or not spec.predictive_plot_slug:
+            log.warning(
+                "[ml] --plot-metrics-over-feature: исследование %s не задаёт predictive_feature",
+                list(spec.studies),
+            )
+        else:
+            feature_predictive_plot_path = save_metrics_over_feature_plot(
+                train_fit_oos,
+                test_oos,
+                ml_feature_predictive_plot_path(
+                    spec, len(train_pairs), test_from, test_to, spec.predictive_plot_slug
+                ),
+                predictive_feature=spec.predictive_feature,
+                predictive_plot_slug=spec.predictive_plot_slug,
+                train_title=f"Train {args.train_from}..{args.train_to}",
+                val_title=f"Val {args.test_from}..{args.test_to}",
+            )
     train_oos = train_cpcv.oos_paths
     if train_oos is None:
         raise RuntimeError("Train CPCV не вернул OOS-предсказания для ROC AUC plot")
@@ -652,12 +663,8 @@ def run_ml_pipeline(args: argparse.Namespace) -> CPCVTrainResult:
         workers=workers,
     )
     log.info("Loaded %d pairs with %d daily rows", len(pairs), daily.height)
-    pair_bounds = (
-        fit_pair_ema_dev_bounds_from_daily(daily)
-        if FEATURE_EMA_DEV_PAIR_NORM in spec.feature_columns
-        else None
-    )
-    dataset = build_direction_dataset(daily, spec, pair_ema_dev_bounds=pair_bounds)
+    pair_bounds = fit_bounds_for_features(daily, spec.feature_columns)
+    dataset = build_direction_dataset(daily, spec, pair_norm_bounds=pair_bounds)
     _log_dataset_preview(dataset.frame, head=args.preview_rows)
     result = train_lightgbm_cpcv(
         dataset,

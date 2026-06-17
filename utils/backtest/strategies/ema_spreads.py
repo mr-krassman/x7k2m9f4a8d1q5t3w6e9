@@ -173,6 +173,7 @@ def _path_kwargs(ctx: EmaSpreadsBacktestContext) -> dict:
     return {
         "scenario": ctx.scenario if ctx.scenario == SCENARIO_OPTIMISTIC else None,
         "selected_pairs": ctx.selected_pairs,
+        "optimistic_segment": EMA_TRAIN_SIGNAL.label,
     }
 
 

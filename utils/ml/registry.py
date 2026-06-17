@@ -8,21 +8,28 @@ from crypto_research.utils.pipeline.study_ids import (
     STUDY_COMBINED,
     STUDY_DAY_OF_WEEK,
     STUDY_EMA_SPREADS,
+    STUDY_RSI_SPREADS,
 )
 
 ML_STUDY_DAY_OF_WEEK = "day_of_week_ml"
 ML_STUDY_EMA_SPREADS = "ema_spreads_ml"
+ML_STUDY_RSI_SPREADS = "rsi_spreads_ml"
 
-ML_STUDY_ORDER: tuple[str, ...] = (ML_STUDY_DAY_OF_WEEK, ML_STUDY_EMA_SPREADS)
+ML_STUDY_ORDER: tuple[str, ...] = (
+    ML_STUDY_DAY_OF_WEEK,
+    ML_STUDY_EMA_SPREADS,
+    ML_STUDY_RSI_SPREADS,
+)
 ML_STUDY_CHOICES: tuple[str, ...] = ML_STUDY_ORDER
 
 FEATURE_PAIR_ID = "pair_id"
 FEATURE_WEEKDAY_ENC = "weekday_enc"
 FEATURE_EMA_DEV_PAIR_NORM = "ema_dev_pair_norm"
+FEATURE_RSI_PAIR_NORM = "rsi_pair_norm"
 
 CATEGORICAL_FEATURES: frozenset[str] = frozenset({FEATURE_PAIR_ID, FEATURE_WEEKDAY_ENC})
 
-RULE_BASED_STRATEGIES: frozenset[str] = frozenset({"day_of_week", "ema_spreads"})
+RULE_BASED_STRATEGIES: frozenset[str] = frozenset({"day_of_week", "ema_spreads", "rsi_spreads"})
 
 
 @dataclass(frozen=True)
@@ -33,6 +40,8 @@ class MlStudyEntry:
     output_study: str
     legacy_output_tag: bool
     policy_mode: str  # "weekday" | "global"
+    predictive_feature: str | None = None
+    predictive_plot_slug: str | None = None
 
 
 @dataclass(frozen=True)
@@ -54,11 +63,23 @@ ML_STUDY_REGISTRY: dict[str, MlStudyEntry] = {
     ),
     ML_STUDY_EMA_SPREADS: MlStudyEntry(
         study_id=ML_STUDY_EMA_SPREADS,
-        short_id="ema_sp",
+        short_id="ema",
         extra_features=(FEATURE_EMA_DEV_PAIR_NORM,),
         output_study=STUDY_EMA_SPREADS,
         legacy_output_tag=False,
         policy_mode="global",
+        predictive_feature=FEATURE_EMA_DEV_PAIR_NORM,
+        predictive_plot_slug="ema_dev",
+    ),
+    ML_STUDY_RSI_SPREADS: MlStudyEntry(
+        study_id=ML_STUDY_RSI_SPREADS,
+        short_id="rsi",
+        extra_features=(FEATURE_RSI_PAIR_NORM,),
+        output_study=STUDY_RSI_SPREADS,
+        legacy_output_tag=False,
+        policy_mode="global",
+        predictive_feature=FEATURE_RSI_PAIR_NORM,
+        predictive_plot_slug="rsi",
     ),
 }
 
@@ -124,11 +145,10 @@ def resolve_ml_study(studies: list[str] | tuple[str, ...]) -> MlStudySpec:
     for study_id in ordered:
         features.extend(ML_STUDY_REGISTRY[study_id].extra_features)
     has_ema = ML_STUDY_EMA_SPREADS in ordered
-    predictive_feature = FEATURE_EMA_DEV_PAIR_NORM if has_ema else None
-    predictive_plot_slug = "ema_dev" if has_ema else None
-
     bundle = combined_bundle_for(ordered)
     if bundle is not None:
+        predictive_feature = FEATURE_EMA_DEV_PAIR_NORM if has_ema else None
+        predictive_plot_slug = "ema_dev" if has_ema else None
         return MlStudySpec(
             studies=bundle.studies,
             feature_columns=tuple(features),
@@ -143,7 +163,7 @@ def resolve_ml_study(studies: list[str] | tuple[str, ...]) -> MlStudySpec:
         )
 
     entry = ML_STUDY_REGISTRY[ordered[0]]
-    feature_slug = "dow" if entry.study_id == ML_STUDY_DAY_OF_WEEK else "ema"
+    feature_slug = entry.short_id
     return MlStudySpec(
         studies=ordered,
         feature_columns=tuple(features),
@@ -153,8 +173,8 @@ def resolve_ml_study(studies: list[str] | tuple[str, ...]) -> MlStudySpec:
         ml_subdir="ml",
         bundle_id=None,
         policy_mode=entry.policy_mode,
-        predictive_feature=predictive_feature,
-        predictive_plot_slug=predictive_plot_slug,
+        predictive_feature=entry.predictive_feature,
+        predictive_plot_slug=entry.predictive_plot_slug,
     )
 
 

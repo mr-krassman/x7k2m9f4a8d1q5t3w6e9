@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -16,14 +15,13 @@ if str(_REPO_PARENT) not in sys.path:
     sys.path.insert(0, str(_REPO_PARENT))
 
 from crypto_research.utils.backtest.analytics import WEEKDAY_NAMES
-from crypto_research.utils.ml.registry import resolve_ml_study
+from crypto_research.utils.ml.registry import ML_STUDY_CHOICES, resolve_ml_study
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.paths import (
     TEMPORAL_TRAIN_FROM,
     TEMPORAL_VAL_TO,
     ml_policy_path,
-    weekday_ml_policy_path,
-    weekday_ml_train_test_metrics_path,
+    ml_train_test_metrics_path,
 )
 
 JSON_FLOAT_PRECISION = 4
@@ -44,7 +42,16 @@ def _round_json_floats(value, *, digits: int = JSON_FLOAT_PRECISION):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Калибровка порогов/отбора пар для day_of_week_ml.")
+    parser = argparse.ArgumentParser(
+        description="Калибровка frozen policy для ML-стратегий (day_of_week_ml / ema_spreads_ml / rsi_spreads_ml).",
+    )
+    parser.add_argument(
+        "studies",
+        nargs="*",
+        choices=list(ML_STUDY_CHOICES),
+        metavar="STUDY",
+        help="ML-исследование (по умолчанию day_of_week_ml)",
+    )
     parser.add_argument("--n-pairs", type=int, default=49, help="Размер пула пар.")
     parser.add_argument("--train-from", default=TEMPORAL_TRAIN_FROM, help="Начало train периода.")
     parser.add_argument("--test-to", default=TEMPORAL_VAL_TO, help="Конец holdout test периода.")
@@ -53,10 +60,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--score-quantile",
         type=float,
-        default=0.6,
+        default=None,
         help=(
-            "Глобальный квантиль score по всем (weekday,pair); "
-            "порог score_cutoff один на все дни — число пар по дням разное."
+            "Глобальный квантиль score по всем (weekday,pair). "
+            "По умолчанию: 0.6 (weekday) / 0.1 (global policy)."
         ),
     )
     parser.add_argument(
@@ -65,9 +72,34 @@ def parse_args() -> argparse.Namespace:
         default=60,
         help="Минимум наблюдений n_test для пары (в CPCV ~65–118 на weekday×pair).",
     )
-    parser.add_argument("--long-quantile", type=float, default=0.25, help="Квантиль long-порогов.")
-    parser.add_argument("--short-quantile", type=float, default=0.75, help="Квантиль short-порогов.")
+    parser.add_argument("--long-quantile", type=float, default=None, help="Квантиль long-порогов.")
+    parser.add_argument("--short-quantile", type=float, default=None, help="Квантиль short-порогов.")
     return parser.parse_args()
+
+
+def _study_from_payload(payload: dict[str, object]):
+    ml_spec = payload.get("ml_spec")
+    if isinstance(ml_spec, dict):
+        studies = ml_spec.get("studies")
+        if isinstance(studies, list) and studies:
+            return resolve_ml_study(studies)
+    return resolve_ml_study(["day_of_week_ml"])
+
+
+def _default_selection_params(spec) -> dict[str, float | int]:
+    if spec.policy_mode == "global":
+        return {
+            "score_quantile": 0.1,
+            "min_obs": 60,
+            "long_quantile": 0.999,
+            "short_quantile": 0.0001,
+        }
+    return {
+        "score_quantile": 0.6,
+        "min_obs": 60,
+        "long_quantile": 0.25,
+        "short_quantile": 0.75,
+    }
 
 
 def _parse_weekday_pair_key(key: str) -> tuple[int, str]:
@@ -246,68 +278,68 @@ def _dynamic_thresholds_global(
     return {"t_long": t_long, "t_short": t_short}
 
 
-def _default_output_path_from_metrics(
-    payload: dict[str, object],
-    metrics_path: Path,
-    *,
-    n_pairs: int,
-    train_from: datetime,
-    test_to: datetime,
-) -> Path:
-    ml_spec = payload.get("ml_spec")
-    if isinstance(ml_spec, dict):
-        studies = ml_spec.get("studies")
-        if isinstance(studies, list) and studies:
-            return ml_policy_path(resolve_ml_study(studies), n_pairs, train_from, test_to)
-    if str(metrics_path).find("research_outputs/day_of_week/") >= 0:
-        return weekday_ml_policy_path(n_pairs, train_from, test_to)
-    return metrics_path.parent.parent / "policies" / f"{metrics_path.stem.replace('_train_test', '')}_policy.json"
-
-
 def main() -> int:
     args = parse_args()
+    studies = args.studies or ["day_of_week_ml"]
+    spec = resolve_ml_study(studies)
+    defaults = _default_selection_params(spec)
+    score_quantile = args.score_quantile if args.score_quantile is not None else float(defaults["score_quantile"])
+    min_obs = args.min_obs if args.min_obs is not None else int(defaults["min_obs"])
+    long_quantile = args.long_quantile if args.long_quantile is not None else float(defaults["long_quantile"])
+    short_quantile = args.short_quantile if args.short_quantile is not None else float(defaults["short_quantile"])
+
     train_from = parse_iso_utc(args.train_from)
     test_to = parse_iso_utc(args.test_to)
-    metrics_path = args.metrics_json or weekday_ml_train_test_metrics_path(args.n_pairs, train_from, test_to)
+    metrics_path = args.metrics_json or ml_train_test_metrics_path(
+        spec, args.n_pairs, train_from, test_to
+    )
     payload = json.loads(metrics_path.read_text(encoding="utf-8"))
+    payload_spec = _study_from_payload(payload)
+    if payload_spec.studies != spec.studies:
+        raise SystemExit(
+            f"metrics-json для {list(payload_spec.studies)}, CLI запрошен {list(spec.studies)}"
+        )
     weekday_pair_metrics = payload["train_cpcv"]["weekday_pair_metrics"]
 
     selected_pairs_by_weekday, details, score_cutoff = _select_pairs_by_weekday(
         weekday_pair_metrics,
-        score_quantile=args.score_quantile,
-        min_obs=args.min_obs,
+        score_quantile=score_quantile,
+        min_obs=min_obs,
     )
     thresholds = _dynamic_thresholds(
         weekday_pair_metrics,
         selected_pairs_by_weekday,
-        long_quantile=args.long_quantile,
-        short_quantile=args.short_quantile,
+        long_quantile=long_quantile,
+        short_quantile=short_quantile,
     )
     selected_pairs_global, global_details, global_score_cutoff = _select_pairs_global(
         weekday_pair_metrics,
-        score_quantile=args.score_quantile,
-        min_obs=args.min_obs,
+        score_quantile=score_quantile,
+        min_obs=min_obs,
     )
     thresholds_global = _dynamic_thresholds_global(
         global_details,
         selected_pairs_global,
-        long_quantile=args.long_quantile,
-        short_quantile=args.short_quantile,
+        long_quantile=long_quantile,
+        short_quantile=short_quantile,
     )
 
+    policy_mode = spec.policy_mode
     out = {
-        "mode": "day_of_week_ml_policy_v1",
+        "mode": f"{spec.studies[0]}_policy_v1",
+        "policy_mode": policy_mode,
+        "ml_spec": payload.get("ml_spec"),
         "source_metrics_json": str(metrics_path),
         "n_pairs": args.n_pairs,
         "train_period": payload["train_period"],
         "holdout_test_period": payload["holdout_test_period"],
         "thresholds": thresholds,
         "selection_policy": {
-            "score_quantile": args.score_quantile,
+            "score_quantile": score_quantile,
             "score_cutoff": score_cutoff,
-            "min_obs": args.min_obs,
-            "long_quantile": args.long_quantile,
-            "short_quantile": args.short_quantile,
+            "min_obs": min_obs,
+            "long_quantile": long_quantile,
+            "short_quantile": short_quantile,
         },
         "selected_pairs_by_weekday": {str(k): v for k, v in selected_pairs_by_weekday.items()},
         "selected_pairs_count_by_weekday": {
@@ -317,22 +349,16 @@ def main() -> int:
         "selected_pairs_global": selected_pairs_global,
         "selected_pairs_global_count": len(selected_pairs_global),
         "global_selection_policy": {
-            "score_quantile": args.score_quantile,
+            "score_quantile": score_quantile,
             "score_cutoff": global_score_cutoff,
-            "min_obs": args.min_obs,
-            "long_quantile": args.long_quantile,
-            "short_quantile": args.short_quantile,
+            "min_obs": min_obs,
+            "long_quantile": long_quantile,
+            "short_quantile": short_quantile,
         },
         "global_thresholds": thresholds_global,
         "pair_score_table": global_details,
     }
-    output_path = args.output or _default_output_path_from_metrics(
-        payload,
-        metrics_path,
-        n_pairs=args.n_pairs,
-        train_from=train_from,
-        test_to=test_to,
-    )
+    output_path = args.output or ml_policy_path(spec, args.n_pairs, train_from, test_to)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         json.dumps(_round_json_floats(out), indent=2, ensure_ascii=False),

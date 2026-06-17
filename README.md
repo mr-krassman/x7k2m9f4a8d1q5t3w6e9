@@ -25,6 +25,36 @@
 - **Val**: 49 пар, период 2024-04-01 – 2026-05-31  
   (одни и те же пары, два непересекающихся временных окна)
 
+### ML: Pooled OOS и Mean по фолдам (CPCV)
+
+Во всех ML-разделах на train используется **CPCV**: `n_splits=7`, `n_test_groups=2` → **21 фолд**, `embargo_days=1`. Две таблицы метрик отвечают на **разные** вопросы; расхождение ROC AUC между ними — нормально, это не ошибка.
+
+#### Таблица «Качество модели» — колонка **Pooled OOS (train)**
+
+1. На каждом из 21 фолдов модель обучается заново и предсказывает свой тестовый срез.
+2. Одна строка `(day, pair)` попадает в тест в **нескольких** фолдах (обычно ~6 из 21). Для неё OOS-вероятности `P(up)` **усредняются** по фолдам (`build_oos_predictions` в `utils/ml/oos_paths.py`).
+3. На получившихся **уникальных** строках train (~32k day × pair) считается **одна** метрика (ROC AUC, accuracy, log loss и т.д.) — это **pooled OOS**.
+
+_Pooled OOS — «какой AUC у финальных усреднённых OOS-вероятностей на train»; эта же pooled-кривая показана на графике ROC AUC (синяя)._
+
+#### Таблица «Стабильность по фолдам» — колонка **Mean**
+
+1. На **каждом** фолде отдельно считается ROC AUC (и accuracy) только по **его** тесту (обычно 6–11k строк).
+2. **Mean** — простое среднее 21 значений; **каждый фолд весит одинаково**, независимо от размера теста.
+3. Std / Min / Max / «ROC AUC > 0.5» — разброс и доля фолдов выше случайного уровня.
+
+_Mean по фолдам — «насколько стабильно модель на разных временных окнах train»._
+
+#### Почему Pooled OOS ROC AUC часто **ниже** Mean (примеры: RSI 0.507 vs 0.523, EMA 0.527 vs 0.530)
+
+| Причина | Пояснение |
+| ------- | --------- |
+| **ROC AUC нелинеен** | `mean(AUC_фолд₁…₂₁) ≠ AUC(все строки)` даже без перекрытия фолдов |
+| **Усреднение P(up)** | Разные модели дают близкие вероятности → ранжирование up/down **размывается** → pooled AUC падает |
+| **Разный вес наблюдений** | Mean: 21 равных веса; pooled: каждый day × pair один раз |
+
+Сумма `n_test` по всем фолдам (~190k) **больше** числа уникальных строк (~32k) именно из‑за перекрытия CPCV; pooled метрика строится только по уникальным строкам после усреднения вероятностей.
+
 ## Исследования
 
 ### Исследование 1. Эффект дня недели
@@ -148,6 +178,8 @@ _Рис. 1c-ml. ROC-кривые pooled train OOS (CPCV, синяя) и holdout 
 | Log Loss | 0.703 | 0.006 | 0.693 | 0.713 | 0.008 | 0.8 |
 
 _Пороговая проверка: ROC AUC > 0.5 в **7/21** фолдах, Accuracy > 0.5 в **8/21** фолдах._
+
+_Как считаются **Pooled OOS** и **Mean по фолдам** — см. [ML: Pooled OOS и Mean по фолдам (CPCV)](#ml-pooled-oos-и-mean-по-фолдам-cpcv)._
 
 ##### Сравнение со статистическим анализом
 
@@ -486,6 +518,8 @@ _Справочно: на всём периоде 2022–2026 сигнал b6 п
 | ROC AUC  | 0.530 | 0.007 | 0.520 | 0.546 | 21/21         |
 | Accuracy | 0.516 | 0.006 | 0.504 | 0.531 | 21/21         |
 
+_Как считаются **Pooled OOS** и **Mean по фолдам**, и почему ROC AUC между ними различается — см. [ML: Pooled OOS и Mean по фолдам (CPCV)](#ml-pooled-oos-и-mean-по-фолдам-cpcv)._
+
 ![ROC AUC / Accuracy vs ema_dev_pair_norm (train | val)](research_outputs/ema/ema_spreads/ml/plots/direction_ema_49pairs_20240401_20260531_ema_dev_predictive.png)
 
 _Рис. EMA-ML-1. Предсказательная сила модели по бинам `ema_dev_pair_norm`: train-fit (слева) и holdout test (справа). Отрицательные значения ≈ перепроданность (b6)._
@@ -520,9 +554,9 @@ python3 report_generator.py ema_spreads \  # Этапы 1–3: детальны�
   --ema-periods 9
 
 # ML (train/test: 49 пар, train 2022-01-01–2024-04-01, test 2024-04-01–2026-05-31)
-python3 ml_research.py ema_spreads_ml
+python3 ml_research.py ema_spreads_ml --plot-metrics-over-feature
 # пересборка predictive-графика из bundle:
-# python3 utils/ml/plot_feature_predictive.py
+# python3 utils/ml/plot_feature_predictive.py ema_spreads_ml
 ```
 
 Отчёты пишутся в `research_outputs/ema/ema_spreads/statistics/`; графики — в `…/statistics/plots/`. ML-артефакты — в `…/ml/`.
@@ -698,7 +732,7 @@ python3 backtester.py day_of_week ema_spreads --mode and  # пересечени
 Исследование проводится в **два этапа**:
 
 1. **Этап 0 — выбор периода RSI** (`rsi_period_screen`): на **train-периоде** (49 пар, 2022-01-01 – 2024-04-01) сравниваем кандидатов **5, 9, 14, 21, 50** по устойчивости сигнала. Это **не** проверка значимости — только фиксация периода для следующих этапов.
-2. **Этапы 1–3 — паттерн** (с выбранным **RSI(9)**): универсальность среди пар и устойчивость во времени — _в работе_.
+2. **Этапы 1–3 — паттерн** (`rsi_spreads` с **RSI(9)**): универсальность среди пар и устойчивость во времени (по критериям из методологии).
 
 ---
 
@@ -750,11 +784,113 @@ _Рис. RSI-0a. Индекс стабильности по кандидатам
 
 _Рис. RSI-0b. Доля материальных ячеек с согласованным знаком Δ в году._
 
+### Этапы 1–3. Валидация паттерна RSI(9)
+
+**Метрика:** условная связь вчерашнего RSI(9) с сегодняшним intraday return. Анализируются колонки **«Цена росла»** / **«Цена падала»** (Δ от BASE в п.п.).
+
+**Критерии:** |Δ| ≥ 1.5 п.п. на train, p < 0.0042 (Bonferroni, 12 ячеек), cross‑asset ≥60% val-пар, out‑of‑time ≥60% пар.
+
+_Показаны только ячейки, прошедшие |Δ| ≥ 1.5 п.п. на train:_
+
+#### Проверка 1: универсальность среди пар (24 train / 25 val, 2022–2026)
+
+| Сигнал            | Δ train | Δ val | p-value | Val-пар (≥60%) | Статус       |
+| ----------------- | ------- | ----- | ------- | -------------- | ------------ |
+| b0 Q1 × Цена росла  | +6.44   | +5.34 | <0.0001 | 25/25 (100%)   | ✅ значим    |
+| b0 Q1 × Цена падала | −6.69   | −5.37 | <0.0001 | 25/25 (100%)   | ✅ значим    |
+| b2 Q3 × Цена росла  | −1.82   | −1.48 | 0.0030  | 14/25 (56%)    | ❌ не значим |
+| b2 Q3 × Цена падала | +1.87   | +1.52 | 0.0032  | 14/25 (56%)    | ❌ не значим |
+| b3 Q4 × Цена росла  | −2.43   | −0.89 | 0.0001  | 16/25 (64%)    | ✅ значим    |
+| b3 Q4 × Цена падала | +2.50   | +0.89 | 0.0001  | 17/25 (68%)    | ✅ значим    |
+
+![Проверка 1 — Δ train vs val, RSI(9)](research_outputs/rsi/rsi_quantiles/statistics/plots/rsi_summary_check_pair_universality_delta_rsi9.png)
+
+_Рис. RSI-1a. Δ к BASE на train и val (п.п.). Зелёная заливка — статус «значим» по проверке 1._
+
+#### Проверка 2. Устойчивость во времени (49 пар, train 2022–2024-04 / val 2024-04–2026)
+
+| Сигнал            | Δ train | Δ val | p-value | Пар (≥60%)  | Статус       |
+| ----------------- | ------- | ----- | ------- | ----------- | ------------ |
+| b0 Q1 × Цена росла  | +5.44   | +6.02 | <0.0001 | 42/49 (86%) | ✅ значим    |
+| b0 Q1 × Цена падала | −5.85   | −6.02 | <0.0001 | 41/49 (84%) | ✅ значим    |
+| b5 Q6 × Цена росла  | −2.56   | +0.55 | <0.0001 | 25/49 (51%) | ❌ не значим |
+| b5 Q6 × Цена падала | +2.89   | −0.60 | 0.0001  | 25/49 (51%) | ❌ не значим |
+
+![Проверка 2 — Δ train vs val, RSI(9)](research_outputs/rsi/rsi_quantiles/statistics/plots/rsi_summary_check_temporal_stability_delta_rsi9.png)
+
+_Рис. RSI-1b. Δ к BASE на train-периоде и val-периоде (п.п.). Зелёная заливка — статус «значим» по проверке 2._
+
+### Ключевые выводы
+
+После двух проверок (cross‑asset + out‑of‑time) подтверждён **только сигнал перепроданности b0 (Q1)**:
+
+| Бакет           | Сигнал        | Δ (полный пул) | Смысл для стратегии                          |
+| --------------- | ------------- | -------------- | -------------------------------------------- |
+| **b0** (Q1 RSI) | Цена росла ↑  | +6.0 п.п.      | После низкого RSI — завтра чаще рост         |
+| **b0**          | Цена падала ↓ | −6.1 п.п.      | …и реже падение (mean-reversion вверх)       |
+
+**Что отсеялось:**
+
+- **b3 Q4** — прошёл cross‑asset (64–68%), но **не прошёл out‑of‑time** (55% пар)
+- **b2 Q3** — |Δ| на train ≥ 1.5 п.п., но не прошёл cross‑asset (56%) и Bonferroni на проверке 1
+- **b5 Q6** (перекупленность) — сильный эффект на train temporal (−2.6 / +2.9 п.п.), но **знак не сохранился** на val (51% пар) и не прошёл проверку 1
+- **b1, b4** — |Δ| на train ниже порога материальности или не прошли p-value
+
+**Итог:** устойчивый mean-reversion на **RSI(9)** работает только **на перепроданности (b0, Q1)**. Сигнал перекупленности (b5, Q6) и средние квантили не выдерживают обе проверки.
+
+#### ML-подтверждение (LightGBM + CPCV)
+
+**Цель:** проверить, содержит ли нормированное вчерашнее значение RSI(9) (`rsi_pair_norm`) предсказательную способность для `direction_up`, и согласованы ли выводы ML со статистическим сигналом **b0 (Q1)**.
+
+**Данные:** 49 пар (первая свеча ≤ 2023-01-01).  
+**Train:** 2022-01-01 – 2024-04-01 (31 917 строк day × pair).  
+**Holdout test:** 2024-04-01 – 2026-05-31 (38 073 строк).  
+**Таргет:** `direction_up = 1`, если `close > open`.  
+**Признаки:** `pair_id` (категориальный) + `rsi_pair_norm` (вчерашний RSI(9), per-pair линейная нормировка по train-границам, trim 5–95%; значения могут выходить за [−1, +1] при экстремальном RSI).
+
+**Модель:** LightGBM, полный fit на всём train (`n_estimators=300`, early stopping по умолчанию отключён).
+
+**Схема:** CPCV на train (`n_splits=7`, `n_test_groups=2` → 21 фолд) → финальный fit на train → holdout test.
+
+##### Качество модели
+
+| Метрика  | Train (fit) | Pooled OOS (train) | Holdout test | Δ (Test − OOS) |
+| -------- | ----------- | ------------------ | ------------ | -------------- |
+| Accuracy | 0.530       | 0.503              | 0.513        | +0.010         |
+| ROC AUC  | 0.543       | 0.507              | **0.523**    | +0.016         |
+| Log Loss | 0.691       | 0.693              | 0.692        | −0.001         |
+| Brier    | 0.249       | 0.250              | 0.250        | −0.000         |
+| ECE      | 1.9%        | 1.0%               | 2.6%         | +1.6 п.п.      |
+
+![ROC AUC: Pooled OOS (train) vs Holdout test](research_outputs/rsi/rsi_quantiles/ml/plots/direction_rsi_49pairs_20220101_20260531_roc_auc.png)
+
+##### Стабильность по фолдам (train CPCV, 21 фолд)
+
+| Метрика  | Mean  | Std   | Min   | Max   | ROC AUC > 0.5 |
+| -------- | ----- | ----- | ----- | ----- | ------------- |
+| ROC AUC  | 0.523 | 0.012 | 0.506 | 0.544 | 21/21         |
+| Accuracy | 0.504 | 0.014 | 0.480 | 0.522 | 14/21         |
+
+_Как считаются **Pooled OOS** и **Mean по фолдам**, и почему ROC AUC между ними различается — см. [ML: Pooled OOS и Mean по фолдам (CPCV)](#ml-pooled-oos-и-mean-по-фолдам-cpcv)._
+
+![ROC AUC / Accuracy vs rsi_pair_norm (train | val)](research_outputs/rsi/rsi_quantiles/ml/plots/direction_rsi_49pairs_20240401_20260531_rsi_predictive.png)
+
+_Рис. RSI-ML-1. Предсказательная сила модели по бинам `rsi_pair_norm`: train-fit (слева) и holdout test (справа). Отрицательные значения ≈ перепроданность (b0, Q1). Серая линия — base rate up (фактическая доля up-дней в бине)._
+
+**Краткий итог ML:** слабый, но устойчивый сигнал на train-CPCV (pooled OOS ROC AUC ≈ 0.507, все 21 фолда > 0.5), на holdout после полного fit — умеренный и **чуть выше EMA** (ROC AUC ≈ 0.523 vs 0.513). На holdout модель смещена в long (`pred_up_rate` ~54% при `base_rate_up` 48%). На хвосте перепроданности (`rsi_pair_norm` < −1) accuracy растёт вместе с base rate — модель улавливает режим mean-reversion, хотя ROC AUC там ниже из-за сжатия вероятностей (почти все предсказания «up»). Это согласуется со статистикой **b0 (Q1)**; сигнал перекупленности (b5) ML не подтверждает.
+
 #### Дополнительные материалы (исследование)
 
 | Материал                                                                                                                                       | Описание                                                                                           |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [rsi_period_screen train](research_outputs/rsi/rsi_quantiles/statistics/rsi_period_screen_49pairs_rsi5_9_14_21_50_20220101_20240401.log) | Этап 0 — скрининг периодов RSI (49 пар, train 2022-01-01 – 2024-04-01), значимые ячейки по квантилям |
+| [rsi_summary_rsi9.log](research_outputs/rsi/rsi_quantiles/statistics/rsi_summary_rsi9.log)                                                   | Этапы 1–3 — проверки 1–2 и итог: универсальность среди пар, устойчивость во времени, полный пул    |
+| [rsi_spreads RSI(9), 49 пар](research_outputs/rsi/rsi_quantiles/statistics/rsi_spreads_49pairs_rsi9_20220101_20260531.log)                       | Этапы 1–3 — детальная статистика: 12 колонок, repeatability (годы/пары)                  |
+| [ML: train/test JSON](research_outputs/rsi/rsi_quantiles/ml/metrics/direction_rsi_49pairs_20220101_20260531_train_test.json)                     | Полный отчёт: train CPCV + final fit + holdout test                                                |
+| [ML: ROC AUC train vs test](research_outputs/rsi/rsi_quantiles/ml/plots/direction_rsi_49pairs_20220101_20260531_roc_auc.png)                   | ROC-кривые pooled OOS (train) и holdout test                                                       |
+| [ML: predictive vs rsi](research_outputs/rsi/rsi_quantiles/ml/plots/direction_rsi_49pairs_20240401_20260531_rsi_predictive.png)        | ROC AUC / accuracy / base rate по бинам `rsi_pair_norm` (train \| val)                             |
+| [ML: модель + bounds](research_outputs/rsi/rsi_quantiles/ml/models/direction_rsi_49pairs_20220101_20240401_model_bundle.pkl)                 | Bundle: LightGBM + pair bounds + feature schema                                                      |
+| [ML: лог](research_outputs/rsi/rsi_quantiles/ml/direction_rsi_20220101_20260531.log)                                                           | Лог train/test запуска                                                                               |
 
 #### Воспроизведение отчётов (исследование)
 
@@ -762,10 +898,19 @@ _Рис. RSI-0b. Доля материальных ячеек с согласо�
 cd crypto_research
 
 python3 report_generator.py rsi_period_screen # Этап 0: скрининг периодов RSI (train 2022-01-01 – 2024-04-01 по умолчанию)
-# python3 report_generator.py rsi_period_screen --rsi-periods 5 9 14 21 50
+python3 report_generator.py rsi_spreads --summary # Этапы 1–3: сводка train/val (проверки 1–2 + итог) — rsi_summary_rsi9.log
+
+python3 report_generator.py rsi_spreads \  # Этапы 1–3: детальный отчёт RSI(9) — все колонки, repeatability
+  --from-date 2022-01-01 --to-date 2026-05-31 --max-pair-start 2023-01-01 \
+  --rsi-periods 9
+
+# ML (train/test: 49 пар, train 2022-01-01–2024-04-01, test 2024-04-01–2026-05-31)
+python3 ml_research.py rsi_spreads_ml --plot-metrics-over-feature
+# пересборка predictive-графика из bundle:
+# python3 utils/ml/plot_feature_predictive.py rsi_spreads_ml
 ```
 
-Отчёты пишутся в `research_outputs/rsi/rsi_quantiles/statistics/`; графики — в `…/statistics/plots/`.
+Отчёты пишутся в `research_outputs/rsi/rsi_quantiles/statistics/`; графики — в `…/statistics/plots/`. ML-артефакты — в `…/ml/`.
 
 ---
 ## Сравнение стратегий
