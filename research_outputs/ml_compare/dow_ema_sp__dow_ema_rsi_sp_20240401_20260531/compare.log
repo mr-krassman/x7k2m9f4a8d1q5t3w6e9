@@ -1,0 +1,138 @@
+2026-06-18 17:22:22 INFO crypto_research.ml_research: [ml] compare models: ['dow_ema_sp', 'dow_ema_rsi_sp']
+2026-06-18 17:22:22 INFO crypto_research.ml_research: [ml] log file: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/compare.log
+2026-06-18 17:22:22 INFO crypto_research.ml_dataset: [ml] pair filter: first_candle <= 2023-01-01 → 49 pairs
+2026-06-18 17:22:41 INFO crypto_research.load: [1] Загрузка данных: пар=49 строк=55515524 ~1482.4 MB
+2026-06-18 17:22:41 INFO crypto_research.load:   1000luncusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   aaveusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   adausdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   algousdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   aliceusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   apeusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   api3usdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   aptusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   atomusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   avaxusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   axsusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   bchusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   bnbusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   btcusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   chzusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   crvusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   dashusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   dogeusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   dotusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   dydxusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   egldusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   enjusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   etcusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   ethusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   filusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   galausdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   gmtusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   hbarusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   icpusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   injusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   ldousdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   linkusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   ltcusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   nearusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   ontusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   opusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   paxgusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   sandusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   shib1000usdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   solusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   storjusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   stxusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   trxusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   uniusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   xlmusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   xmrusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   xrpusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   zecusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:41 INFO crypto_research.load:   zenusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:22:43 INFO crypto_research.ml_dataset: [ml] pooled daily: pairs=49 rows=38563 period=2024-04-01..2026-05-31
+2026-06-18 17:22:44 INFO crypto_research.ml_research: [ml] compare holdout: pairs=49 rows=38563
+2026-06-18 17:22:44 INFO crypto_research.ml_dataset: [ml] ema_dev_pair_norm: min=-4.918 max=15.840 mean=-0.087
+2026-06-18 17:22:44 INFO crypto_research.ml_dataset: [ml] dataset studies=['day_of_week_ml', 'ema_spreads_ml'] features=['pair_id', 'weekday_enc', 'ema_dev_pair_norm'] rows=38122 pairs=49 up_rate=0.478
+2026-06-18 17:22:44 INFO crypto_research.ml_research: [ml] compare dow_ema_sp: rows=38122 mean_p_up=0.5051 pred_up_rate=0.5169 t_long=0.5090 t_short=0.4949
+2026-06-18 17:22:44 INFO crypto_research.ml_dataset: [ml] ema_dev_pair_norm: min=-4.918 max=15.840 mean=-0.087
+2026-06-18 17:22:44 INFO crypto_research.ml_dataset: [ml] rsi_pair_norm: min=-1.864 max=2.022 mean=-0.170
+2026-06-18 17:22:44 INFO crypto_research.ml_dataset: [ml] dataset studies=['day_of_week_ml', 'ema_spreads_ml', 'rsi_spreads_ml'] features=['pair_id', 'weekday_enc', 'ema_dev_pair_norm', 'rsi_pair_norm'] rows=38073 pairs=49 up_rate=0.478
+2026-06-18 17:22:44 INFO crypto_research.ml_research: [ml] compare dow_ema_rsi_sp: rows=38073 mean_p_up=0.5047 pred_up_rate=0.5328 t_long=0.5072 t_short=0.4947
+2026-06-18 17:22:45 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_prob_histogram.png
+2026-06-18 17:22:45 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_signal_rates.png
+2026-06-18 17:22:45 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_prob_delta.png
+2026-06-18 17:22:45 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_calibration_overlay.png
+2026-06-18 17:22:46 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_prob_cdf.png
+2026-06-18 17:22:47 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_weekday_prob.png
+2026-06-18 17:22:47 INFO crypto_research.ml_research: [ml] compare summary saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/compare_summary.json
+2026-06-18 17:31:11 INFO crypto_research.ml_research: [ml] compare models: ['dow_ema_sp', 'dow_ema_rsi_sp']
+2026-06-18 17:31:11 INFO crypto_research.ml_research: [ml] log file: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/compare.log
+2026-06-18 17:31:11 INFO crypto_research.ml_dataset: [ml] pair filter: first_candle <= 2023-01-01 → 49 pairs
+2026-06-18 17:31:38 INFO crypto_research.load: [1] Загрузка данных: пар=49 строк=55515524 ~1482.4 MB
+2026-06-18 17:31:38 INFO crypto_research.load:   1000luncusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   aaveusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   adausdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   algousdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   aliceusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   apeusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   api3usdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   aptusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   atomusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   avaxusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   axsusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   bchusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   bnbusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   btcusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   chzusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   crvusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   dashusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   dogeusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   dotusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   dydxusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   egldusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   enjusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   etcusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   ethusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   filusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   galausdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   gmtusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   hbarusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   icpusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   injusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   ldousdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   linkusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   ltcusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   nearusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   ontusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   opusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   paxgusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   sandusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   shib1000usdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   solusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   storjusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   stxusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   trxusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   uniusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   xlmusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   xmrusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   xrpusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   zecusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:38 INFO crypto_research.load:   zenusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-18 17:31:40 INFO crypto_research.ml_dataset: [ml] pooled daily: pairs=49 rows=38563 period=2024-04-01..2026-05-31
+2026-06-18 17:31:40 INFO crypto_research.ml_research: [ml] compare holdout: pairs=49 rows=38563
+2026-06-18 17:31:40 INFO crypto_research.ml_dataset: [ml] ema_dev_pair_norm: min=-4.918 max=15.840 mean=-0.087
+2026-06-18 17:31:40 INFO crypto_research.ml_dataset: [ml] dataset studies=['day_of_week_ml', 'ema_spreads_ml'] features=['pair_id', 'weekday_enc', 'ema_dev_pair_norm'] rows=38122 pairs=49 up_rate=0.478
+2026-06-18 17:31:40 INFO crypto_research.ml_research: [ml] compare dow_ema_sp: rows=38122 mean_p_up=0.5051 pred_up_rate=0.5169 t_long=0.5090 t_short=0.4949
+2026-06-18 17:31:41 INFO crypto_research.ml_dataset: [ml] ema_dev_pair_norm: min=-4.918 max=15.840 mean=-0.087
+2026-06-18 17:31:41 INFO crypto_research.ml_dataset: [ml] rsi_pair_norm: min=-1.864 max=2.022 mean=-0.170
+2026-06-18 17:31:41 INFO crypto_research.ml_dataset: [ml] dataset studies=['day_of_week_ml', 'ema_spreads_ml', 'rsi_spreads_ml'] features=['pair_id', 'weekday_enc', 'ema_dev_pair_norm', 'rsi_pair_norm'] rows=38073 pairs=49 up_rate=0.478
+2026-06-18 17:31:41 INFO crypto_research.ml_research: [ml] compare dow_ema_rsi_sp: rows=38073 mean_p_up=0.5047 pred_up_rate=0.5328 t_long=0.5072 t_short=0.4947
+2026-06-18 17:31:41 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_prob_histogram.png
+2026-06-18 17:31:42 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_signal_rates.png
+2026-06-18 17:31:42 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_prob_delta.png
+2026-06-18 17:31:42 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_calibration_overlay.png
+2026-06-18 17:31:43 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_prob_cdf.png
+2026-06-18 17:31:43 INFO crypto_research.ml_model_compare_plot: [ml] compare plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_weekday_prob.png
+2026-06-18 17:31:43 INFO crypto_research.ml_research: [ml] compare summary saved: /home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/compare_summary.json

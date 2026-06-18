@@ -90,11 +90,21 @@ COMBINED_BUNDLE_REGISTRY: dict[tuple[str, ...], CombinedBundleEntry] = {
         feature_slug="dow_ema",
         policy_mode="weekday",
     ),
+    (ML_STUDY_DAY_OF_WEEK, ML_STUDY_EMA_SPREADS, ML_STUDY_RSI_SPREADS): CombinedBundleEntry(
+        bundle_id="dow_ema_rsi_sp",
+        studies=(ML_STUDY_DAY_OF_WEEK, ML_STUDY_EMA_SPREADS, ML_STUDY_RSI_SPREADS),
+        feature_slug="dow_ema_rsi",
+        policy_mode="weekday",
+    ),
 }
 
 BUNDLE_ID_TO_STUDIES: dict[str, tuple[str, ...]] = {
     entry.bundle_id: entry.studies for entry in COMBINED_BUNDLE_REGISTRY.values()
 }
+
+COMPARE_MODEL_CHOICES: tuple[str, ...] = ML_STUDY_ORDER + tuple(
+    entry.bundle_id for entry in COMBINED_BUNDLE_REGISTRY.values()
+)
 
 
 @dataclass(frozen=True)
@@ -144,11 +154,12 @@ def resolve_ml_study(studies: list[str] | tuple[str, ...]) -> MlStudySpec:
     features: list[str] = [FEATURE_PAIR_ID]
     for study_id in ordered:
         features.extend(ML_STUDY_REGISTRY[study_id].extra_features)
-    has_ema = ML_STUDY_EMA_SPREADS in ordered
     bundle = combined_bundle_for(ordered)
     if bundle is not None:
-        predictive_feature = FEATURE_EMA_DEV_PAIR_NORM if has_ema else None
-        predictive_plot_slug = "ema_dev" if has_ema else None
+        from crypto_research.utils.ml.numeric_features import active_numeric_specs, resolve_predictive
+
+        numeric_specs = active_numeric_specs(features)
+        predictive_feature, predictive_plot_slug = resolve_predictive(numeric_specs)
         return MlStudySpec(
             studies=bundle.studies,
             feature_columns=tuple(features),
@@ -175,6 +186,18 @@ def resolve_ml_study(studies: list[str] | tuple[str, ...]) -> MlStudySpec:
         policy_mode=entry.policy_mode,
         predictive_feature=entry.predictive_feature,
         predictive_plot_slug=entry.predictive_plot_slug,
+    )
+
+
+def resolve_compare_model(model_id: str) -> MlStudySpec:
+    """Идентификатор для --compare-models: ML study или combined bundle_id."""
+    if is_combined_bundle_id(model_id):
+        return resolve_ml_study(BUNDLE_ID_TO_STUDIES[model_id])
+    if is_ml_study_id(model_id):
+        return resolve_ml_study((model_id,))
+    raise ValueError(
+        f"Неизвестная модель для сравнения: {model_id!r}. "
+        f"Допустимо: {list(COMPARE_MODEL_CHOICES)}"
     )
 
 

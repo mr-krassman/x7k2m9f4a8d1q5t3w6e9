@@ -1,0 +1,41 @@
+{
+  "model_ids": [
+    "dow_ema_sp",
+    "dow_ema_rsi_sp"
+  ],
+  "holdout_test_period": {
+    "from": "2024-04-01",
+    "to": "2026-05-31"
+  },
+  "n_pairs": 49,
+  "models": [
+    {
+      "model_id": "dow_ema_sp",
+      "t_long": 0.509,
+      "t_short": 0.4949,
+      "mean_p_up": 0.5051,
+      "pred_up_rate": 0.5169,
+      "signal_long": 0.4163,
+      "signal_flat": 0.1343,
+      "signal_short": 0.4494
+    },
+    {
+      "model_id": "dow_ema_rsi_sp",
+      "t_long": 0.5072,
+      "t_short": 0.4947,
+      "mean_p_up": 0.5047,
+      "pred_up_rate": 0.5328,
+      "signal_long": 0.4516,
+      "signal_flat": 0.1255,
+      "signal_short": 0.4228
+    }
+  ],
+  "plot_paths": {
+    "prob_histogram": "/home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_prob_histogram.png",
+    "signal_rates": "/home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_signal_rates.png",
+    "prob_delta": "/home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_prob_delta.png",
+    "calibration_overlay": "/home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_calibration_overlay.png",
+    "prob_cdf": "/home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_prob_cdf.png",
+    "weekday_prob": "/home_admin/crypto_bot/crypto_research/research_outputs/ml_compare/dow_ema_sp__dow_ema_rsi_sp_20240401_20260531/plots/compare_weekday_prob.png"
+  }
+}

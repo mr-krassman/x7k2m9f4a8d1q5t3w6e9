@@ -1,4 +1,4 @@
-"""Combined rule-based backtest: day_of_week + ema_spreads (optimistic), mode and|or."""
+"""Combined rule-based backtest: несколько стратегий (optimistic), mode and|or."""
 
 from __future__ import annotations
 
@@ -42,13 +42,14 @@ from crypto_research.utils.backtest.report import BacktestResult, save_backtest_
 from crypto_research.utils.backtest.scenarios import SCENARIO_OPTIMISTIC
 from crypto_research.utils.backtest.strategies.day_of_week import build_pair_returns as build_dow_pair_returns
 from crypto_research.utils.backtest.strategies.ema_spreads import build_pair_returns as build_ema_pair_returns
+from crypto_research.utils.backtest.strategies.rsi_spreads import build_pair_returns as build_rsi_pair_returns
 from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("strategy_combined_algo")
 
 STRATEGY_DESCRIPTION = (
     "Combined rule-based (optimistic): сигналы нескольких стратегий с train-отбором пар.\n"
-    "  mode=or — все сделки DOW и EMA складываются (каждый сигнал — отдельная позиция).\n"
+    "  mode=or — все сделки складываются (каждый сигнал — отдельная позиция).\n"
     "  mode=and — сделка только при совпадении знака позиции у всех сигналов на (день, пара)."
 )
 
@@ -64,8 +65,11 @@ class CombinedAlgoBacktestContext:
     algo_spec: AlgoBundleSpec | None = None
     pairs_by_weekday: dict[int, list[str]] | None = None
     ema_selected_pairs: list[str] | None = None
+    rsi_selected_pairs: list[str] | None = None
     frozen_thresholds: pl.DataFrame | None = None
+    frozen_edges: np.ndarray | None = None
     ema_period: int = 9
+    rsi_period: int = 9
     daily_benchmark_49: pl.DataFrame | None = None
     n_benchmark_pairs: int = 49
     strategy_name: str = "dow_ema_sp"
@@ -95,33 +99,55 @@ def _active_signals(df: pl.DataFrame) -> pl.DataFrame:
     return _positions_frame(df).filter(pl.col("position") != 0)
 
 
-def combine_positions(
-    dow: pl.DataFrame,
-    ema: pl.DataFrame,
-    mode: CombineMode,
-) -> pl.DataFrame:
-    if mode == "or":
-        return pl.concat(
-            [_active_signals(dow), _active_signals(ema)],
-            how="vertical_relaxed",
-        )
+def _combine_or(frames: list[pl.DataFrame]) -> pl.DataFrame:
+    return pl.concat([_active_signals(f) for f in frames], how="vertical_relaxed")
 
+
+def _combine_and(frames: list[pl.DataFrame]) -> pl.DataFrame:
     keys = ["day_utc", "pair"]
-    merged = _positions_frame(dow).join(
-        _positions_frame(ema).rename({"position": "position_ema", "weekday": "weekday_ema"}),
-        on=keys,
-        how="full",
-        coalesce=True,
-    )
-    pos_dow = merged["position"].fill_null(0.0).to_numpy()
-    pos_ema = merged["position_ema"].fill_null(0.0).to_numpy()
-    same = (pos_dow != 0) & (pos_ema != 0) & (np.sign(pos_dow) == np.sign(pos_ema))
-    combined = np.where(same, pos_dow, 0.0)
-    weekday = merged["weekday"].fill_null(merged["weekday_ema"]).cast(pl.Int64)
+    merged = _positions_frame(frames[0])
+    pos_cols = ["position"]
+
+    for i, frame in enumerate(frames[1:], start=1):
+        pf = _positions_frame(frame).rename(
+            {
+                "position": f"pos_{i}",
+                "weekday": f"wd_{i}",
+                "return_pct": f"ret_{i}",
+            }
+        )
+        merged = merged.join(pf, on=keys, how="full", coalesce=True)
+        pos_cols.append(f"pos_{i}")
+
+    pos_arrays = [merged[c].fill_null(0.0).to_numpy() for c in pos_cols]
+    all_nonzero = np.ones(pos_arrays[0].shape[0], dtype=bool)
+    for arr in pos_arrays:
+        all_nonzero &= arr != 0
+    ref_sign = np.sign(pos_arrays[0])
+    same = all_nonzero.copy()
+    for arr in pos_arrays[1:]:
+        same &= np.sign(arr) == ref_sign
+    combined = np.where(same, pos_arrays[0], 0.0)
+
+    weekday_expr = pl.col("weekday")
+    return_expr = pl.col("return_pct")
+    for i in range(1, len(frames)):
+        weekday_expr = weekday_expr.fill_null(pl.col(f"wd_{i}"))
+        return_expr = return_expr.fill_null(pl.col(f"ret_{i}"))
+
     return merged.with_columns(
-        pl.Series("weekday", weekday),
+        weekday_expr.cast(pl.Int64).alias("weekday"),
+        return_expr.alias("return_pct"),
         pl.Series("position", combined),
     ).select("day_utc", "pair", "weekday", "return_pct", "position")
+
+
+def combine_positions(frames: list[pl.DataFrame], mode: CombineMode) -> pl.DataFrame:
+    if not frames:
+        raise ValueError("combine_positions: пустой список стратегий")
+    if mode == "or":
+        return _combine_or(frames)
+    return _combine_and(frames)
 
 
 def apply_fees(df: pl.DataFrame, fee: FeeSchedule) -> pl.DataFrame:
@@ -156,6 +182,48 @@ def _path_kwargs(ctx: CombinedAlgoBacktestContext) -> dict:
     }
 
 
+def _build_study_returns(daily: pl.DataFrame, ctx: CombinedAlgoBacktestContext) -> list[pl.DataFrame]:
+    if ctx.algo_spec is None:
+        raise RuntimeError("algo_spec не задан")
+    out: list[pl.DataFrame] = []
+    for study in ctx.algo_spec.studies:
+        if study == "day_of_week":
+            out.append(
+                build_dow_pair_returns(daily, ctx.fee, pairs_by_weekday=ctx.pairs_by_weekday)
+            )
+        elif study == "ema_spreads":
+            if ctx.frozen_thresholds is None:
+                raise RuntimeError("frozen_thresholds не заданы для ema_spreads")
+            out.append(
+                build_ema_pair_returns(
+                    daily,
+                    ctx.fee,
+                    period=ctx.ema_period,
+                    frozen_thresholds=ctx.frozen_thresholds,
+                    pair_filter=ctx.ema_selected_pairs,
+                    from_date=ctx.from_date,
+                    to_date=ctx.to_date,
+                )
+            )
+        elif study == "rsi_spreads":
+            if ctx.frozen_edges is None:
+                raise RuntimeError("frozen_edges не заданы для rsi_spreads")
+            out.append(
+                build_rsi_pair_returns(
+                    daily,
+                    ctx.fee,
+                    period=ctx.rsi_period,
+                    frozen_edges=ctx.frozen_edges,
+                    pair_filter=ctx.rsi_selected_pairs,
+                    from_date=ctx.from_date,
+                    to_date=ctx.to_date,
+                )
+            )
+        else:
+            raise ValueError(f"Неизвестная стратегия в combined algo: {study}")
+    return out
+
+
 def run_combined_algo_backtest(
     daily: pl.DataFrame,
     pairs: list[str],
@@ -163,23 +231,10 @@ def run_combined_algo_backtest(
 ) -> BacktestResult:
     if ctx.algo_spec is None:
         raise RuntimeError("algo_spec не задан")
-    if ctx.frozen_thresholds is None:
-        raise RuntimeError("frozen_thresholds не заданы для combined algo")
 
     mode = ctx.algo_spec.combine_mode
-    dow_returns = build_dow_pair_returns(
-        daily, ctx.fee, pairs_by_weekday=ctx.pairs_by_weekday
-    )
-    ema_returns = build_ema_pair_returns(
-        daily,
-        ctx.fee,
-        period=ctx.ema_period,
-        frozen_thresholds=ctx.frozen_thresholds,
-        pair_filter=ctx.ema_selected_pairs,
-        from_date=ctx.from_date,
-        to_date=ctx.to_date,
-    )
-    combined_pos = combine_positions(dow_returns, ema_returns, mode)
+    study_frames = _build_study_returns(daily, ctx)
+    combined_pos = combine_positions(study_frames, mode)
     pair_returns = apply_fees(combined_pos, ctx.fee)
     peak_pairs = peak_active_pairs(pair_returns)
     portfolio = build_portfolio_daily_weighted(pair_returns, peak_pairs)
@@ -219,11 +274,15 @@ def run_combined_algo_backtest(
     corr = weekday_correlation_matrix(portfolio, "net_maker_return_pct")
     active_pairs, long_pairs, short_pairs = avg_active_long_short_pairs_by_weekday(pair_returns)
     trading_weekdays = tuple(range(7))
+    studies_label = "+".join(s.upper() for s in ctx.algo_spec.studies)
 
     desc = (
         f"{STRATEGY_DESCRIPTION}\n"
         f"  Bundle: {ctx.algo_spec.bundle_id}; studies: {', '.join(ctx.algo_spec.studies)}; mode={mode}."
     )
+    selected = sorted(
+        set(ctx.ema_selected_pairs or []) | set(ctx.rsi_selected_pairs or [])
+    ) or None
     result = BacktestResult(
         strategy=ctx.strategy_name,
         strategy_description=desc,
@@ -251,10 +310,10 @@ def run_combined_algo_backtest(
         avg_long_pairs_by_weekday=long_pairs,
         avg_short_pairs_by_weekday=short_pairs,
         n_benchmark_pairs=ctx.n_benchmark_pairs,
-        selected_pairs=ctx.ema_selected_pairs,
+        selected_pairs=selected,
         exposure_note=(
             f"Combined algo mode={mode}; peak_slots={peak_pairs} "
-            f"(макс. активных сигналов в день; or — DOW+EMA складываются)."
+            f"(макс. активных сигналов в день; or — {studies_label} складываются)."
         ),
     )
 

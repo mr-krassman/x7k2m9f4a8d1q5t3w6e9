@@ -27,7 +27,7 @@
   },
   "thresholds": {
     "t_long": 0.512,
-    "t_short": 0.2
+    "t_short": 0.4917
   },
   "selection_policy": {
     "score_quantile": 0.1,
@@ -4200,7 +4200,7 @@
   },
   "global_thresholds": {
     "t_long": 0.5107,
-    "t_short": 0.48
+    "t_short": 0.485
   },
   "pair_score_table": [
     {

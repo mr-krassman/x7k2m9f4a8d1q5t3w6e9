@@ -250,6 +250,18 @@ def ml_feature_predictive_plot_path(
     return ml_plots_dir(spec) / f"{tag}_{plot_slug}_predictive.png"
 
 
+def ml_correlation_matrix_plot_path(
+    spec, n_pairs: int, test_from: datetime, test_to: datetime
+) -> Path:
+    tag = ml_output_tag(spec, n_pairs, test_from, test_to)
+    return ml_plots_dir(spec) / f"{tag}_correlation_matrix.png"
+
+
+def ml_shape_summary_plot_path(spec, n_pairs: int, test_from: datetime, test_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, test_from, test_to)
+    return ml_plots_dir(spec) / f"{tag}_shape_summary.png"
+
+
 def ml_ema_dev_predictive_plot_path(spec, n_pairs: int, test_from: datetime, test_to: datetime) -> Path:
     return ml_feature_predictive_plot_path(spec, n_pairs, test_from, test_to, "ema_dev")
 
@@ -267,6 +279,20 @@ def ml_train_test_metrics_path(spec, n_pairs: int, train_from: datetime, test_to
 def ml_policy_path(spec, n_pairs: int, train_from: datetime, test_to: datetime) -> Path:
     tag = ml_output_tag(spec, n_pairs, train_from, test_to)
     return ml_policies_dir(spec) / f"{tag}_policy.json"
+
+
+def ml_compare_dir(model_ids: list[str], test_from: datetime, test_to: datetime) -> Path:
+    tag = "__".join(model_ids)
+    return (
+        RESEARCH_ROOT
+        / "research_outputs"
+        / "ml_compare"
+        / f"{tag}_{test_from:%Y%m%d}_{test_to:%Y%m%d}"
+    )
+
+
+def ml_compare_plots_dir(model_ids: list[str], test_from: datetime, test_to: datetime) -> Path:
+    return ml_compare_dir(model_ids, test_from, test_to) / "plots"
 
 
 def weekday_ml_log_path(

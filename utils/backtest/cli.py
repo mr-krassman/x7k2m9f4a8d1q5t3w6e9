@@ -14,8 +14,10 @@ from crypto_research.utils.pipeline.paths import DEFAULT_DATA_DIR
 
 def _strategy_help() -> str:
     return (
-        "rule-based: day_of_week | ema_spreads | rsi_spreads | day_of_week ema_spreads --mode and|or; "
-        "ML: day_of_week_ml | ema_spreads_ml | rsi_spreads_ml | day_of_week_ml ema_spreads_ml"
+        "rule-based: day_of_week | ema_spreads | rsi_spreads | "
+        "day_of_week ema_spreads [rsi_spreads] --mode and|or; "
+        "ML: day_of_week_ml | ema_spreads_ml | rsi_spreads_ml | "
+        "day_of_week_ml ema_spreads_ml [rsi_spreads_ml]"
     )
 
 
@@ -31,7 +33,7 @@ def parse_backtest_args() -> argparse.Namespace:
         "--mode",
         choices=["and", "or"],
         default=None,
-        help="Режим combined rule-based (day_of_week ema_spreads): and | or.",
+        help="Режим combined rule-based (2+ стратегии): and | or.",
     )
     parser.add_argument(
         "--scenario",
@@ -116,7 +118,7 @@ def parse_backtest_args() -> argparse.Namespace:
     args.combine_mode = parsed.combine_mode
 
     if args.mode is not None and parsed.algo_spec is None:
-        parser.error("--mode применим только к combined rule-based: day_of_week ema_spreads")
+        parser.error("--mode применим только к combined rule-based (2+ стратегии)")
 
     if parsed.algo_spec is not None:
         args.scenario = SCENARIO_OPTIMISTIC

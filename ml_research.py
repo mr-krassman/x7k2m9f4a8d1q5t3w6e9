@@ -31,23 +31,36 @@ from crypto_research.utils.ml.dataset import (
     dataset_to_numpy,
     load_full_pool_daily,
 )
-from crypto_research.utils.ml.numeric_features import bounds_map_from_bundle, bounds_map_to_bundle, fit_bounds_for_features
-from crypto_research.utils.ml.feature_predictive_plot import save_metrics_over_feature_plot
+from crypto_research.utils.ml.numeric_features import (
+    active_numeric_specs,
+    bounds_map_from_bundle,
+    bounds_map_to_bundle,
+    fit_bounds_for_features,
+    resolve_predictive,
+)
+from crypto_research.utils.ml.plot_registry import (
+    ML_PLOT_CHOICES,
+    ML_PLOT_FEATURE_PREDICTIVE,
+    ML_PLOT_ROC_AUC,
+    ML_PLOT_WEEKDAY_PAIR_SUMMARY,
+    MlPlotContext,
+    resolve_plot_ids,
+    run_selected_ml_plots,
+)
 from crypto_research.utils.ml.learning_curve import (
     fit_lightgbm_full_train,
     fit_lightgbm_with_eval_curve,
 )
 from crypto_research.utils.ml.registry import (
+    COMPARE_MODEL_CHOICES,
     ML_STUDY_CHOICES,
     ml_spec_to_dict,
     resolve_ml_study,
 )
+from crypto_research.utils.ml.model_compare import load_compare_model, signal_rates
+from crypto_research.utils.ml.model_compare_plot import save_all_compare_plots
 from crypto_research.utils.ml.oos_paths import (
     oos_calibration_metrics,
-    save_oos_calibration_plot,
-    save_oos_probability_plot,
-    save_roc_auc_comparison_plot,
-    save_weekday_pair_summary_plot,
 )
 from crypto_research.utils.backtest.analytics import WEEKDAY_NAMES
 from crypto_research.utils.pipeline.dates import parse_iso_utc
@@ -71,9 +84,9 @@ from crypto_research.utils.pipeline.paths import (
     ml_metrics_path,
     ml_oos_calibration_plot_path,
     ml_oos_plot_path,
-    ml_roc_auc_plot_path,
+    ml_plots_dir,
     ml_train_test_metrics_path,
-    ml_weekday_pair_summary_plot_path,
+    ml_compare_dir,
 )
 
 log = get_logger("ml_research")
@@ -87,9 +100,8 @@ def parse_ml_args() -> argparse.Namespace:
     parser.add_argument(
         "studies",
         nargs="*",
-        choices=list(ML_STUDY_CHOICES),
         metavar="STUDY",
-        help="Исследования: day_of_week_ml, ema_spreads_ml, rsi_spreads_ml (по умолчанию day_of_week_ml)",
+        help="Исследования: day_of_week_ml, ema_spreads_ml, rsi_spreads_ml; combined: day_of_week_ml ema_spreads_ml [rsi_spreads_ml]",
     )
     parser.add_argument(
         "--data-dir",
@@ -203,6 +215,60 @@ def parse_ml_args() -> argparse.Namespace:
         default=50,
         help="Раунды без улучшения eval logloss при --early-stopping",
     )
+    parser.add_argument("--n-pairs", type=int, default=49, help="Размер пула пар (пути bundle/policy).")
+    parser.add_argument(
+        "--compare-models",
+        nargs="+",
+        default=None,
+        metavar="MODEL_ID",
+        help=(
+            "Сравнить frozen-модели на holdout test (без обучения). "
+            f"ID: {', '.join(COMPARE_MODEL_CHOICES)}. "
+            "Пример: --compare-models dow_ema_sp dow_ema_rsi_sp"
+        ),
+    )
+    parser.add_argument(
+        "--compare-baseline",
+        default=None,
+        help="Первая модель в списке для ΔP(up); по умолчанию — первый аргумент --compare-models.",
+    )
+    parser.add_argument(
+        "--compare-model-bundle",
+        action="append",
+        default=[],
+        metavar="MODEL_ID=PATH",
+        help="Переопределить путь к bundle: ema_spreads_ml=/path/to.pkl",
+    )
+    parser.add_argument(
+        "--compare-policy",
+        action="append",
+        default=[],
+        metavar="MODEL_ID=PATH",
+        help="Переопределить путь к policy.json.",
+    )
+    parser.add_argument(
+        "--compare-output-dir",
+        type=Path,
+        default=None,
+        help="Каталог для графиков сравнения (по умолчанию research_outputs/ml_compare/…).",
+    )
+    parser.add_argument(
+        "--plots",
+        nargs="+",
+        default=None,
+        metavar="PLOT",
+        help=(
+            "Какие графики строить (по умолчанию — стандартный набор holdout). "
+            f"ID: {', '.join(ML_PLOT_CHOICES)}; "
+            "алиас: тепловая_карта_корреляционной_матрицы. "
+            "Пример: --plots correlation_matrix_heatmap shape_summary_plot"
+        ),
+    )
+    parser.add_argument(
+        "--plots-only",
+        action="store_true",
+        help="Только графики по frozen bundle (без обучения); обязателен --plots.",
+    )
     parser.add_argument(
         "--plot-metrics-over-feature",
         "--plot_metrics_over_feature",
@@ -215,6 +281,31 @@ def parse_ml_args() -> argparse.Namespace:
         ),
     )
     return parser.parse_args()
+
+
+def _validate_ml_args(args: argparse.Namespace) -> None:
+    if args.compare_models:
+        return
+    if args.plots_only and not args.plots:
+        raise SystemExit("--plots-only требует --plots с именами графиков.")
+    if not args.studies:
+        raise SystemExit(
+            "Укажите STUDY (day_of_week_ml, …) или --compare-models для сравнения frozen-моделей."
+        )
+    unknown = set(args.studies) - set(ML_STUDY_CHOICES)
+    if unknown:
+        raise SystemExit(f"Неизвестные ML-исследования: {sorted(unknown)}")
+    if args.plots:
+        resolve_plot_ids(args.plots)
+
+
+def _effective_plot_ids(args: argparse.Namespace) -> tuple[str, ...]:
+    if args.plots:
+        return resolve_plot_ids(args.plots)
+    plot_ids = list(resolve_plot_ids(None))
+    if args.plot_metrics_over_feature and ML_PLOT_FEATURE_PREDICTIVE not in plot_ids:
+        plot_ids.append(ML_PLOT_FEATURE_PREDICTIVE)
+    return tuple(plot_ids)
 
 
 def _log_dataset_preview(frame: pl.DataFrame, *, head: int) -> None:
@@ -393,16 +484,103 @@ def _attach_train_and_test_base_rates(
 
 def _model_oos_frame(dataset: DirectionDataset, y_prob: np.ndarray) -> pl.DataFrame:
     cols = ["day_utc", "pair", "direction_up"]
-    if dataset.ml_spec.predictive_feature is not None:
-        cols.append(dataset.ml_spec.predictive_feature)
+    for ns in active_numeric_specs(dataset.feature_columns):
+        if ns.column not in cols:
+            cols.append(ns.column)
     return dataset.frame.select(*cols).rename({"direction_up": "y_true"}).with_columns(
         pl.Series("y_prob", y_prob),
         pl.lit(1).alias("n_folds"),
     )
 
 
+def _model_feature_importance(model, feature_columns: list[str]) -> dict[str, float]:
+    names = list(getattr(model, "feature_name_", feature_columns))
+    gains = list(getattr(model, "feature_importances_", []))
+    return {name: float(gain) for name, gain in zip(names, gains)}
+
+
 def _default_train_test_output_path(spec, n_pairs: int, train_from, test_to) -> Path:
     return ml_train_test_metrics_path(spec, n_pairs, train_from, test_to)
+
+
+def _load_frozen_model_context(args: argparse.Namespace) -> MlPlotContext:
+    spec = resolve_ml_study(args.studies)
+    workers = args.workers if args.workers is not None else _DEFAULT_WORKERS
+    pair_start_limit = parse_iso_utc(args.max_pair_start)
+    train_from = parse_iso_utc(args.train_from)
+    train_to = parse_iso_utc(args.train_to)
+    test_from = parse_iso_utc(args.test_from)
+    test_to = parse_iso_utc(args.test_to)
+
+    model_path = ml_model_bundle_path(spec, args.n_pairs, train_from, train_to)
+    if not model_path.is_file():
+        raise FileNotFoundError(f"model bundle не найден: {model_path}")
+    with model_path.open("rb") as f:
+        bundle = pickle.load(f)
+
+    train_daily, train_pairs = load_full_pool_daily(
+        args.data_dir.expanduser().resolve(),
+        max_pair_start=pair_start_limit,
+        from_date=train_from,
+        to_date=train_to,
+        workers=workers,
+    )
+    test_daily, test_pairs = load_full_pool_daily(
+        args.data_dir.expanduser().resolve(),
+        max_pair_start=pair_start_limit,
+        from_date=test_from,
+        to_date=test_to,
+        workers=workers,
+    )
+    if train_pairs != test_pairs:
+        raise RuntimeError("Train/test загрузили разный пул пар")
+
+    bounds = bounds_map_from_bundle(bundle, spec.feature_columns)
+    train_dataset = build_direction_dataset(train_daily, spec, pair_norm_bounds=bounds)
+    test_dataset = build_direction_dataset(test_daily, spec, pair_norm_bounds=bounds)
+    model = bundle["model"]
+    x_train, y_train, _, _ = dataset_to_numpy(train_dataset)
+    x_test, y_test, _, _ = dataset_to_numpy(test_dataset)
+    y_train_prob = model.predict_proba(x_train)[:, 1]
+    y_test_prob = model.predict_proba(x_test)[:, 1]
+
+    return MlPlotContext(
+        spec=spec,
+        args=args,
+        n_pairs=len(train_pairs),
+        train_from=train_from,
+        train_to=train_to,
+        test_from=test_from,
+        test_to=test_to,
+        train_dataset=train_dataset,
+        test_dataset=test_dataset,
+        train_fit_oos=_model_oos_frame(train_dataset, y_train_prob),
+        test_oos=_model_oos_frame(test_dataset, y_test_prob),
+        y_test=y_test,
+        y_test_prob=y_test_prob,
+    )
+
+
+def run_ml_plots_only_pipeline(args: argparse.Namespace) -> dict[str, object]:
+    plot_ids = _effective_plot_ids(args)
+    ctx = _load_frozen_model_context(args)
+    plot_paths = run_selected_ml_plots(plot_ids, ctx)
+    summary_path = ml_plots_dir(ctx.spec) / "plots_only_summary.json"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary = {
+        "mode": "plots_only",
+        "ml_spec": ml_spec_to_dict(ctx.spec),
+        "plot_ids": list(plot_ids),
+        "holdout_test_period": {"from": args.test_from, "to": args.test_to},
+        "n_pairs": ctx.n_pairs,
+        "plot_paths": plot_paths,
+    }
+    summary_path.write_text(
+        json.dumps(_round_json_floats(summary), indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    log.info("[ml] plots-only summary saved: %s", summary_path)
+    return plot_paths
 
 
 def _build_model_bundle(
@@ -499,55 +677,41 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     train_fit_oos = _model_oos_frame(train_dataset, y_train_prob)
     test_oos = _model_oos_frame(test_dataset, y_test_prob)
 
-    test_plot_path = save_oos_probability_plot(
-        test_oos,
-        ml_oos_plot_path(spec, len(train_pairs), test_from, test_to),
+    plot_ids = _effective_plot_ids(args)
+    if ML_PLOT_ROC_AUC in plot_ids and train_cpcv.oos_paths is None:
+        raise RuntimeError("Train CPCV не вернул OOS-предсказания для roc_auc")
+    if ML_PLOT_WEEKDAY_PAIR_SUMMARY in plot_ids and train_cpcv.oos_predictions is None:
+        raise RuntimeError("Train CPCV не вернул OOS-предсказания для weekday_pair_summary")
+
+    plot_ctx = MlPlotContext(
+        spec=spec,
+        args=args,
+        n_pairs=len(train_pairs),
+        train_from=train_from,
+        train_to=train_to,
+        test_from=test_from,
+        test_to=test_to,
+        train_dataset=train_dataset,
+        test_dataset=test_dataset,
+        train_fit_oos=train_fit_oos,
+        test_oos=test_oos,
+        y_test=y_test,
+        y_test_prob=y_test_prob,
+        train_cpcv=train_cpcv,
+        fit_result=fit_result,
     )
-    test_calibration_plot_path = save_oos_calibration_plot(
-        test_oos,
-        ml_oos_calibration_plot_path(spec, len(train_pairs), test_from, test_to),
-    )
-    test_weekday_pair_summary_plot_path = save_weekday_pair_summary_plot(
-        test_oos,
-        ml_weekday_pair_summary_plot_path(spec, len(train_pairs), test_from, test_to),
-        title="Holdout test: weekday × pair metrics",
-    )
+    plot_paths = run_selected_ml_plots(plot_ids, plot_ctx)
+    feature_predictive_plot_paths = {
+        k.removeprefix("feature_predictive_"): str(v)
+        for k, v in plot_paths.items()
+        if k.startswith("feature_predictive_")
+    }
     feature_predictive_plot_path = None
-    if args.plot_metrics_over_feature:
-        if not spec.predictive_feature or not spec.predictive_plot_slug:
-            log.warning(
-                "[ml] --plot-metrics-over-feature: исследование %s не задаёт predictive_feature",
-                list(spec.studies),
-            )
-        else:
-            feature_predictive_plot_path = save_metrics_over_feature_plot(
-                train_fit_oos,
-                test_oos,
-                ml_feature_predictive_plot_path(
-                    spec, len(train_pairs), test_from, test_to, spec.predictive_plot_slug
-                ),
-                predictive_feature=spec.predictive_feature,
-                predictive_plot_slug=spec.predictive_plot_slug,
-                train_title=f"Train {args.train_from}..{args.train_to}",
-                val_title=f"Val {args.test_from}..{args.test_to}",
-            )
-    train_oos = train_cpcv.oos_paths
-    if train_oos is None:
-        raise RuntimeError("Train CPCV не вернул OOS-предсказания для ROC AUC plot")
-    if train_cpcv.oos_predictions is None:
-        raise RuntimeError("Train CPCV не вернул OOS-предсказания для weekday×pair summary plot")
-    train_weekday_pair_summary_plot_path = save_weekday_pair_summary_plot(
-        train_cpcv.oos_predictions,
-        ml_weekday_pair_summary_plot_path(spec, len(train_pairs), train_from, train_to),
-        title="Train CPCV OOS: weekday × pair metrics",
-    )
-    roc_auc_plot_path = save_roc_auc_comparison_plot(
-        train_oos[:, 2].astype(np.int8),
-        train_oos[:, 1],
-        y_test,
-        y_test_prob,
-        ml_roc_auc_plot_path(spec, len(train_pairs), train_from, test_to),
-    )
+    if spec.predictive_plot_slug and spec.predictive_plot_slug in feature_predictive_plot_paths:
+        feature_predictive_plot_path = feature_predictive_plot_paths[spec.predictive_plot_slug]
+    elif feature_predictive_plot_paths:
+        feature_predictive_plot_path = next(iter(feature_predictive_plot_paths.values()))
+
     test_metrics = _binary_metrics(y_test, y_test_prob)
     train_fit_metrics = _binary_metrics(y_train, y_train_prob)
     train_fit_calibration = oos_calibration_metrics(train_fit_oos)
@@ -594,6 +758,8 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         "pair_start_limit": args.max_pair_start,
         "train_period": {"from": args.train_from, "to": args.train_to},
         "holdout_test_period": {"from": args.test_from, "to": args.test_to},
+        "plot_ids": list(plot_ids),
+        "plot_paths": plot_paths,
         "train_cpcv": {
             "n_rows": train_dataset.frame.height,
             "n_splits": train_cpcv.n_splits,
@@ -612,10 +778,11 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
             "oos_calibration_plot_path": (
                 str(train_cpcv.oos_calibration_plot_path) if train_cpcv.oos_calibration_plot_path else None
             ),
-            "roc_auc_plot_path": str(roc_auc_plot_path),
-            "weekday_pair_summary_plot_path": str(train_weekday_pair_summary_plot_path),
+            "roc_auc_plot_path": plot_paths.get("roc_auc"),
+            "weekday_pair_summary_plot_path": plot_paths.get("weekday_pair_summary_train"),
         },
         "final_model_path": str(model_path),
+        "feature_importance": _model_feature_importance(model, list(train_dataset.feature_columns)),
         "train_fit": {
             "n_rows": train_dataset.frame.height,
             "n_estimators": fit_result.best_iteration,
@@ -632,12 +799,16 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
             "pair_metrics": _group_metrics(test_oos, "pair"),
             "weekday_pair_metrics": _weekday_pair_metrics(test_oos),
             "calibration_metrics": test_calibration,
-            "oos_plot_path": str(test_plot_path),
-            "oos_calibration_plot_path": str(test_calibration_plot_path),
-            "weekday_pair_summary_plot_path": str(test_weekday_pair_summary_plot_path),
+            "oos_plot_path": plot_paths.get("oos_prob"),
+            "oos_calibration_plot_path": plot_paths.get("oos_calibration"),
+            "weekday_pair_summary_plot_path": plot_paths.get("weekday_pair_summary"),
+            "correlation_matrix_plot_path": plot_paths.get("correlation_matrix_heatmap"),
+            "shape_summary_plot_path": plot_paths.get("shape_summary_plot"),
+            "feature_correlations": plot_paths.get("feature_correlations"),
             "feature_predictive_plot_path": (
                 str(feature_predictive_plot_path) if feature_predictive_plot_path else None
             ),
+            "feature_predictive_plot_paths": feature_predictive_plot_paths or None,
         },
     }
     out_path = args.output or _default_train_test_output_path(spec, len(train_pairs), train_from, test_to)
@@ -648,6 +819,104 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     )
     log.info("[ml] train/test metrics saved: %s", out_path)
     return out_path
+
+
+def _parse_path_overrides(pairs: list[str]) -> dict[str, Path]:
+    out: dict[str, Path] = {}
+    for item in pairs:
+        if "=" not in item:
+            raise ValueError(f"Ожидается MODEL_ID=PATH, получено: {item!r}")
+        model_id, raw = item.split("=", 1)
+        out[model_id.strip()] = Path(raw.strip()).expanduser()
+    return out
+
+
+def run_compare_models_pipeline(args: argparse.Namespace) -> dict[str, str]:
+    if not args.compare_models or len(args.compare_models) < 2:
+        raise RuntimeError("--compare-models: укажите минимум 2 модели")
+
+    model_ids = list(dict.fromkeys(args.compare_models))
+    if args.compare_baseline is not None:
+        if args.compare_baseline not in model_ids:
+            raise RuntimeError("--compare-baseline должен быть среди --compare-models")
+        model_ids = [args.compare_baseline] + [m for m in model_ids if m != args.compare_baseline]
+
+    workers = args.workers if args.workers is not None else _DEFAULT_WORKERS
+    pair_start_limit = parse_iso_utc(args.max_pair_start)
+    train_from = parse_iso_utc(args.train_from)
+    train_to = parse_iso_utc(args.train_to)
+    test_from = parse_iso_utc(args.test_from)
+    test_to = parse_iso_utc(args.test_to)
+    n_pairs = args.n_pairs
+
+    bundle_overrides = _parse_path_overrides(args.compare_model_bundle)
+    policy_overrides = _parse_path_overrides(args.compare_policy)
+
+    test_daily, test_pairs = load_full_pool_daily(
+        args.data_dir.expanduser().resolve(),
+        max_pair_start=pair_start_limit,
+        from_date=test_from,
+        to_date=test_to,
+        workers=workers,
+    )
+    log.info("[ml] compare holdout: pairs=%s rows=%s", len(test_pairs), test_daily.height)
+
+    entries = []
+    for model_id in model_ids:
+        entry = load_compare_model(
+            model_id,
+            test_daily,
+            n_pairs=n_pairs,
+            train_from=train_from,
+            train_to=train_to,
+            test_to=test_to,
+            bundle_path=bundle_overrides.get(model_id),
+            policy_path=policy_overrides.get(model_id),
+        )
+        y_prob = entry.oos["y_prob"].to_numpy()
+        log.info(
+            "[ml] compare %s: rows=%s mean_p_up=%.4f pred_up_rate=%.4f t_long=%.4f t_short=%.4f",
+            model_id,
+            entry.oos.height,
+            float(np.mean(y_prob)),
+            float((y_prob >= 0.5).mean()),
+            entry.t_long,
+            entry.t_short,
+        )
+        entries.append(entry)
+
+    plots_root = args.compare_output_dir or ml_compare_dir(model_ids, test_from, test_to)
+    plots_paths = save_all_compare_plots(entries, plots_root / "plots")
+    summary_path = plots_root / "compare_summary.json"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary = {
+        "model_ids": model_ids,
+        "holdout_test_period": {"from": args.test_from, "to": args.test_to},
+        "n_pairs": len(test_pairs),
+        "models": [
+            {
+                "model_id": e.model_id,
+                "t_long": e.t_long,
+                "t_short": e.t_short,
+                "mean_p_up": float(e.oos["y_prob"].mean()),
+                "pred_up_rate": float((e.oos["y_prob"].to_numpy() >= 0.5).mean()),
+                **{
+                    f"signal_{k}": v
+                    for k, v in signal_rates(
+                        e.oos["y_prob"].to_numpy(), e.t_long, e.t_short
+                    ).items()
+                },
+            }
+            for e in entries
+        ],
+        "plot_paths": plots_paths,
+    }
+    summary_path.write_text(
+        json.dumps(_round_json_floats(summary), indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    log.info("[ml] compare summary saved: %s", summary_path)
+    return plots_paths
 
 
 def run_ml_pipeline(args: argparse.Namespace) -> CPCVTrainResult:
@@ -685,8 +954,30 @@ def run_ml_pipeline(args: argparse.Namespace) -> CPCVTrainResult:
 
 def main() -> int:
     args = parse_ml_args()
+    _validate_ml_args(args)
+    if args.compare_models:
+        test_from = parse_iso_utc(args.test_from)
+        test_to = parse_iso_utc(args.test_to)
+        model_ids = list(dict.fromkeys(args.compare_models))
+        log_root = args.compare_output_dir or ml_compare_dir(model_ids, test_from, test_to)
+        log_file = add_file_logging(log_root / "compare.log")
+        log.info("[ml] compare models: %s", model_ids)
+        log.info("[ml] log file: %s", log_file)
+        run_compare_models_pipeline(args)
+        return 0
+
     spec = resolve_ml_study(args.studies)
     log.info("[ml] studies=%s features=%s output=%s", list(spec.studies), list(spec.feature_columns), spec.output_study)
+    if args.plots_only:
+        if not args.train_test:
+            log.warning("[ml] --plots-only: принудительно используем holdout test-период")
+        from_date = parse_iso_utc(args.train_from)
+        to_date = parse_iso_utc(args.test_to)
+        log_file = add_file_logging(ml_log_path(spec, from_date, to_date))
+        log.info("[ml] log file: %s", log_file)
+        run_ml_plots_only_pipeline(args)
+        return 0
+
     if args.train_test:
         from_date = parse_iso_utc(args.train_from)
         to_date = parse_iso_utc(args.test_to)

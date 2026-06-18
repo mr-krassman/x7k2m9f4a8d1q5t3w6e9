@@ -1,0 +1,55 @@
+{
+  "mode": "plots_only",
+  "ml_spec": {
+    "studies": [
+      "day_of_week_ml",
+      "ema_spreads_ml",
+      "rsi_spreads_ml"
+    ],
+    "feature_columns": [
+      "pair_id",
+      "weekday_enc",
+      "ema_dev_pair_norm",
+      "rsi_pair_norm"
+    ],
+    "output_study": "combined",
+    "feature_slug": "dow_ema_rsi",
+    "bundle_id": "dow_ema_rsi_sp",
+    "ml_subdir": "ml",
+    "policy_mode": "weekday"
+  },
+  "plot_ids": [
+    "correlation_matrix_heatmap",
+    "shape_summary_plot"
+  ],
+  "holdout_test_period": {
+    "from": "2024-04-01",
+    "to": "2026-05-31"
+  },
+  "n_pairs": 49,
+  "plot_paths": {
+    "correlation_matrix_heatmap": "/home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_rsi_sp/ml/plots/direction_dow_ema_rsi_49pairs_20240401_20260531_correlation_matrix.png",
+    "feature_correlations": {
+      "columns": [
+        "ema_dev_pair_norm",
+        "rsi_pair_norm"
+      ],
+      "matrix": [
+        [
+          1.0,
+          0.8525
+        ],
+        [
+          0.8525,
+          1.0
+        ]
+      ],
+      "pairwise": {
+        "ema_dev_pair_norm__rsi_pair_norm": 0.8525
+      },
+      "n_rows": 38073,
+      "method": "pearson"
+    },
+    "shape_summary_plot": "/home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_rsi_sp/ml/plots/direction_dow_ema_rsi_49pairs_20240401_20260531_shape_summary.png"
+  }
+}

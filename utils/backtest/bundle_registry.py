@@ -18,7 +18,7 @@ from crypto_research.utils.ml.registry import (
 BundleKind = Literal["ml", "algo"]
 CombineMode = Literal["and", "or"]
 
-ALGO_STUDY_ORDER: tuple[str, ...] = ("day_of_week", "ema_spreads")
+ALGO_STUDY_ORDER: tuple[str, ...] = ("day_of_week", "ema_spreads", "rsi_spreads")
 
 COMBINE_MODE_OR: CombineMode = "or"
 COMBINE_MODE_AND: CombineMode = "and"
@@ -51,6 +51,10 @@ ALGO_BUNDLE_REGISTRY: dict[tuple[str, ...], AlgoBundleEntry] = {
     ("day_of_week", "ema_spreads"): AlgoBundleEntry(
         bundle_id="dow_ema_sp",
         studies=("day_of_week", "ema_spreads"),
+    ),
+    ("day_of_week", "ema_spreads", "rsi_spreads"): AlgoBundleEntry(
+        bundle_id="dow_ema_rsi_sp",
+        studies=("day_of_week", "ema_spreads", "rsi_spreads"),
     ),
 }
 
