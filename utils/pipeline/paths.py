@@ -262,6 +262,13 @@ def ml_shape_summary_plot_path(spec, n_pairs: int, test_from: datetime, test_to:
     return ml_plots_dir(spec) / f"{tag}_shape_summary.png"
 
 
+def ml_feature_prob_dependence_plot_path(
+    spec, n_pairs: int, test_from: datetime, test_to: datetime
+) -> Path:
+    tag = ml_output_tag(spec, n_pairs, test_from, test_to)
+    return ml_plots_dir(spec) / f"{tag}_feature_prob_dependence.png"
+
+
 def ml_ema_dev_predictive_plot_path(spec, n_pairs: int, test_from: datetime, test_to: datetime) -> Path:
     return ml_feature_predictive_plot_path(spec, n_pairs, test_from, test_to, "ema_dev")
 

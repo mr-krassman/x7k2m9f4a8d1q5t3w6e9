@@ -1,42 +1,18 @@
-"""Диагностические графики по числовым ML-фичам (корреляция, форма распределения)."""
+"""Диагностические графики по ML-фичам модели (корреляция)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import polars as pl
-from scipy.stats import skew
 
-from crypto_research.utils.ml.numeric_features import active_numeric_specs
+from crypto_research.utils.ml.plot_features import feature_correlation_matrix
 from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("ml_feature_diagnostic_plots")
 
 PLOT_DPI = 200
-HIST_BINS = 40
-
-
-def _numeric_columns(feature_columns: tuple[str, ...] | list[str]) -> list[str]:
-    return [ns.column for ns in active_numeric_specs(feature_columns)]
-
-
-def feature_correlation_matrix(
-    frame: pl.DataFrame,
-    feature_columns: tuple[str, ...] | list[str],
-) -> tuple[list[str], np.ndarray]:
-    cols = [c for c in _numeric_columns(feature_columns) if c in frame.columns]
-    if not cols:
-        return [], np.empty((0, 0))
-    matrix = np.column_stack([frame[c].to_numpy() for c in cols]).astype(float)
-    mask = np.all(np.isfinite(matrix), axis=1)
-    matrix = matrix[mask]
-    if matrix.shape[0] < 2:
-        corr = np.eye(len(cols), dtype=float)
-    else:
-        corr = np.corrcoef(matrix, rowvar=False)
-    return cols, corr
 
 
 def save_correlation_matrix_heatmap(
@@ -50,7 +26,7 @@ def save_correlation_matrix_heatmap(
     path.parent.mkdir(parents=True, exist_ok=True)
     cols, corr = feature_correlation_matrix(frame, feature_columns)
     if not cols:
-        log.warning("[ml] correlation_matrix_heatmap: нет числовых фич в датасете")
+        log.warning("[ml] correlation_matrix_heatmap: нет фич модели в датасете")
         return path, {"columns": [], "matrix": [], "n_rows": 0}
 
     n = len(cols)
@@ -88,66 +64,3 @@ def save_correlation_matrix_heatmap(
         log.info("[ml] feature corr %s: %.4f", key.replace("__", " vs "), val)
     log.info("[ml] correlation matrix heatmap saved: %s", path)
     return path, payload
-
-
-def _shared_hist_xlim(arrays: list[np.ndarray], *, pad_ratio: float = 0.05) -> tuple[float, float]:
-    vals = np.concatenate([a[np.isfinite(a)] for a in arrays if a.size])
-    if vals.size == 0:
-        return -1.0, 1.0
-    lo, hi = float(vals.min()), float(vals.max())
-    pad = max(1e-6, (hi - lo) * pad_ratio)
-    return lo - pad, hi + pad
-
-
-def save_shape_summary_plot(
-    frame: pl.DataFrame,
-    path: Path,
-    feature_columns: tuple[str, ...] | list[str],
-    *,
-    title: str,
-    period_label: str = "holdout test",
-) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    cols = [c for c in _numeric_columns(feature_columns) if c in frame.columns]
-    if not cols:
-        log.warning("[ml] shape_summary_plot: нет числовых фич в датасете")
-        return path
-
-    arrays = [frame[c].to_numpy().astype(float) for c in cols]
-    xlim = _shared_hist_xlim(arrays)
-    bins = np.linspace(xlim[0], xlim[1], HIST_BINS + 1)
-    ymax = 0.0
-    for arr in arrays:
-        finite = arr[np.isfinite(arr)]
-        if finite.size:
-            counts, _ = np.histogram(finite, bins=bins, density=True)
-            ymax = max(ymax, float(counts.max()) if counts.size else 0.0)
-    ymax *= 1.08 if ymax > 0 else 1.0
-
-    n = len(cols)
-    fig, axes = plt.subplots(1, n, figsize=(max(6.0, 4.5 * n), 4.2), squeeze=False)
-    for i, (col, arr) in enumerate(zip(cols, arrays)):
-        ax = axes[0, i]
-        finite = arr[np.isfinite(arr)]
-        ax.hist(finite, bins=bins, density=True, alpha=0.75, color="#2563eb", edgecolor="white", linewidth=0.4)
-        ax.axvline(float(np.mean(finite)), color="#dc2626", linestyle="--", linewidth=1.0, label="mean")
-        ax.axvline(float(np.median(finite)), color="#16a34a", linestyle=":", linewidth=1.0, label="median")
-        sk = float(skew(finite)) if finite.size > 2 else float("nan")
-        ax.set_title(
-            f"{col}\nμ={np.mean(finite):.3f}  σ={np.std(finite):.3f}  skew={sk:.2f}",
-            fontsize=9,
-        )
-        ax.set_xlim(xlim)
-        ax.set_ylim(0.0, ymax)
-        ax.set_xlabel(col, fontsize=9)
-        if i == 0:
-            ax.set_ylabel("плотность")
-        ax.grid(True, alpha=0.25)
-        if i == n - 1:
-            ax.legend(fontsize=8, loc="upper right")
-    fig.suptitle(f"{title}\n({period_label}, n={frame.height})", fontweight="semibold", y=1.03)
-    fig.tight_layout()
-    fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight")
-    plt.close(fig)
-    log.info("[ml] shape summary plot saved: %s", path)
-    return path

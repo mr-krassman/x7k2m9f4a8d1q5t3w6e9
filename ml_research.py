@@ -261,13 +261,14 @@ def parse_ml_args() -> argparse.Namespace:
             "Какие графики строить (по умолчанию — стандартный набор holdout). "
             f"ID: {', '.join(ML_PLOT_CHOICES)}; "
             "алиас: тепловая_карта_корреляционной_матрицы. "
-            "Пример: --plots correlation_matrix_heatmap shape_summary_plot"
+            "Пример: --plots correlation_matrix_heatmap shape_summary_plot feature_prob_dependence "
+            "(shape_summary_plot = SHAP beeswarm; feature_prob_dependence = X фича vs P(up))"
         ),
     )
     parser.add_argument(
         "--plots-only",
         action="store_true",
-        help="Только графики по frozen bundle (без обучения); обязателен --plots.",
+        help="Только графики по frozen bundle (без обучения); holdout test; обязателен --plots.",
     )
     parser.add_argument(
         "--plot-metrics-over-feature",
@@ -558,6 +559,7 @@ def _load_frozen_model_context(args: argparse.Namespace) -> MlPlotContext:
         test_oos=_model_oos_frame(test_dataset, y_test_prob),
         y_test=y_test,
         y_test_prob=y_test_prob,
+        model=model,
     )
 
 
@@ -699,6 +701,7 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         y_test_prob=y_test_prob,
         train_cpcv=train_cpcv,
         fit_result=fit_result,
+        model=model,
     )
     plot_paths = run_selected_ml_plots(plot_ids, plot_ctx)
     feature_predictive_plot_paths = {
@@ -804,6 +807,7 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
             "weekday_pair_summary_plot_path": plot_paths.get("weekday_pair_summary"),
             "correlation_matrix_plot_path": plot_paths.get("correlation_matrix_heatmap"),
             "shape_summary_plot_path": plot_paths.get("shape_summary_plot"),
+            "feature_prob_dependence_plot_path": plot_paths.get("feature_prob_dependence"),
             "feature_correlations": plot_paths.get("feature_correlations"),
             "feature_predictive_plot_path": (
                 str(feature_predictive_plot_path) if feature_predictive_plot_path else None

@@ -10,11 +10,9 @@ import numpy as np
 import polars as pl
 
 from crypto_research.utils.ml.cpcv_train import CPCVTrainResult
-from crypto_research.utils.ml.dataset import DirectionDataset
-from crypto_research.utils.ml.feature_diagnostic_plots import (
-    save_correlation_matrix_heatmap,
-    save_shape_summary_plot,
-)
+from crypto_research.utils.ml.dataset import DirectionDataset, dataset_to_numpy
+from crypto_research.utils.ml.feature_dependence_plot import save_feature_prob_dependence_plot
+from crypto_research.utils.ml.feature_diagnostic_plots import save_correlation_matrix_heatmap
 from crypto_research.utils.ml.feature_predictive_plot import save_metrics_over_feature_plot
 from crypto_research.utils.ml.numeric_features import active_numeric_specs
 from crypto_research.utils.ml.oos_paths import (
@@ -24,9 +22,11 @@ from crypto_research.utils.ml.oos_paths import (
     save_weekday_pair_summary_plot,
 )
 from crypto_research.utils.ml.registry import MlStudySpec
+from crypto_research.utils.ml.shap_plots import save_shap_summary_plot
 from crypto_research.utils.pipeline.logger import get_logger
 from crypto_research.utils.pipeline.paths import (
     ml_correlation_matrix_plot_path,
+    ml_feature_prob_dependence_plot_path,
     ml_feature_predictive_plot_path,
     ml_oos_calibration_plot_path,
     ml_oos_plot_path,
@@ -44,17 +44,21 @@ ML_PLOT_OOS_CALIBRATION = "oos_calibration"
 ML_PLOT_WEEKDAY_PAIR_SUMMARY = "weekday_pair_summary"
 ML_PLOT_ROC_AUC = "roc_auc"
 ML_PLOT_FEATURE_PREDICTIVE = "feature_predictive"
+ML_PLOT_FEATURE_PROB_DEPENDENCE = "feature_prob_dependence"
 ML_PLOT_LEARNING_CURVE = "learning_curve"
 
 ML_PLOT_ALIASES: dict[str, str] = {
     "тепловая_карта_корреляционной_матрицы": ML_PLOT_CORRELATION_MATRIX,
     ML_PLOT_CORRELATION_MATRIX: ML_PLOT_CORRELATION_MATRIX,
     ML_PLOT_SHAPE_SUMMARY: ML_PLOT_SHAPE_SUMMARY,
+    "shap_summary_plot": ML_PLOT_SHAPE_SUMMARY,
     ML_PLOT_OOS_PROB: ML_PLOT_OOS_PROB,
     ML_PLOT_OOS_CALIBRATION: ML_PLOT_OOS_CALIBRATION,
     ML_PLOT_WEEKDAY_PAIR_SUMMARY: ML_PLOT_WEEKDAY_PAIR_SUMMARY,
     ML_PLOT_ROC_AUC: ML_PLOT_ROC_AUC,
     ML_PLOT_FEATURE_PREDICTIVE: ML_PLOT_FEATURE_PREDICTIVE,
+    ML_PLOT_FEATURE_PROB_DEPENDENCE: ML_PLOT_FEATURE_PROB_DEPENDENCE,
+    "dependence_plot": ML_PLOT_FEATURE_PROB_DEPENDENCE,
     ML_PLOT_LEARNING_CURVE: ML_PLOT_LEARNING_CURVE,
 }
 
@@ -85,6 +89,7 @@ class MlPlotContext:
     train_fit_oos: pl.DataFrame | None = None
     train_cpcv: CPCVTrainResult | None = None
     fit_result: object | None = None
+    model: object | None = None
 
 
 def resolve_plot_ids(raw: list[str] | None) -> tuple[str, ...]:
@@ -110,21 +115,37 @@ def _plot_correlation_matrix_heatmap(ctx: MlPlotContext) -> dict[str, object]:
         ctx.test_dataset.frame,
         ml_correlation_matrix_plot_path(ctx.spec, ctx.n_pairs, ctx.test_from, ctx.test_to),
         ctx.spec.feature_columns,
-        title="Pearson correlation: numeric ML features",
+        title="Pearson correlation: model features",
         period_label=_period_label(ctx.test_from, ctx.test_to),
     )
     return {"correlation_matrix_heatmap": str(path), "feature_correlations": payload}
 
 
 def _plot_shape_summary(ctx: MlPlotContext) -> dict[str, str]:
-    path = save_shape_summary_plot(
-        ctx.test_dataset.frame,
-        ml_shape_summary_plot_path(ctx.spec, ctx.n_pairs, ctx.test_from, ctx.test_to),
+    if ctx.model is None:
+        raise RuntimeError("shape_summary_plot: нет модели (нужен fit или frozen bundle)")
+    x_test, _, _, _ = dataset_to_numpy(ctx.test_dataset)
+    path = save_shap_summary_plot(
+        ctx.model,
+        x_test,
         ctx.spec.feature_columns,
-        title="Feature distribution shape",
+        ml_shape_summary_plot_path(ctx.spec, ctx.n_pairs, ctx.test_from, ctx.test_to),
+        title="SHAP summary: P(up)",
         period_label=_period_label(ctx.test_from, ctx.test_to),
     )
     return {"shape_summary_plot": str(path)}
+
+
+def _plot_feature_prob_dependence(ctx: MlPlotContext) -> dict[str, str]:
+    path = save_feature_prob_dependence_plot(
+        ctx.test_dataset.frame,
+        ctx.y_test_prob,
+        ctx.spec.feature_columns,
+        ml_feature_prob_dependence_plot_path(ctx.spec, ctx.n_pairs, ctx.test_from, ctx.test_to),
+        title="Dependence: feature value vs P(up)",
+        period_label=_period_label(ctx.test_from, ctx.test_to),
+    )
+    return {"feature_prob_dependence": str(path)}
 
 
 def _plot_oos_prob(ctx: MlPlotContext) -> dict[str, str]:
@@ -209,6 +230,7 @@ def _plot_learning_curve(ctx: MlPlotContext) -> dict[str, str]:
 _PLOT_HANDLERS: dict[str, Callable[[MlPlotContext], dict[str, object]]] = {
     ML_PLOT_CORRELATION_MATRIX: _plot_correlation_matrix_heatmap,
     ML_PLOT_SHAPE_SUMMARY: _plot_shape_summary,
+    ML_PLOT_FEATURE_PROB_DEPENDENCE: _plot_feature_prob_dependence,
     ML_PLOT_OOS_PROB: _plot_oos_prob,
     ML_PLOT_OOS_CALIBRATION: _plot_oos_calibration,
     ML_PLOT_WEEKDAY_PAIR_SUMMARY: _plot_weekday_pair_summary,
