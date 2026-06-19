@@ -9,6 +9,7 @@ from crypto_research.utils.pipeline.study_ids import (
     STUDY_EMA_SPREADS,
     STUDY_RSI_PERIOD_SCREEN,
     STUDY_RSI_SPREADS,
+    STUDY_PRICE_SEQUENCES,
 )
 
 RESEARCH_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -21,6 +22,7 @@ _STUDY_STATS_REL: dict[str, Path] = {
     STUDY_EMA_PERIOD_SCREEN: Path("ema") / "ema_spreads" / "statistics",
     STUDY_RSI_PERIOD_SCREEN: Path("rsi") / "rsi_quantiles" / "statistics",
     STUDY_RSI_SPREADS: Path("rsi") / "rsi_quantiles" / "statistics",
+    STUDY_PRICE_SEQUENCES: Path("price_sequences") / "statistics",
 }
 
 
@@ -118,6 +120,24 @@ def weekday_stats_log_path(
 ) -> Path:
     tag = weekday_output_tag(n_pairs, from_date, to_date, split)
     return WEEKDAY_STATS_DIR / f"weekday_statistics_{tag}.log"
+
+
+def price_sequences_stats_log_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    split: str | None = None,
+) -> Path:
+    tag = weekday_output_tag(n_pairs, from_date, to_date, split)
+    return study_stats_dir(STUDY_PRICE_SEQUENCES) / f"price_sequences_statistics_{tag}.log"
+
+
+def price_sequences_summary_log_path() -> Path:
+    return study_stats_dir(STUDY_PRICE_SEQUENCES) / "price_sequences_summary.log"
+
+
+def price_sequences_summary_plot_path(plot_kind: str) -> Path:
+    return study_plots_dir(STUDY_PRICE_SEQUENCES) / f"price_sequences_summary_{plot_kind}.png"
 
 
 def weekday_summary_log_path() -> Path:
@@ -229,13 +249,13 @@ def ml_weekday_pair_summary_plot_path(spec, n_pairs: int, from_date: datetime, t
     return ml_plots_dir(spec) / f"{tag}_weekday_pair_summary.png"
 
 
-def ml_learning_curve_plot_path(spec, n_pairs: int, train_from: datetime, train_to: datetime) -> Path:
-    tag = ml_output_tag(spec, n_pairs, train_from, train_to)
+def ml_learning_curve_plot_path(spec, n_pairs: int, train_from: datetime, test_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, test_to)
     return ml_plots_dir(spec) / f"{tag}_learning_curve.png"
 
 
-def ml_learning_curve_log_path(spec, n_pairs: int, train_from: datetime, train_to: datetime) -> Path:
-    tag = ml_output_tag(spec, n_pairs, train_from, train_to)
+def ml_learning_curve_log_path(spec, n_pairs: int, train_from: datetime, test_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, test_to)
     return ml_dir(spec) / f"{tag}_learning_curve.log"
 
 
@@ -269,6 +289,20 @@ def ml_feature_prob_dependence_plot_path(
     return ml_plots_dir(spec) / f"{tag}_feature_prob_dependence.png"
 
 
+def ml_prob_return_dependence_plot_path(
+    spec, n_pairs: int, test_from: datetime, test_to: datetime
+) -> Path:
+    tag = ml_output_tag(spec, n_pairs, test_from, test_to)
+    return ml_plots_dir(spec) / f"{tag}_prob_return_dependence.png"
+
+
+def ml_compare_prob_cdf_plot_path(
+    spec, n_pairs: int, train_from: datetime, test_to: datetime
+) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, test_to)
+    return ml_plots_dir(spec) / f"{tag}_compare_prob_cdf.png"
+
+
 def ml_ema_dev_predictive_plot_path(spec, n_pairs: int, test_from: datetime, test_to: datetime) -> Path:
     return ml_feature_predictive_plot_path(spec, n_pairs, test_from, test_to, "ema_dev")
 
@@ -283,23 +317,14 @@ def ml_train_test_metrics_path(spec, n_pairs: int, train_from: datetime, test_to
     return ml_metrics_dir(spec) / f"{tag}_train_test.json"
 
 
+def ml_metrics_summary_path(spec, n_pairs: int, train_from: datetime, test_to: datetime) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, test_to)
+    return ml_metrics_dir(spec) / f"{tag}_metrics_summary.json"
+
+
 def ml_policy_path(spec, n_pairs: int, train_from: datetime, test_to: datetime) -> Path:
     tag = ml_output_tag(spec, n_pairs, train_from, test_to)
     return ml_policies_dir(spec) / f"{tag}_policy.json"
-
-
-def ml_compare_dir(model_ids: list[str], test_from: datetime, test_to: datetime) -> Path:
-    tag = "__".join(model_ids)
-    return (
-        RESEARCH_ROOT
-        / "research_outputs"
-        / "ml_compare"
-        / f"{tag}_{test_from:%Y%m%d}_{test_to:%Y%m%d}"
-    )
-
-
-def ml_compare_plots_dir(model_ids: list[str], test_from: datetime, test_to: datetime) -> Path:
-    return ml_compare_dir(model_ids, test_from, test_to) / "plots"
 
 
 def weekday_ml_log_path(

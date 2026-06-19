@@ -12,6 +12,7 @@ from crypto_research.utils.backtest.analytics import (
     PortfolioAnalytics,
     analytics_by_weekday,
     avg_active_long_short_pairs_by_weekday,
+    weekday_total_ret_by_side,
     build_strategy_portfolio_analytics,
     build_portfolio_analytics,
     build_portfolio_daily_weighted,
@@ -32,6 +33,7 @@ from crypto_research.utils.backtest.paths import (
     backtest_returns_hist_plot_path,
 )
 from crypto_research.utils.backtest.plots import (
+    ALL_WEEKDAYS,
     save_drawdown_plot,
     save_equity_curve_plot,
     save_returns_histogram_plot,
@@ -258,6 +260,7 @@ def run_ema_spreads_backtest(
         ((pl.col("day_utc").dt.weekday() - 1) % 7).alias("weekday")
     )
     active_pairs, long_pairs, short_pairs = avg_active_long_short_pairs_by_weekday(pair_returns_wd)
+    side_totals = weekday_total_ret_by_side(pair_returns_wd, peak_pairs)
     result = BacktestResult(
         strategy=STRATEGY_NAME,
         strategy_description=_strategy_description(ctx),
@@ -283,6 +286,7 @@ def run_ema_spreads_backtest(
         avg_active_pairs_by_weekday=active_pairs,
         avg_long_pairs_by_weekday=long_pairs,
         avg_short_pairs_by_weekday=short_pairs,
+        weekday_total_ret_by_side=side_totals,
         n_benchmark_pairs=ctx.n_benchmark_pairs,
         exposure_note=(
             f"Капитал в рынке только в дни с сигналом {EMA_TRAIN_SIGNAL.label} "
@@ -318,10 +322,9 @@ def run_ema_spreads_backtest(
     save_drawdown_plot(
         portfolio,
         strategy=STRATEGY_NAME,
-        trading_weekdays=(),
+        trading_weekdays=ALL_WEEKDAYS,
         scenario_label=scenario_labels.get(ctx.scenario),
         path=backtest_drawdown_plot_path(*tag_args, **path_kw),
-        layout="simple",
     )
     save_returns_histogram_plot(
         portfolio,

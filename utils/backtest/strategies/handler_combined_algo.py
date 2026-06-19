@@ -31,6 +31,7 @@ from crypto_research.utils.pipeline.daily_pool import build_pooled_daily
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.load_pairs import load_klines_for_period
 from crypto_research.utils.pipeline.paths import TEMPORAL_POOL_MAX_PAIR_START
+from crypto_research.utils.price_sequences.pair_selection import resolve_optimistic_price_sequences_pairs
 from crypto_research.utils.rsi.constants import SELECTED_RSI_PERIOD
 from crypto_research.utils.rsi.pair_selection import resolve_optimistic_rsi_pairs
 
@@ -101,6 +102,14 @@ class CombinedAlgoStrategyHandler(StrategyHandler):
             extras["rsi_period"] = SELECTED_RSI_PERIOD
             pair_sets.append(set(rsi_selected))
 
+        if "price_sequences" in studies:
+            optimistic = resolve_optimistic_price_sequences_pairs(
+                ctx.data_dir,
+                workers=ctx.workers,
+            )
+            extras["ps_pairs_by_segment"] = optimistic.as_segment_dict()
+            pair_sets.append(set(optimistic.union))
+
         pair_filter = sorted(set().union(*pair_sets)) if pair_sets else []
         load_from = ctx.from_date - timedelta(days=WARMUP_CALENDAR_DAYS)
         return StrategyPrepareResult(
@@ -130,6 +139,7 @@ class CombinedAlgoStrategyHandler(StrategyHandler):
             pairs_by_weekday=prepare.extras.get("pairs_by_weekday"),
             ema_selected_pairs=prepare.extras.get("ema_selected_pairs"),
             rsi_selected_pairs=prepare.extras.get("rsi_selected_pairs"),
+            ps_pairs_by_segment=prepare.extras.get("ps_pairs_by_segment"),
             frozen_thresholds=prepare.extras.get("frozen_thresholds"),
             frozen_edges=prepare.extras.get("frozen_edges"),
             ema_period=prepare.extras.get("ema_period", SELECTED_EMA_PERIOD),

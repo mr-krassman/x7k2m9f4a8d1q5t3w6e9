@@ -29,6 +29,11 @@ from crypto_research.utils.ml.pair_bounds import (
 from crypto_research.utils.ml.registry import (
     FEATURE_EMA_DEV_PAIR_NORM,
     FEATURE_RSI_PAIR_NORM,
+    FEATURE_STREAK_PAIR_NORM,
+)
+from crypto_research.utils.price_sequences.streak import (
+    STREAK_SIGNED_PREV_COL,
+    attach_streak_signed_prev,
 )
 from crypto_research.utils.pipeline.logger import get_logger
 from crypto_research.utils.rsi.constants import SELECTED_RSI_PERIOD
@@ -66,6 +71,14 @@ def _attach_rsi(frame: pl.DataFrame, period: int) -> pl.DataFrame:
     return attach_rsi_prev_columns(frame.sort("day_utc"), period)
 
 
+def _attach_streak(frame: pl.DataFrame, _period: int) -> pl.DataFrame:
+    keys = ["day_utc", "pair"] if "pair" in frame.columns else ["day_utc"]
+    streak_col = attach_streak_signed_prev(frame.select(*keys, "return_pct")).select(
+        *keys, STREAK_SIGNED_PREV_COL
+    )
+    return frame.join(streak_col, on=keys, how="left")
+
+
 NUMERIC_FEATURE_SPECS: dict[str, NumericFeatureSpec] = {
     FEATURE_EMA_DEV_PAIR_NORM: NumericFeatureSpec(
         column=FEATURE_EMA_DEV_PAIR_NORM,
@@ -85,6 +98,17 @@ NUMERIC_FEATURE_SPECS: dict[str, NumericFeatureSpec] = {
         raw_column=rsi_prev_column,
         attach=_attach_rsi,
     ),
+    FEATURE_STREAK_PAIR_NORM: NumericFeatureSpec(
+        column=FEATURE_STREAK_PAIR_NORM,
+        bundle_key="pair_streak_bounds",
+        plot_slug="streak",
+        period=1,
+        norm="linear",
+        raw_column=lambda _p: STREAK_SIGNED_PREV_COL,
+        attach=_attach_streak,
+        plot_x_label="streak_pair_norm",
+        plot_bin_width=0.2,
+    ),
 }
 
 
@@ -96,6 +120,10 @@ def needs_day_close(feature_columns: tuple[str, ...] | list[str]) -> bool:
     return bool(active_numeric_specs(feature_columns))
 
 
+def needs_return_pct(feature_columns: tuple[str, ...] | list[str]) -> bool:
+    return FEATURE_STREAK_PAIR_NORM in feature_columns
+
+
 def fit_bounds_for_features(
     daily: pl.DataFrame,
     feature_columns: tuple[str, ...] | list[str],
@@ -104,6 +132,9 @@ def fit_bounds_for_features(
     for spec in active_numeric_specs(feature_columns):
         if spec.norm == "signed_dev":
             out[spec.column] = fit_pair_ema_dev_bounds_from_daily(daily, ema_period=spec.period)
+        elif spec.column == FEATURE_STREAK_PAIR_NORM:
+            work = attach_streak_signed_prev(daily)
+            out[spec.column] = fit_bounds_per_pair(work, raw_column=STREAK_SIGNED_PREV_COL)
         else:
             work = build_rsi_work_frame(daily, spec.period) if "pair" in daily.columns else daily
             out[spec.column] = fit_bounds_per_pair(work, raw_column=spec.raw_column(spec.period))

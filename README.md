@@ -146,7 +146,7 @@ _Рис. 1с. Накопленная open→close доходность: весь
 **Таргет:** `direction_up = 1`, если `close > open` (UTC, open→close).  
 **Признаки:** два категориальных признака — `weekday_enc` (0=Пн … 6=Вс) и `pair_id`.
 
-**Модель:** LightGBM (бинарная классификация): `num_leaves=7`, `max_depth=5`, `min_child_samples=80`, `reg_lambda=1.0`, `learning_rate=0.05`, `n_estimators=300`.
+**Модель:** LightGBM (бинарная классификация): `num_leaves=7`, `max_depth=5`, `min_child_samples=80`, `reg_lambda=1.0`, `learning_rate=0.05`, `n_estimators=100`.
 
 **Схема проверки:**  
 1) CPCV на train: `n_splits=7`, `n_test_groups=2` → C(7,2)=**21 фолд**, `embargo_days=1`;  
@@ -495,7 +495,7 @@ _Справочно: на всём периоде 2022–2026 сигнал b6 п
 **Таргет:** `direction_up = 1`, если `close > open`.  
 **Признаки:** `pair_id` (категориальный) + `ema_dev_pair_norm` (вчерашний dev от EMA(9), нормировка по train-границам пары, trim 5–95%).
 
-**Модель:** LightGBM, полный fit на всём train (`n_estimators=300`, early stopping по умолчанию отключён).
+**Модель:** LightGBM, полный fit на всём train (`n_estimators=100`, early stopping по умолчанию отключён).
 
 **Схема:** CPCV на train (`n_splits=7`, `n_test_groups=2` → 21 фолд) → финальный fit на train → holdout test.
 
@@ -848,7 +848,7 @@ _Рис. RSI-1b. Δ к BASE на train-периоде и val-периоде (п.
 **Таргет:** `direction_up = 1`, если `close > open`.  
 **Признаки:** `pair_id` (категориальный) + `rsi_pair_norm` (вчерашний RSI(9), per-pair линейная нормировка по train-границам, trim 5–95%; значения могут выходить за [−1, +1] при экстремальном RSI).
 
-**Модель:** LightGBM, полный fit на всём train (`n_estimators=300`, early stopping по умолчанию отключён).
+**Модель:** LightGBM, полный fit на всём train (`n_estimators=100`, early stopping по умолчанию отключён).
 
 **Схема:** CPCV на train (`n_splits=7`, `n_test_groups=2` → 21 фолд) → финальный fit на train → holdout test.
 
@@ -1036,12 +1036,302 @@ python3 backtester.py rsi_spreads_ml
 Отчёты — `research_outputs/rsi/rsi_quantiles/backtest/`; графики — `…/backtest/plots/`.
 
 ---
+
+### Исследование 4. Прогностическая сила последовательных движений цены
+
+**Условие:** перед текущим днём — непрерывная серия дней с закрытием выше/ниже open (длина 1…6; для серий ≥6 дней используется бакет **6д**).
+
+**Метрика:** условная вероятность intraday-событий (12 колонок в детальном отчёте: close, High/Low, пороги μ±50% по паре). В сводке — Δ к BASE в колонках **«Цена росла»** / **«Цена падала»** (п.п.).
+
+**Критерии:** |Δ| ≥ 1.5 п.п. на train, p < 0.0021 (Bonferroni, 24 ячейки = 12 сценариев × 2 колонки), cross‑asset ≥60% val-пар, out‑of‑time ≥60% пар.
+
+---
+
+#### Проверка 1: универсальность среди пар (24 train / 25 val, 2022–2026)
+
+_Показаны ячейки с |Δ train| ≥ 1.5 п.п.:_
+
+| Сигнал                         | Δ train | Δ val | p-value | Val-пар (≥60%) | Статус       |
+| ------------------------------ | ------- | ----- | ------- | -------------- | ------------ |
+| После 6д падения × Цена росла  | +12.70  | +9.44 | <0.0001 | 20/25 (80%)    | ✅ значим    |
+| После 6д падения × Цена падала | −12.58  | −8.95 | <0.0001 | 20/25 (80%)    | ✅ значим    |
+| После 4д падения × Цена росла  | +7.07   | +7.07 | 0.0001  | 23/25 (92%)    | ✅ значим    |
+| После 4д падения × Цена падала | −6.95   | −6.78 | 0.0002  | 23/25 (92%)    | ✅ значим    |
+| После 3д падения × Цена росла  | +4.53   | +5.77 | 0.0001  | 22/25 (88%)    | ✅ значим    |
+| После 3д падения × Цена падала | −4.78   | −5.74 | <0.0001 | 23/25 (92%)    | ✅ значим    |
+| После 4д роста × Цена росла    | −6.26   | −1.74 | 0.0014  | 15/25 (60%)    | ✅ значим    |
+| После 4д роста × Цена падала   | +6.15   | +1.54 | 0.0021  | 17/25 (68%)    | ✅ значим    |
+| После 3д роста × Цена росла    | −4.00   | −3.60 | <0.0001 | 22/25 (88%)    | ✅ значим    |
+| После 3д роста × Цена падала   | +4.03   | +3.73 | 0.0001  | 22/25 (88%)    | ✅ значим    |
+| После 2д роста × Цена росла    | −2.41   | −1.41 | 0.0009  | 16/25 (64%)    | ✅ значим    |
+| После 2д роста × Цена падала   | +2.52   | +1.48 | 0.0007  | 16/25 (64%)    | ✅ значим    |
+
+![Проверка 1 — Δ train vs val, price_sequences](research_outputs/price_sequences/statistics/plots/price_sequences_summary_check_pair_universality_delta.png)
+
+_Рис. PS-1a. Δ к BASE на train и val (п.п.). Зелёная заливка — статус «значим» по проверке 1._
+
+#### Проверка 2. Устойчивость во времени (49 пар, train 2022–2024-04 / val 2024-04–2026)
+
+| Сигнал                         | Δ train | Δ val | p-value | Пар (≥60%)  | Статус       |
+| ------------------------------ | ------- | ----- | ------- | ----------- | ------------ |
+| После 6д падения × Цена росла  | +14.43  | +9.92 | <0.0001 | 35/44 (80%) | ✅ значим    |
+| После 6д падения × Цена падала | −13.70  | −9.94 | <0.0001 | 33/44 (75%) | ✅ значим    |
+| После 3д падения × Цена росла  | +7.30   | +3.85 | <0.0001 | 33/49 (67%) | ✅ значим    |
+| После 3д падения × Цена падала | −7.58   | −3.91 | <0.0001 | 32/49 (65%) | ✅ значим    |
+| После 3д роста × Цена росла    | −3.14   | −4.42 | 0.0009  | 31/49 (63%) | ✅ значим    |
+| После 3д роста × Цена падала   | +3.33   | +4.39 | 0.0005  | 30/49 (61%) | ✅ значим    |
+| После 2д роста × Цена падала   | +5.03   | −0.51 | <0.0001 | 30/49 (61%) | ✅ значим    |
+| После 4д падения × Цена росла  | +7.07   | +7.41 | 0.0001  | 29/49 (59%) | ❌ не значим |
+| После 4д роста × Цена росла    | −9.12   | +0.24 | <0.0001 | 25/49 (51%) | ❌ не значим |
+| После 2д роста × Цена росла    | −4.79   | +0.48 | <0.0001 | 28/49 (57%) | ❌ не значим |
+
+![Проверка 2 — Δ train vs val, price_sequences](research_outputs/price_sequences/statistics/plots/price_sequences_summary_check_temporal_stability_delta.png)
+
+_Рис. PS-1b. Δ к BASE на train-периоде и val-периоде (п.п.). Зелёная заливка — статус «значим» по проверке 2._
+
+### Ключевые выводы
+
+После двух проверок (cross‑asset + out‑of‑time) подтверждены **три устойчивых паттерна**:
+
+| Сценарий          | Сигнал        | Δ (полный пул) | Смысл для стратегии                                      |
+| ----------------- | ------------- | -------------- | -------------------------------------------------------- |
+| **После 6д падения** | Цена росла ↑  | +11.2 п.п.     | После длинной серии падений — завтра чаще рост           |
+| **После 6д падения** | Цена падала ↓ | −10.9 п.п.     | …и реже падение (mean-reversion вверх)                   |
+| **После 3д падения** | Цена росла ↑  | +5.1 п.п.      | Короткий отскок после 3 дней падения                     |
+| **После 3д падения** | Цена падала ↓ | −5.2 п.п.      | …и реже падение                                          |
+| **После 3д роста**   | Цена росла ↓  | −3.8 п.п.      | После 3 дней роста — завтра реже рост (ослабление тренда) |
+| **После 3д роста**   | Цена падала ↑ | +3.9 п.п.      | …и чаще падение                                          |
+
+**Что отсеялось:**
+
+- **После 4д падения / 4д роста** — сильный эффект на cross‑asset (88–92% val-пар), но **не прошли out‑of‑time** (57–59% пар)
+- **После 2д роста** — на temporal подтвердилась только колонка «Цена падала»; в полном пуле — одна ячейка, без симметричного «Цена росла»
+- **После 1–2д падения, 5–6д роста** — |Δ| на train ниже порога или нет подтверждения на val
+
+**Итог:** прогностическая сила **нарастает с длиной серии падений** (пик на 6д) и проявляется **на 3д серии роста** (обратный сигнал). Однодневные и короткие серии (1–2д) не выдерживают обе проверки.
+
+**Справочно (holdout 2024-04-01 – 2026-05-31, 49 пар):** в детальном отчёте «Закрытие в плюсе» Δ к BASE — после 6д падения **+9.9 п.п.**, после 4д падения **+7.4 п.п.**, после 3д роста **−4.4 п.п.**; BASE ≈ 47.8%.
+
+#### ML-подтверждение (LightGBM + CPCV)
+
+**Цель:** проверить, содержит ли нормированная длина серии роста/падения (`streak_pair_norm`) предсказательную способность для `direction_up`, и согласованы ли выводы ML со статистическими сигналами **после 6д/3д падения** и **после 3д роста**.
+
+**Фича `streak_pair_norm`:** знак×длина непрерывной серии дней перед текущим днём (вчерашний знак close vs open, длина серии без ограничения 6д). Положительные значения — серия роста, отрицательные — серия падения. Нормировка **per-pair** по train (trim 5–95%): min → **−1**, max → **+1** (длинная серия падения → отрицательный хвост, длинная серия роста → положительный).
+
+**Данные:** 49 пар (первая свеча ≤ 2023-01-01).  
+**Train:** 2022-01-01 – 2024-04-01 (32 110 строк day × pair).  
+**Holdout test:** 2024-04-01 – 2026-05-31 (38 441 строк).  
+**Таргет:** `direction_up = 1`, если `close > open`.  
+**Признаки:** `pair_id` + `streak_pair_norm`.
+
+**Модель:** LightGBM, полный fit на train (`n_estimators=100`, early stopping по умолчанию отключён).  
+**Схема:** CPCV на train (`n_splits=7`, `n_test_groups=2` → 21 фолд) → финальный fit на train → holdout test.
+
+##### Качество модели
+
+| Метрика  | Train (fit) | Pooled OOS (train) | Holdout test | Δ (Test − OOS) |
+| -------- | ----------- | ------------------ | ------------ | -------------- |
+| Accuracy | 0.536       | 0.524              | 0.499        | −0.025         |
+| ROC AUC  | 0.554       | 0.526              | **0.510**    | −0.016         |
+| Log Loss | 0.690       | 0.692              | 0.694        | +0.002         |
+| Brier    | 0.248       | 0.250              | 0.250        | +0.000         |
+| ECE      | 2.0%        | 0.7%               | 2.7%         | +2.0 п.п.      |
+
+![ROC AUC: Pooled OOS (train) vs Holdout test](research_outputs/price_sequences/ml/plots/direction_streak_49pairs_20220101_20260531_roc_auc.png)
+
+##### Стабильность по фолдам (train CPCV, 21 фолд)
+
+| Метрика  | Mean  | Std   | Min   | Max   | ROC AUC > 0.5 |
+| -------- | ----- | ----- | ----- | ----- | ------------- |
+| ROC AUC  | 0.536 | 0.014 | 0.509 | 0.559 | 21/21         |
+| Accuracy | 0.521 | 0.011 | 0.504 | 0.538 | 21/21         |
+
+![ROC AUC / Accuracy vs streak_pair_norm (train | val)](research_outputs/price_sequences/ml/plots/direction_streak_49pairs_20240401_20260531_streak_predictive.png)
+
+_Рис. PS-ML-1. Предсказательная сила модели по бинам `streak_pair_norm`: train-fit (слева) и holdout test (справа). Отрицательные значения ≈ серия падения; положительные ≈ серия роста._
+
+**Краткий итог ML:** на train-CPCV сигнал устойчивый (pooled OOS ROC AUC ≈ 0.526, все 21 фолда > 0.5). На holdout после полного fit эффект слабее (ROC AUC ≈ 0.510), но на хвосте **длинной серии падения** (`streak_pair_norm` ≪ 0) accuracy растёт вместе с base rate — модель улавливает mean-reversion, согласуясь со статистикой **6д/3д падения**; на **положительном хвосте** (серия роста) — ослабление вероятности роста, в духе сигнала **3д роста**.
+
+---
+
+### Историческое тестирование стратегии price_sequences (out-of-sample)
+
+**Out-of-sample период** = val-окно исследования: **2024-04-01 — 2026-05-31 (UTC)**.
+
+#### Правила стратегии
+
+| Условие (серия перед днём, UTC) | Позиция | Доходность |
+| ------------------------------- | ------- | ---------- |
+| **Ровно 3д роста** (close > open) | short | `(open − close) / open × 100%` |
+| **≥3д падения** (close < open) | long | `(close − open) / open × 100%` |
+| Остальное | flat | 0% |
+
+- Равный **peak-вес 1/N** на пару (N = активных слотов в день), без реинвестирования, NAV=100
+- **Exposure:** ~89% (конс.) / ~80% (опт.)
+- **Комиссии** (Bybit non-VIP): taker 0.200% round-trip, maker 0.072%
+- **Бенчмарки:** B&H 49 пар (gross), BTC B&H (gross)
+- **Формат отчётов:** gross + net maker; WR/PF/median — **по сделкам** (pair-day); Total Return, CAGR, Sharpe, MaxDD — **по дням портфеля**
+
+#### Сценарии
+
+| Сценарий | Описание |
+| -------- | -------- |
+| **Консервативный** | Все 49 пар на оба сигнала (short 3д роста / long ≥3д падения) |
+| **Оптимистичный** | Раздельный train-отбор: short только на **23** парах (`3d_up_short`), long только на **34** (`3d_down_long`); критерий — знак Δ × «Цена росла» + ≥⅔ лет на train (2022–2024-04) |
+
+#### Результаты (val, 2024-04-01 — 2026-05-31)
+
+| Метрика                       | Конс. (49, gross) | Конс. (49, taker) | Конс. (49, maker) | Опт. (sh23+lg34, gross) | Опт. (sh23+lg34, taker) | Опт. (sh23+lg34, maker) | B&H 49 (gross) | BTC B&H (gross) |
+| ----------------------------- | ----------------- | ----------------- | ----------------- | ---------------------- | ---------------- | ---------------- | -------------- | --------------- |
+| Total Return                  | **+35.3%**        | +4.8%             | **+24.3%**        | +20.9%                 | −7.1%            | +10.9%           | −32.2%         | +28.3%          |
+| CAGR (compounded)             | **+15.1%**        | +2.2%             | **+10.6%**        | +9.2%                  | −3.3%            | +4.9%            | −16.5%         | +12.3%          |
+| Sharpe (0% rf)                | **+0.69**         | +0.09             | **+0.48**         | +0.40                  | −0.14            | +0.21            | −0.21          | +0.28           |
+| Sharpe / √exposure            | **+0.73**         | +0.10             | **+0.50**         | +0.45                  | −0.15            | +0.23            | −0.21          | +0.28           |
+| Max Drawdown                  | **−19.5%**        | −26.4%            | −21.6%            | −22.6%                 | −29.9%           | −24.8%           | −70.3%         | −37.4%          |
+| Recovery from max DD          | **170 дн.**       | 477 дн.           | **201 дн.**       | 221 дн.                | не восст.        | 433 дн.          | не восст.      | не восст.       |
+| Longest underwater            | 299 дн.           | 716 дн.           | 330 дн.           | 88 дн.                 | 778 дн.          | 93 дн.           | 535 дн.        | 233 дн.         |
+| Calmar                        | **+0.84**         | +0.09             | **+0.52**         | +0.43                  | −0.11            | +0.20            | −0.21          | +0.35           |
+| Profit Factor                 | **1.14**          | 1.02              | **1.09**          | 1.08                   | 0.97             | 1.04             | 0.98           | 1.04            |
+| Win Rate (trades)             | **54.3%**         | 51.9%             | 53.5%             | 54.1%                  | 51.7%            | 53.3%            | 47.8%          | 50.2%           |
+| Median trade return           | **+0.353%**       | +0.153%           | **+0.281%**       | +0.348%                | +0.148%          | +0.276%          | −0.165%        | +0.007%         |
+| Information Ratio (vs B&H 49) | —                 | 0.25 (taker)      | **0.38 (maker)**  | —                      | 0.17 (taker)     | 0.30 (maker)     | —              | —               |
+| Exposure                      | 89.3%             | 89.3%             | 89.3%             | 80.1%                  | 80.1%            | 80.1%            | 100%           | 100%            |
+| Worst day (net)               | −9.7% (2024-04-12)| −9.9% (2024-04-12)| −9.8% (2024-04-12)| −10.4% (2024-04-12)    | −10.5%           | −10.4%           | −22.3%         | −14.0%          |
+
+*Gross — без комиссий. Taker/maker — с комиссиями.*
+
+![Консервативный — equity curve](research_outputs/price_sequences/backtest/plots/equity_curve_49pairs_20240401_20260531.png)
+**Рис. PS-BT-1. Консервативный (49 пар)** — gross / net maker.
+
+![Оптимистичный — equity curve](research_outputs/price_sequences/backtest/plots/equity_curve_optimistic_sh23_lg34_40pairs_20240401_20260531.png)
+**Рис. PS-BT-2. Оптимистичный (short 23 пар / long 34 пар, раздельный отбор)** — gross / net maker.
+
+![Drawdown — оптимистичный](research_outputs/price_sequences/backtest/plots/drawdown_optimistic_sh23_lg34_40pairs_20240401_20260531.png)
+**Рис. PS-BT-3. Drawdown — оптимистичный (sh23+lg34)**
+
+![Drawdown — консервативный](research_outputs/price_sequences/backtest/plots/drawdown_49pairs_20240401_20260531.png)
+**Рис. PS-BT-4. Drawdown — консервативный**
+
+![Распределение доходностей — оптимистичный](research_outputs/price_sequences/backtest/plots/returns_hist_optimistic_sh23_lg34_40pairs_20240401_20260531.png)
+**Рис. PS-BT-5. Распределение доходностей по сделкам — оптимистичный (gross)**
+
+![Распределение доходностей — консервативный](research_outputs/price_sequences/backtest/plots/returns_hist_49pairs_20240401_20260531.png)
+**Рис. PS-BT-6. Распределение доходностей по сделкам — консервативный (gross)**
+
+#### Вклад по сегментам (gross / net maker, консервативный)
+
+| Сегмент       | Trades | Gross Total Ret | Gross Sharpe | Net maker Total Ret | Net maker Sharpe |
+| ------------- | ------ | --------------- | ------------ | ------------------- | ---------------- |
+| **3d_up_short** | 393    | +8.9%           | 0.57         | +5.6%               | 0.36             |
+| **3d_down_long** | 514   | **+26.4%**      | **0.70**     | **+18.7%**          | **0.50**         |
+
+#### Вклад по сегментам (gross / net maker, оптимистичный)
+
+| Сегмент       | Trades | Gross Total Ret | Gross Sharpe | Net maker Total Ret | Net maker Sharpe |
+| ------------- | ------ | --------------- | ------------ | ------------------- | ---------------- |
+| **3d_up_short** (23 пары) | 274 | −6.3% | −0.53 | −8.6% | −0.72 |
+| **3d_down_long** (34 пары) | 477 | **+27.2%** | **0.72** | **+19.4%** | **0.51** |
+
+### Ключевые выводы (бэктест)
+
+**1. Консервативный сценарий — положительная gross/maker-альфа на val.** +35% gross / +24% net maker при MaxDD −20% / −22% vs B&H −32% (MaxDD −70%). IR (maker) **0.38**.
+
+**2. Двусторонняя стратегия: long ≥3д падения — основной драйвер.** Сегмент `3d_down_long` даёт **+26% gross**; `3d_up_short` — умеренный **+9% gross** на всех 49 парах.
+
+**3. Maker обязателен.** Taker +4.8% (конс.) — на грани; maker +24.3%. Комиссии съедают ~10 п.п. от gross.
+
+**4. Оптимистичный отбор (раздельный short/long) на val не улучшает результат.** Gross +21% vs +35% (конс.); short-сегмент на отобранных 23 парах **отрицателен** на val (−6% gross), long-сегмент силён (+27%). Train-критерий (Δ «Цена росла») для short не переносится на holdout.
+
+**5. ML-бэктест (`price_sequences_ml`) — умеренная maker-альфа при низкой exposure.** Global-policy, 44 пары (train-отбор), frozen LightGBM + `streak_pair_norm`. Net maker **+11.7%** (gross +16.3%) при MaxDD −13.9% и exposure **55%** — слабее rule-based консервативного (+24% maker), но IR (maker) **0.31** vs B&H. Модель на holdout даёт ROC AUC **0.510** (чуть выше случайного); в бэктесте фактически только **long** (short-порог не срабатывает на отобранных парах).
+
+#### ML-бэктест (`price_sequences_ml`, val 2024-04-01 — 2026-05-31)
+
+Frozen policy (`global`, 44 пары) + модель `pair_id` + `streak_pair_norm`. Комиссии и бенчмарки — как у rule-based выше.
+
+| Метрика | ML (gross) | ML (net taker) | ML (net maker) | Rule-based конс. (maker) | B&H 49 (gross) |
+| ------- | ---------- | -------------- | -------------- | ------------------------ | -------------- |
+| Total Return | +16.3% | +3.4% | **+11.7%** | +24.3% | −32.2% |
+| CAGR (compounded) | +7.3% | +1.6% | **+5.3%** | +10.6% | −16.5% |
+| Sharpe (0% rf) | **0.57** | 0.12 | 0.41 | 0.48 | −0.21 |
+| Max Drawdown | −13.6% | −15.1% | **−13.9%** | −21.6% | −70.3% |
+| Profit Factor | 1.15 | 1.03 | **1.11** | 1.09 | 0.98 |
+| Win Rate (trades) | 53.9% | 51.5% | **53.1%** | 53.5% | 47.8% |
+| Information Ratio (vs B&H 49) | — | 0.25 | **0.31** | 0.38 | — |
+| Exposure | 55.4% | 55.4% | 55.4% | 89.3% | 100% |
+| Worst day (net maker) | — | — | **−5.4%** (2024-04-12) | −9.8% | −22.3% |
+
+![ML — equity curve](research_outputs/price_sequences/backtest/plots/equity_curve_ml_44pairs_20240401_20260531.png)
+**Рис. PS-BT-7. `price_sequences_ml` — equity curve** (gross + net maker).
+
+![ML — drawdown](research_outputs/price_sequences/backtest/plots/drawdown_ml_44pairs_20240401_20260531.png)
+**Рис. PS-BT-8. Drawdown — `price_sequences_ml`**.
+
+![ML — returns hist](research_outputs/price_sequences/backtest/plots/returns_hist_ml_44pairs_20240401_20260531.png)
+**Рис. PS-BT-9. Распределение доходностей по сделкам — `price_sequences_ml` (gross)**.
+
+#### Дополнительные материалы (бэктест)
+
+| Материал | Описание |
+| -------- | -------- |
+| [консервативный](research_outputs/price_sequences/backtest/price_sequences_backtest_49pairs_20240401_20260531.log) | 49 пар, short 3д роста / long ≥3д падения |
+| [оптимистичный](research_outputs/price_sequences/backtest/price_sequences_backtest_optimistic_sh23_lg34_40pairs_20240401_20260531.log) | short 23 / long 34 пар, раздельный train-отбор по сегментам |
+| [ML `price_sequences_ml`](research_outputs/price_sequences/backtest/price_sequences_ml_backtest_ml_44pairs_20240401_20260531.log) | frozen global-policy, 44 пары, `streak_pair_norm` |
+
+#### Воспроизведение бэктестов (price_sequences)
+
+```bash
+cd crypto_research
+python3 backtester.py price_sequences --scenario conservative
+python3 backtester.py price_sequences --scenario optimistic
+python3 backtester.py price_sequences_ml
+python3 ml_calibrate_policy.py price_sequences_ml   # policy перед первым ML-бэктестом
+```
+
+Отчёты — `research_outputs/price_sequences/backtest/`; графики — `…/backtest/plots/`.
+
+---
+
+#### Дополнительные материалы (исследование)
+
+| Материал                                                                                                                                              | Описание                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [price_sequences_summary.log](research_outputs/price_sequences/statistics/price_sequences_summary.log)                                                  | Сводка: проверки 1–2 и итог (универсальность среди пар, устойчивость во времени, полный пул) |
+| [price_sequences_statistics_49pairs_20240401_20260531.log](research_outputs/price_sequences/statistics/price_sequences_statistics_49pairs_20240401_20260531.log) | Детальная статистика: 12 сценариев × 12 колонок, repeatability (годы/пары)               |
+| [ML: train/test JSON](research_outputs/price_sequences/ml/metrics/direction_streak_49pairs_20220101_20260531_train_test.json)                     | Полный отчёт: train CPCV + final fit + holdout test                                                |
+| [ML: ROC AUC train vs test](research_outputs/price_sequences/ml/plots/direction_streak_49pairs_20220101_20260531_roc_auc.png)                   | ROC-кривые pooled OOS (train) и holdout test                                                       |
+| [ML: predictive vs streak](research_outputs/price_sequences/ml/plots/direction_streak_49pairs_20240401_20260531_streak_predictive.png)        | ROC AUC / accuracy / base rate по бинам `streak_pair_norm` (train \| val)                             |
+| [ML: модель + bounds](research_outputs/price_sequences/ml/models/direction_streak_49pairs_20220101_20240401_model_bundle.pkl)                 | Bundle: LightGBM + pair bounds + feature schema                                                      |
+| [ML: policy](research_outputs/price_sequences/ml/policies/direction_streak_49pairs_20220101_20260531_policy.json)                               | Frozen global-policy (отбор пар + пороги)                                                            |
+
+#### Воспроизведение отчётов (исследование)
+
+```bash
+cd crypto_research
+
+python3 report_generator.py price_sequences --summary
+
+python3 report_generator.py price_sequences --train --from-date 2022-01-01 --to-date 2026-05-31
+python3 report_generator.py price_sequences --val   --from-date 2022-01-01 --to-date 2026-05-31
+
+python3 report_generator.py price_sequences --from-date 2022-01-01 --to-date 2024-04-01 --max-pair-start 2023-01-01
+python3 report_generator.py price_sequences --from-date 2024-04-01 --to-date 2026-05-31 --max-pair-start 2023-01-01
+
+# ML (train/test: 49 пар, train 2022-01-01–2024-04-01, test 2024-04-01–2026-05-31)
+python3 ml_research.py price_sequences_ml --train-test --plot-metrics-over-feature
+# пересборка predictive-графика из bundle:
+# python3 utils/ml/plot_feature_predictive.py price_sequences_ml
+```
+
+Отчёты пишутся в `research_outputs/price_sequences/statistics/`; графики сводки — в `…/statistics/plots/`. ML-артефакты — в `…/ml/`. Бэктест rule-based — в `…/backtest/`.
+
+
+---
 ## Сравнение стратегий
 
 Этот раздел сводит два уровня сравнения на одном holdout-окне **2024-04-01 — 2026-05-31**:
 
-1. **Качество моделей** — как менялись предсказательные метрики при добавлении фич: `day_of_week_ml` → `ema_spreads_ml` → `rsi_spreads_ml` → combined `dow_ema_sp` → combined `dow_ema_rsi_sp`.
-2. **Торговый результат** — frozen-бэктест **combined ML** vs **combined algo (`--mode or` / `and`)** на том же val-окне.
+1. **Качество моделей** — как менялись предсказательные метрики при добавлении фич: `day_of_week_ml` → `ema_spreads_ml` → `rsi_spreads_ml` → `price_sequences_ml` → combined `dow_ema_sp` → `dow_ema_rsi_sp` → combined `dow_ema_rsi_streak`.
+2. **Торговый результат** — frozen-бэктест **combined ML** vs **combined algo (`--mode or` / `and`)** на том же val-окне; отдельно — ML `price_sequences_ml`.
 
 Метрики модели относятся к **классификатору direction_up** (ROC AUC, accuracy, калибровка). Метрики бэктеста — к **портфелю** с фиксированными правилами отбора пар, порогами и комиссиями Bybit RU/CIS (taker / maker).
 
@@ -1054,8 +1344,10 @@ python3 backtester.py rsi_spreads_ml
 | **day_of_week_ml** | `pair_id`, `weekday_enc` | **0.529** | 0.518 | 0.250 | 0.029 | 0.693 | 47.8% | 51.9% | 0.488 |
 | **ema_spreads_ml** | `pair_id`, `ema_dev_pair_norm` | 0.513 | 0.505 | 0.253 | 0.040 | 0.698 | 47.8% | 53.2% | **0.527** |
 | **rsi_spreads_ml** | `pair_id`, `rsi_pair_norm` | 0.523 | 0.513 | 0.250 | 0.026 | 0.692 | 47.8% | 53.6% | 0.507 |
+| **price_sequences_ml** | `pair_id`, `streak_pair_norm` | 0.510 | 0.499 | 0.250 | 0.027 | 0.694 | 47.8% | 53.2% | 0.526 |
 | **dow_ema_sp** (combined) | `pair_id`, `weekday_enc`, `ema_dev_pair_norm` | **0.547** | **0.536** | **0.249** | **0.027** | **0.691** | 47.8% | 51.7% | 0.508 |
 | **dow_ema_rsi_sp** (combined) | `pair_id`, `weekday_enc`, `ema_dev_pair_norm`, `rsi_pair_norm` | **0.547** | 0.535 | **0.249** | 0.026 | **0.691** | 47.8% | 53.3% | 0.507 |
+| **dow_ema_rsi_streak** (combined) | `pair_id`, `weekday_enc`, `ema_dev_pair_norm`, `rsi_pair_norm`, `streak_pair_norm` | 0.539 | 0.512 | **0.249** | 0.027 | **0.692** | 47.8% | **66.0%** | 0.519 |
 
 **Как читать таблицу:**
 
@@ -1064,6 +1356,8 @@ python3 backtester.py rsi_spreads_ml
 - **rsi_spreads_ml** — отдельно RSI чуть лучше EMA на test (ROC AUC 0.523), но слабее combined; `pred↑` 53.6%.
 - **dow_ema_sp** — объединение weekday + EMA даёт **лучший test ROC AUC (0.547)** и accuracy (**53.6%**), улучшает калибровку (ниже Brier и ECE).
 - **dow_ema_rsi_sp** — `rsi_pair_norm` **в модели** (feature importance gain: ema 22, rsi 11; corr(ema, rsi) ≈ 0.88 на holdout). Из-за избыточности с EMA классификаторные метрики почти не меняются (ROC AUC ≈ 0.547), но `pred↑` сдвигается (53.3% vs 51.7%); **бэктест ML** заметно выше (+146.6% vs +101.2% net maker).
+- **price_sequences_ml** — отдельно streak-сигнал слаб на holdout (ROC AUC **0.510**), но стабилен на CPCV train (0.526). **Бэктест ML** — умеренная maker-альфа (+11.7%, IR 0.31) при exposure 55%; фактически только long-сделки.
+- **dow_ema_rsi_streak** — добавление `streak_pair_norm` в 5-фичевую combined-модель: ROC AUC test **0.539** (ниже `dow_ema_rsi_sp`), но `pred↑` резко растёт (**66%**). **Бэктест ML** net maker **+28.0%** (gross +64.3%) — ниже лидера `dow_ema_rsi_sp` (+146.6%), но выше `dow_ema_sp` (+101.2%); хвостовой риск выше (worst day −23.3%).
 
 ![ROC AUC train CPCV — day_of_week_ml](research_outputs/day_of_week/ml/plots/weekday_direction_49pairs_20220101_20260531_roc_auc.png)
 **Рис. С1. ROC AUC по фолдам CPCV — day_of_week_ml** (train-период).
@@ -1082,6 +1376,12 @@ python3 backtester.py rsi_spreads_ml
 
 ![ROC AUC train CPCV — dow_ema_rsi_sp](research_outputs/combined/dow_ema_rsi_sp/ml/plots/direction_dow_ema_rsi_49pairs_20220101_20260531_roc_auc.png)
 **Рис. С6. ROC AUC train \| test — combined dow_ema_rsi_sp**.
+
+![ROC AUC train CPCV — price_sequences_ml](research_outputs/price_sequences/ml/plots/direction_streak_49pairs_20220101_20260531_roc_auc.png)
+**Рис. С6b. ROC AUC train \| test — `price_sequences_ml`**.
+
+![ROC AUC train CPCV — dow_ema_rsi_streak](research_outputs/combined/dow_ema_rsi_streak/ml/plots/direction_dow_ema_rsi_streak_49pairs_20220101_20260531_roc_auc.png)
+**Рис. С6c. ROC AUC train \| test — combined `dow_ema_rsi_streak`**.
 
 ![OOS probability — dow_ema_rsi_sp holdout](research_outputs/combined/dow_ema_rsi_sp/ml/plots/direction_dow_ema_rsi_49pairs_20240401_20260531_oos_prob.png)
 **Рис. С7. Распределение P(up) на holdout test — dow_ema_rsi_sp**.
@@ -1148,15 +1448,65 @@ python3 backtester.py rsi_spreads_ml
 ![Drawdown — combined ML dow_ema_rsi_sp](research_outputs/combined/dow_ema_rsi_sp/backtest/ml/plots/drawdown_ml_48pairs_20240401_20260531.png)
 **Рис. С16. Drawdown — combined ML `dow_ema_rsi_sp`**.
 
+### Бэктест: `price_sequences_ml` (standalone ML)
+
+Период: **2024-04-01 — 2026-05-31**. Frozen global-policy (44 пары) + модель `streak_pair_norm`. Для сравнения — rule-based консервативный (49 пар, maker).
+
+| Метрика | `price_sequences_ml` (ML) | Rule-based конс. (maker) |
+| ------- | --------------------------- | ------------------------ |
+| Пар (union) | 44 | 49 |
+| Total Return (net maker) | **+11.7%** | +24.3% |
+| CAGR (net maker) | +5.3% | **+10.6%** |
+| Sharpe (net maker) | 0.41 | **0.48** |
+| Win Rate (net maker) | 53.1% | 53.5% |
+| Max Drawdown (net maker) | **−13.9%** | −21.6% |
+| Profit Factor (net maker) | 1.11 | 1.09 |
+| Information Ratio (net maker vs B&H 49) | 0.31 | **0.38** |
+| Exposure | 55.4% | 89.3% |
+| Worst day (net maker) | **−5.4%** (2024-04-12) | −9.8% |
+
+![Equity — price_sequences_ml](research_outputs/price_sequences/backtest/plots/equity_curve_ml_44pairs_20240401_20260531.png)
+**Рис. С16b. Equity curve — `price_sequences_ml`**.
+
+### Бэктест: combined `dow_ema_rsi_streak` (ML vs algo `and`)
+
+Период: **2024-04-01 — 2026-05-31**. ML — frozen weekday-policy + 5-фичевая модель (47 пар union). Algo `and` — DOW + EMA + RSI + price_sequences: сделка только при совпадении знака всех четырёх сигналов (exposure ~6%, 34 пары union, optimistic train-отбор).
+
+| Метрика | Combined ML `dow_ema_rsi_streak` | Algo `and` |
+| ------- | -------------------------------- | ---------- |
+| Пар (union) | 47 | 34 |
+| Total Return (net maker) | **+28.0%** | +9.4% |
+| CAGR (net maker) | **+12.1%** | +4.0% |
+| Sharpe (net maker) | 0.28 | **0.37** |
+| Win Rate (net maker) | 51.3% | **54.5%** |
+| Max Drawdown (net maker) | −32.2% | **−8.7%** |
+| Profit Factor (net maker) | 1.03 | **1.32** |
+| Information Ratio (net maker vs B&H 49) | **0.45** | 0.28 |
+| Exposure | 100% | **6.4%** |
+| Worst day (net maker) | −23.3% (2025-10-10) | **−6.2%** (2024-04-13) |
+
+![Equity — combined ML dow_ema_rsi_streak](research_outputs/combined/dow_ema_rsi_streak/backtest/ml/plots/equity_curve_ml_47pairs_20240401_20260531.png)
+**Рис. С17. Equity curve — combined ML `dow_ema_rsi_streak`**.
+
+![Equity — combined algo and dow_ema_rsi_streak](research_outputs/combined/dow_ema_rsi_streak/backtest/algo/plots/equity_curve_and_34pairs_20240401_20260531.png)
+**Рис. С18. Equity curve — combined algo `and` `dow_ema_rsi_streak`**.
+
+![Drawdown — combined ML dow_ema_rsi_streak](research_outputs/combined/dow_ema_rsi_streak/backtest/ml/plots/drawdown_ml_47pairs_20240401_20260531.png)
+**Рис. С19. Drawdown — combined ML `dow_ema_rsi_streak`**.
+
 ### Выводы
 
-**По моделям.** Цепочка `day_of_week_ml` → `ema_spreads_ml` → `rsi_spreads_ml` → `dow_ema_sp` → `dow_ema_rsi_sp`: weekday + EMA поднимают ROC AUC до **0.547**. `rsi_pair_norm` **включён** в `dow_ema_rsi_sp` (4 фичи в bundle), но из-за corr ≈ 0.88 с `ema_dev_pair_norm` почти не меняет ROC AUC на test; влияние видно в `pred↑` и в **бэктесте ML** (+146.6% vs +101.2% у `dow_ema_sp`).
+**По моделям.** Цепочка `day_of_week_ml` → `ema_spreads_ml` → `rsi_spreads_ml` → `price_sequences_ml` → `dow_ema_sp` → `dow_ema_rsi_sp` → `dow_ema_rsi_streak`: weekday + EMA поднимают ROC AUC до **0.547** (`dow_ema_sp` / `dow_ema_rsi_sp`). `streak_pair_norm` отдельно слабее на test (0.510), в combined снижает ROC AUC до **0.539**, но сильно смещает `pred↑` (66%); влияние на бэктест неоднозначно (+28% net maker vs +146.6% у `dow_ema_rsi_sp`).
 
 **По бэктесту `dow_ema_sp` (net maker).** Combined ML превосходит algo `or` по доходности (CAGR +38.3% vs +31.5%) и IR (0.85 vs 0.44). Algo `or` выигрывает по хвостовому риску (worst day −11.4% vs −17.3%).
 
 **По бэктесту `dow_ema_rsi_sp` (net maker).** Combined ML — лидер по доходности (**+146.6%**, CAGR +52.0%, IR 1.14), но с **более глубоким хвостом** (worst day −20.4% на 2025-10-10). Algo `or` — умеренная альфа (+60.8%, IR 0.40) при меньшем worst day (−9.9%). Algo `and` — низкая exposure (~14%), минимальная просадка (−13.6%) и лучший PF (1.24), но слабая доходность (+14.8%).
 
-**Практический итог.** Для paper/live: (1) **combined ML** — основной сценарий при maker-исполнении; (2) **algo `or`** — прозрачный rule-based бенчмарк; (3) **algo `and`** — консервативный фильтр с низкой частотой сделок; (4) обе combined-стратегии требуют учёта хвостовых дней (2025-10-10).
+**По бэктесту `price_sequences_ml` (net maker).** Умеренная альфа (+11.7%, IR 0.31) при низкой MaxDD (−13.9%) и exposure 55%, но **слабее rule-based** консервативного (+24.3% maker) на том же val-окне. ML-модель фактически торгует только long.
+
+**По бэктесту `dow_ema_rsi_streak` (net maker).** Combined ML даёт **+28.0%** (IR 0.45) при полной exposure, но с глубоким хвостом (worst day −23.3%). Algo `and` — консервативный вариант (+9.4%, MaxDD −8.7%, PF 1.32) при exposure ~6%. Добавление streak в combined **не улучшает** результат относительно `dow_ema_rsi_sp`.
+
+**Практический итог.** Для paper/live: (1) **combined ML `dow_ema_rsi_sp`** — лидер по доходности; (2) **`price_sequences_ml`** — слабый standalone, rule-based предпочтительнее; (3) **`dow_ema_rsi_streak`** — промежуточный combined, хуже `dow_ema_rsi_sp`; (4) **algo `or` / `and`** — прозрачные rule-based бенчмарки; (5) все combined-стратегии требуют учёта хвостовых дней (2025-10-10).
 
 | Артефакт | Путь |
 | -------- | ---- |
@@ -1169,3 +1519,10 @@ python3 backtester.py rsi_spreads_ml
 | Бэктест ML `dow_ema_rsi_sp` | [dow_ema_rsi_sp_backtest_ml_48pairs_….log](research_outputs/combined/dow_ema_rsi_sp/backtest/ml/dow_ema_rsi_sp_backtest_ml_48pairs_20240401_20260531.log) |
 | Бэктест algo or `dow_ema_rsi_sp` | [dow_ema_rsi_sp_backtest_or_48pairs_….log](research_outputs/combined/dow_ema_rsi_sp/backtest/algo/dow_ema_rsi_sp_backtest_or_48pairs_20240401_20260531.log) |
 | Бэктест algo and `dow_ema_rsi_sp` | [dow_ema_rsi_sp_backtest_and_48pairs_….log](research_outputs/combined/dow_ema_rsi_sp/backtest/algo/dow_ema_rsi_sp_backtest_and_48pairs_20240401_20260531.log) |
+| ML metrics `price_sequences_ml` | [direction_streak_…_train_test.json](research_outputs/price_sequences/ml/metrics/direction_streak_49pairs_20220101_20260531_train_test.json) |
+| ML policy `price_sequences_ml` | [direction_streak_…_policy.json](research_outputs/price_sequences/ml/policies/direction_streak_49pairs_20220101_20260531_policy.json) |
+| Бэктест ML `price_sequences_ml` | [price_sequences_ml_backtest_ml_44pairs_….log](research_outputs/price_sequences/backtest/price_sequences_ml_backtest_ml_44pairs_20240401_20260531.log) |
+| ML metrics `dow_ema_rsi_streak` | [direction_dow_ema_rsi_streak_…_train_test.json](research_outputs/combined/dow_ema_rsi_streak/ml/metrics/direction_dow_ema_rsi_streak_49pairs_20220101_20260531_train_test.json) |
+| ML policy `dow_ema_rsi_streak` | [direction_dow_ema_rsi_streak_…_policy.json](research_outputs/combined/dow_ema_rsi_streak/ml/policies/direction_dow_ema_rsi_streak_49pairs_20220101_20260531_policy.json) |
+| Бэктест ML `dow_ema_rsi_streak` | [dow_ema_rsi_streak_backtest_ml_47pairs_….log](research_outputs/combined/dow_ema_rsi_streak/backtest/ml/dow_ema_rsi_streak_backtest_ml_47pairs_20240401_20260531.log) |
+| Бэктест algo and `dow_ema_rsi_streak` | [dow_ema_rsi_streak_backtest_and_34pairs_….log](research_outputs/combined/dow_ema_rsi_streak/backtest/algo/dow_ema_rsi_streak_backtest_and_34pairs_20240401_20260531.log) |

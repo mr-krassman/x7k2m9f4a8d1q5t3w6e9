@@ -1,0 +1,98 @@
+{
+  "mode": "plots_only",
+  "ml_spec": {
+    "studies": [
+      "day_of_week_ml",
+      "ema_spreads_ml",
+      "rsi_spreads_ml",
+      "price_sequences_ml"
+    ],
+    "feature_columns": [
+      "pair_id",
+      "weekday_enc",
+      "ema_dev_pair_norm",
+      "rsi_pair_norm",
+      "streak_pair_norm"
+    ],
+    "output_study": "combined",
+    "feature_slug": "dow_ema_rsi_streak",
+    "bundle_id": "dow_ema_rsi_streak",
+    "ml_subdir": "ml",
+    "policy_mode": "weekday"
+  },
+  "plot_ids": [
+    "correlation_matrix_heatmap",
+    "shape_summary_plot",
+    "feature_prob_dependence"
+  ],
+  "holdout_test_period": {
+    "from": "2024-04-01",
+    "to": "2026-05-31"
+  },
+  "n_pairs": 49,
+  "plot_paths": {
+    "correlation_matrix_heatmap": "/home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_rsi_streak/ml/plots/direction_dow_ema_rsi_streak_49pairs_20240401_20260531_correlation_matrix.png",
+    "feature_correlations": {
+      "columns": [
+        "pair_id",
+        "weekday_enc",
+        "ema_dev_pair_norm",
+        "rsi_pair_norm",
+        "streak_pair_norm"
+      ],
+      "matrix": [
+        [
+          1.0,
+          0.0001,
+          0.0157,
+          0.0061,
+          -0.0024
+        ],
+        [
+          0.0001,
+          1.0,
+          0.0171,
+          0.0154,
+          0.0371
+        ],
+        [
+          0.0157,
+          0.0171,
+          1.0,
+          0.8526,
+          0.527
+        ],
+        [
+          0.0061,
+          0.0154,
+          0.8526,
+          1.0,
+          0.4939
+        ],
+        [
+          -0.0024,
+          0.0371,
+          0.527,
+          0.4939,
+          1.0
+        ]
+      ],
+      "pairwise": {
+        "pair_id__weekday_enc": 0.0001,
+        "pair_id__ema_dev_pair_norm": 0.0157,
+        "pair_id__rsi_pair_norm": 0.0061,
+        "pair_id__streak_pair_norm": -0.0024,
+        "weekday_enc__ema_dev_pair_norm": 0.0171,
+        "weekday_enc__rsi_pair_norm": 0.0154,
+        "weekday_enc__streak_pair_norm": 0.0371,
+        "ema_dev_pair_norm__rsi_pair_norm": 0.8526,
+        "ema_dev_pair_norm__streak_pair_norm": 0.527,
+        "rsi_pair_norm__streak_pair_norm": 0.4939
+      },
+      "n_rows": 38001,
+      "method": "pearson"
+    },
+    "shape_summary_plot": "/home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_rsi_streak/ml/plots/direction_dow_ema_rsi_streak_49pairs_20240401_20260531_shape_summary.png",
+    "feature_prob_dependence": "/home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_rsi_streak/ml/plots/direction_dow_ema_rsi_streak_49pairs_20240401_20260531_feature_prob_dependence.png"
+  }
+}

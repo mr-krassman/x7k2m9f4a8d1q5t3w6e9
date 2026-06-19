@@ -209,19 +209,20 @@ def _default_lgbm_params() -> dict:
     """Базовые гиперпараметры LightGBM для бинарной классификации.
 
     num_leaves=7 — мало листьев при малом числе признаков.
-    max_depth=5, min_child_samples=80, reg_lambda=1.0 — умеренная регуляризация
+    max_depth=5, min_child_samples=80, reg_alpha/reg_lambda — L1/L2 регуляризация
     против переобучения на хвосте train (см. learning curve).
     """
     return {
         "objective": "binary",
         "metric": "binary_logloss",
         "verbosity": -1,
-        "n_estimators": 12,
-        "learning_rate": 0.05,
+        "n_estimators": 100,
+        "learning_rate": 0.03,
         "num_leaves": 7,
         "max_depth": 5,
-        "min_child_samples": 80,
-        "reg_lambda": 1.0,
+        "min_child_samples": 200,
+        "reg_alpha": 1.0,
+        "reg_lambda": 3.0,
         "subsample": 0.8,
         "colsample_bytree": 1.0,
         "random_state": 42,

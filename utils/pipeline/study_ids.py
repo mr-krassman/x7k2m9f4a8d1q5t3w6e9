@@ -5,6 +5,7 @@ STUDY_EMA_SPREADS = "ema_spreads"
 STUDY_EMA_PERIOD_SCREEN = "ema_period_screen"
 STUDY_RSI_PERIOD_SCREEN = "rsi_period_screen"
 STUDY_RSI_SPREADS = "rsi_spreads"
+STUDY_PRICE_SEQUENCES = "price_sequences"
 STUDY_COMBINED = "combined"
 
 ALL_STUDIES = (
@@ -13,5 +14,6 @@ ALL_STUDIES = (
     STUDY_EMA_PERIOD_SCREEN,
     STUDY_RSI_PERIOD_SCREEN,
     STUDY_RSI_SPREADS,
+    STUDY_PRICE_SEQUENCES,
     STUDY_COMBINED,
 )

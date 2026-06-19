@@ -60,6 +60,15 @@ RSI_SCENARIO_REPORT_HEADER: dict[str, str] = {
     ),
 }
 
+PRICE_SEQ_SCENARIO_REPORT_HEADER: dict[str, str] = {
+    SCENARIO_CONSERVATIVE: (
+        "Сценарий: консервативный (val, все 49 пар, 3d_up short, 3d_down long)"
+    ),
+    SCENARIO_OPTIMISTIC: (
+        "Сценарий: оптимистичный (val, short 23 пар / long 34 пар, раздельный train-отбор)"
+    ),
+}
+
 VAL_FROM = TEMPORAL_VAL_FROM
 VAL_TO = TEMPORAL_VAL_TO
 OPTIMISTIC_TRAIN_FROM = TEMPORAL_TRAIN_FROM

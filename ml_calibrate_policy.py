@@ -43,7 +43,7 @@ def _round_json_floats(value, *, digits: int = JSON_FLOAT_PRECISION):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Калибровка frozen policy для ML-стратегий (day_of_week_ml / ema_spreads_ml / rsi_spreads_ml).",
+        description="Калибровка frozen policy для ML-стратегий (day_of_week_ml / ema_spreads_ml / rsi_spreads_ml / price_sequences_ml / combined).",
     )
     parser.add_argument(
         "studies",
@@ -278,29 +278,27 @@ def _dynamic_thresholds_global(
     return {"t_long": t_long, "t_short": t_short}
 
 
-def main() -> int:
-    args = parse_args()
-    studies = args.studies or ["day_of_week_ml"]
-    spec = resolve_ml_study(studies)
+def write_policy_from_train_test_payload(
+    payload: dict[str, object],
+    spec,
+    *,
+    n_pairs: int,
+    train_from,
+    test_to,
+    output: Path | None = None,
+    metrics_path: Path | None = None,
+    score_quantile: float | None = None,
+    min_obs: int | None = None,
+    long_quantile: float | None = None,
+    short_quantile: float | None = None,
+) -> Path:
     defaults = _default_selection_params(spec)
-    score_quantile = args.score_quantile if args.score_quantile is not None else float(defaults["score_quantile"])
-    min_obs = args.min_obs if args.min_obs is not None else int(defaults["min_obs"])
-    long_quantile = args.long_quantile if args.long_quantile is not None else float(defaults["long_quantile"])
-    short_quantile = args.short_quantile if args.short_quantile is not None else float(defaults["short_quantile"])
+    score_quantile = score_quantile if score_quantile is not None else float(defaults["score_quantile"])
+    min_obs = min_obs if min_obs is not None else int(defaults["min_obs"])
+    long_quantile = long_quantile if long_quantile is not None else float(defaults["long_quantile"])
+    short_quantile = short_quantile if short_quantile is not None else float(defaults["short_quantile"])
 
-    train_from = parse_iso_utc(args.train_from)
-    test_to = parse_iso_utc(args.test_to)
-    metrics_path = args.metrics_json or ml_train_test_metrics_path(
-        spec, args.n_pairs, train_from, test_to
-    )
-    payload = json.loads(metrics_path.read_text(encoding="utf-8"))
-    payload_spec = _study_from_payload(payload)
-    if payload_spec.studies != spec.studies:
-        raise SystemExit(
-            f"metrics-json для {list(payload_spec.studies)}, CLI запрошен {list(spec.studies)}"
-        )
     weekday_pair_metrics = payload["train_cpcv"]["weekday_pair_metrics"]
-
     selected_pairs_by_weekday, details, score_cutoff = _select_pairs_by_weekday(
         weekday_pair_metrics,
         score_quantile=score_quantile,
@@ -324,13 +322,13 @@ def main() -> int:
         short_quantile=short_quantile,
     )
 
-    policy_mode = spec.policy_mode
+    source_metrics = metrics_path or payload.get("source_metrics_json")
     out = {
         "mode": f"{spec.studies[0]}_policy_v1",
-        "policy_mode": policy_mode,
+        "policy_mode": spec.policy_mode,
         "ml_spec": payload.get("ml_spec"),
-        "source_metrics_json": str(metrics_path),
-        "n_pairs": args.n_pairs,
+        "source_metrics_json": str(source_metrics) if source_metrics else None,
+        "n_pairs": n_pairs,
         "train_period": payload["train_period"],
         "holdout_test_period": payload["holdout_test_period"],
         "thresholds": thresholds,
@@ -358,11 +356,48 @@ def main() -> int:
         "global_thresholds": thresholds_global,
         "pair_score_table": global_details,
     }
-    output_path = args.output or ml_policy_path(spec, args.n_pairs, train_from, test_to)
+    output_path = output or ml_policy_path(spec, n_pairs, train_from, test_to)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         json.dumps(_round_json_floats(out), indent=2, ensure_ascii=False),
         encoding="utf-8",
+    )
+    return output_path
+
+
+def main() -> int:
+    args = parse_args()
+    studies = args.studies or ["day_of_week_ml"]
+    spec = resolve_ml_study(studies)
+    defaults = _default_selection_params(spec)
+    score_quantile = args.score_quantile if args.score_quantile is not None else float(defaults["score_quantile"])
+    min_obs = args.min_obs if args.min_obs is not None else int(defaults["min_obs"])
+    long_quantile = args.long_quantile if args.long_quantile is not None else float(defaults["long_quantile"])
+    short_quantile = args.short_quantile if args.short_quantile is not None else float(defaults["short_quantile"])
+
+    train_from = parse_iso_utc(args.train_from)
+    test_to = parse_iso_utc(args.test_to)
+    metrics_path = args.metrics_json or ml_train_test_metrics_path(
+        spec, args.n_pairs, train_from, test_to
+    )
+    payload = json.loads(metrics_path.read_text(encoding="utf-8"))
+    payload_spec = _study_from_payload(payload)
+    if payload_spec.studies != spec.studies:
+        raise SystemExit(
+            f"metrics-json для {list(payload_spec.studies)}, CLI запрошен {list(spec.studies)}"
+        )
+    output_path = write_policy_from_train_test_payload(
+        payload,
+        spec,
+        n_pairs=args.n_pairs,
+        train_from=train_from,
+        test_to=test_to,
+        output=args.output,
+        metrics_path=metrics_path,
+        score_quantile=score_quantile,
+        min_obs=min_obs,
+        long_quantile=long_quantile,
+        short_quantile=short_quantile,
     )
     print(f"saved_policy={output_path}")
     return 0

@@ -490,3 +490,48 @@ def avg_active_long_short_pairs_by_weekday(
 def avg_active_pairs_by_weekday(pair_returns: pl.DataFrame) -> dict[int, float]:
     total, _, _ = avg_active_long_short_pairs_by_weekday(pair_returns)
     return total
+
+
+def total_return_long_short_by_weekday(
+    pair_returns: pl.DataFrame,
+    column: str,
+    peak_pairs: int,
+) -> tuple[dict[int, float], dict[int, float]]:
+    """Суммарная доходность портфеля по weekday отдельно для long и short сделок."""
+    if "weekday" not in pair_returns.columns:
+        pair_returns = pair_returns.with_columns(
+            ((pl.col("day_utc").dt.weekday() - 1) % 7).alias("weekday")
+        )
+    long_out: dict[int, float] = {}
+    short_out: dict[int, float] = {}
+    for wd in range(7):
+        long_out[wd] = 0.0
+        short_out[wd] = 0.0
+    for filt, out in (
+        (pl.col("position") > 0, long_out),
+        (pl.col("position") < 0, short_out),
+    ):
+        pr = pair_returns.filter(filt)
+        if pr.is_empty():
+            continue
+        portfolio = build_portfolio_daily_peak_weighted(pr, peak_pairs)
+        by_wd = analytics_by_weekday(portfolio, column, pair_returns=pr)
+        for wd in range(7):
+            out[wd] = by_wd[wd].metrics.total_return_pct
+    return long_out, short_out
+
+
+def weekday_total_ret_by_side(
+    pair_returns: pl.DataFrame,
+    peak_pairs: int,
+) -> dict[str, dict[str, dict[int, float]]]:
+    net_long, net_short = total_return_long_short_by_weekday(
+        pair_returns, "net_maker_return_pct", peak_pairs
+    )
+    gross_long, gross_short = total_return_long_short_by_weekday(
+        pair_returns, "gross_return_pct", peak_pairs
+    )
+    return {
+        "net_maker_return_pct": {"long": net_long, "short": net_short},
+        "gross_return_pct": {"long": gross_long, "short": gross_short},
+    }

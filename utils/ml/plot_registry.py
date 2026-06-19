@@ -12,6 +12,7 @@ import polars as pl
 from crypto_research.utils.ml.cpcv_train import CPCVTrainResult
 from crypto_research.utils.ml.dataset import DirectionDataset, dataset_to_numpy
 from crypto_research.utils.ml.feature_dependence_plot import save_feature_prob_dependence_plot
+from crypto_research.utils.ml.prob_return_dependence_plot import save_prob_return_dependence_plot
 from crypto_research.utils.ml.feature_diagnostic_plots import save_correlation_matrix_heatmap
 from crypto_research.utils.ml.feature_predictive_plot import save_metrics_over_feature_plot
 from crypto_research.utils.ml.numeric_features import active_numeric_specs
@@ -27,6 +28,7 @@ from crypto_research.utils.pipeline.logger import get_logger
 from crypto_research.utils.pipeline.paths import (
     ml_correlation_matrix_plot_path,
     ml_feature_prob_dependence_plot_path,
+    ml_prob_return_dependence_plot_path,
     ml_feature_predictive_plot_path,
     ml_oos_calibration_plot_path,
     ml_oos_plot_path,
@@ -45,6 +47,7 @@ ML_PLOT_WEEKDAY_PAIR_SUMMARY = "weekday_pair_summary"
 ML_PLOT_ROC_AUC = "roc_auc"
 ML_PLOT_FEATURE_PREDICTIVE = "feature_predictive"
 ML_PLOT_FEATURE_PROB_DEPENDENCE = "feature_prob_dependence"
+ML_PLOT_PROB_RETURN_DEPENDENCE = "prob_return_dependence"
 ML_PLOT_LEARNING_CURVE = "learning_curve"
 
 ML_PLOT_ALIASES: dict[str, str] = {
@@ -59,6 +62,8 @@ ML_PLOT_ALIASES: dict[str, str] = {
     ML_PLOT_FEATURE_PREDICTIVE: ML_PLOT_FEATURE_PREDICTIVE,
     ML_PLOT_FEATURE_PROB_DEPENDENCE: ML_PLOT_FEATURE_PROB_DEPENDENCE,
     "dependence_plot": ML_PLOT_FEATURE_PROB_DEPENDENCE,
+    ML_PLOT_PROB_RETURN_DEPENDENCE: ML_PLOT_PROB_RETURN_DEPENDENCE,
+    "prob_vs_return": ML_PLOT_PROB_RETURN_DEPENDENCE,
     ML_PLOT_LEARNING_CURVE: ML_PLOT_LEARNING_CURVE,
 }
 
@@ -67,6 +72,11 @@ DEFAULT_TRAIN_TEST_PLOTS: tuple[str, ...] = (
     ML_PLOT_OOS_CALIBRATION,
     ML_PLOT_WEEKDAY_PAIR_SUMMARY,
     ML_PLOT_ROC_AUC,
+    ML_PLOT_LEARNING_CURVE,
+    ML_PLOT_CORRELATION_MATRIX,
+    ML_PLOT_SHAPE_SUMMARY,
+    ML_PLOT_FEATURE_PROB_DEPENDENCE,
+    ML_PLOT_PROB_RETURN_DEPENDENCE,
 )
 
 ML_PLOT_CHOICES: tuple[str, ...] = tuple(dict.fromkeys(ML_PLOT_ALIASES.values()))
@@ -148,6 +158,27 @@ def _plot_feature_prob_dependence(ctx: MlPlotContext) -> dict[str, str]:
     return {"feature_prob_dependence": str(path)}
 
 
+def _plot_prob_return_dependence(ctx: MlPlotContext) -> dict[str, str]:
+    train_oos = None
+    if ctx.train_cpcv is not None and ctx.train_cpcv.oos_predictions is not None:
+        train_oos = ctx.train_cpcv.oos_predictions
+    elif ctx.train_fit_oos is not None:
+        train_oos = ctx.train_fit_oos
+    if ctx.train_dataset is None:
+        raise RuntimeError("prob_return_dependence: нет train_dataset")
+    path = save_prob_return_dependence_plot(
+        ml_prob_return_dependence_plot_path(ctx.spec, ctx.n_pairs, ctx.test_from, ctx.test_to),
+        train_frame=ctx.train_dataset.frame,
+        test_frame=ctx.test_dataset.frame,
+        test_y_prob=ctx.y_test_prob,
+        train_oos=train_oos,
+        title="return open→close vs P(up)",
+        train_label=f"train {ctx.train_from:%Y-%m-%d}..{ctx.train_to:%Y-%m-%d}",
+        test_label=f"test {ctx.test_from:%Y-%m-%d}..{ctx.test_to:%Y-%m-%d}",
+    )
+    return {"prob_return_dependence": str(path)}
+
+
 def _plot_oos_prob(ctx: MlPlotContext) -> dict[str, str]:
     path = save_oos_probability_plot(
         ctx.test_oos,
@@ -222,7 +253,7 @@ def _plot_feature_predictive(ctx: MlPlotContext) -> dict[str, str]:
 
 def _plot_learning_curve(ctx: MlPlotContext) -> dict[str, str]:
     if ctx.fit_result is None or getattr(ctx.fit_result, "learning_curve_plot_path", None) is None:
-        log.warning("[ml] learning_curve: нет learning curve (нужен --early-stopping)")
+        log.warning("[ml] learning_curve: график не построен")
         return {}
     return {"learning_curve": str(ctx.fit_result.learning_curve_plot_path)}
 
@@ -231,6 +262,7 @@ _PLOT_HANDLERS: dict[str, Callable[[MlPlotContext], dict[str, object]]] = {
     ML_PLOT_CORRELATION_MATRIX: _plot_correlation_matrix_heatmap,
     ML_PLOT_SHAPE_SUMMARY: _plot_shape_summary,
     ML_PLOT_FEATURE_PROB_DEPENDENCE: _plot_feature_prob_dependence,
+    ML_PLOT_PROB_RETURN_DEPENDENCE: _plot_prob_return_dependence,
     ML_PLOT_OOS_PROB: _plot_oos_prob,
     ML_PLOT_OOS_CALIBRATION: _plot_oos_calibration,
     ML_PLOT_WEEKDAY_PAIR_SUMMARY: _plot_weekday_pair_summary,

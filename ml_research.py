@@ -2,6 +2,7 @@
 """Оркестратор ML: weekday → direction_up, CPCV + LightGBM."""
 
 from __future__ import annotations
+from dataclasses import replace
 
 import argparse
 import json
@@ -17,6 +18,7 @@ _REPO_PARENT = Path(__file__).resolve().parent.parent
 if str(_REPO_PARENT) not in sys.path:
     sys.path.insert(0, str(_REPO_PARENT))
 
+from crypto_research.ml_calibrate_policy import write_policy_from_train_test_payload
 from crypto_research.utils.ml.cpcv_train import (
     DEFAULT_EMBARGO_DAYS,
     DEFAULT_N_SPLITS,
@@ -49,16 +51,23 @@ from crypto_research.utils.ml.plot_registry import (
 )
 from crypto_research.utils.ml.learning_curve import (
     fit_lightgbm_full_train,
-    fit_lightgbm_with_eval_curve,
+    fit_lightgbm_with_holdout_early_stopping,
+    record_learning_curve_diagnostic,
 )
 from crypto_research.utils.ml.registry import (
-    COMPARE_MODEL_CHOICES,
     ML_STUDY_CHOICES,
+    auto_compare_model_ids,
+    compare_model_id,
     ml_spec_to_dict,
+    resolve_compare_model,
     resolve_ml_study,
 )
-from crypto_research.utils.ml.model_compare import load_compare_model, signal_rates
-from crypto_research.utils.ml.model_compare_plot import save_all_compare_plots
+from crypto_research.utils.ml.model_compare import (
+    CompareModelEntry,
+    entry_from_trained,
+    load_compare_model,
+)
+from crypto_research.utils.ml.model_compare_plot import save_prob_cdf_compare
 from crypto_research.utils.ml.oos_paths import (
     oos_calibration_metrics,
 )
@@ -80,13 +89,15 @@ from crypto_research.utils.pipeline.paths import (
     ml_learning_curve_log_path,
     ml_learning_curve_plot_path,
     ml_log_path,
+    ml_compare_prob_cdf_plot_path,
     ml_model_bundle_path,
     ml_metrics_path,
+    ml_metrics_summary_path,
     ml_oos_calibration_plot_path,
     ml_oos_plot_path,
     ml_plots_dir,
+    ml_policy_path,
     ml_train_test_metrics_path,
-    ml_compare_dir,
 )
 
 log = get_logger("ml_research")
@@ -95,13 +106,13 @@ JSON_FLOAT_PRECISION = 4
 
 def parse_ml_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="ML: direction_up, CPCV + LightGBM (day_of_week_ml / ema_spreads_ml / rsi_spreads_ml).",
+        description="ML: direction_up, CPCV + LightGBM (day_of_week_ml / ema_spreads_ml / rsi_spreads_ml / price_sequences_ml).",
     )
     parser.add_argument(
         "studies",
         nargs="*",
         metavar="STUDY",
-        help="Исследования: day_of_week_ml, ema_spreads_ml, rsi_spreads_ml; combined: day_of_week_ml ema_spreads_ml [rsi_spreads_ml]",
+        help="Исследования: day_of_week_ml, ema_spreads_ml, rsi_spreads_ml, price_sequences_ml; combined: day_of_week_ml ema_spreads_ml [rsi_spreads_ml [price_sequences_ml]]",
     )
     parser.add_argument(
         "--data-dir",
@@ -201,13 +212,17 @@ def parse_ml_args() -> argparse.Namespace:
     parser.add_argument(
         "--early-stopping",
         action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Early stopping на хвосте train перед финальным fit (по умолчанию выкл.)",
+        default=True,
+        help=(
+            "Early stopping по holdout test перед финальным fit (по умолчанию вкл.). "
+            "Финальная модель: весь train, n_estimators=best_iteration. "
+            "Отключить: --no-early-stopping."
+        ),
     )
     parser.add_argument(
         "--train-eval-from",
         default=TRAIN_EVAL_FROM,
-        help=f"Начало eval-хвоста train для --early-stopping (UTC), по умолчанию {TRAIN_EVAL_FROM}",
+        help=f"(legacy) Раньше — хвост train для early stopping; сейчас используется holdout test-from",
     )
     parser.add_argument(
         "--early-stopping-rounds",
@@ -216,42 +231,6 @@ def parse_ml_args() -> argparse.Namespace:
         help="Раунды без улучшения eval logloss при --early-stopping",
     )
     parser.add_argument("--n-pairs", type=int, default=49, help="Размер пула пар (пути bundle/policy).")
-    parser.add_argument(
-        "--compare-models",
-        nargs="+",
-        default=None,
-        metavar="MODEL_ID",
-        help=(
-            "Сравнить frozen-модели на holdout test (без обучения). "
-            f"ID: {', '.join(COMPARE_MODEL_CHOICES)}. "
-            "Пример: --compare-models dow_ema_sp dow_ema_rsi_sp"
-        ),
-    )
-    parser.add_argument(
-        "--compare-baseline",
-        default=None,
-        help="Первая модель в списке для ΔP(up); по умолчанию — первый аргумент --compare-models.",
-    )
-    parser.add_argument(
-        "--compare-model-bundle",
-        action="append",
-        default=[],
-        metavar="MODEL_ID=PATH",
-        help="Переопределить путь к bundle: ema_spreads_ml=/path/to.pkl",
-    )
-    parser.add_argument(
-        "--compare-policy",
-        action="append",
-        default=[],
-        metavar="MODEL_ID=PATH",
-        help="Переопределить путь к policy.json.",
-    )
-    parser.add_argument(
-        "--compare-output-dir",
-        type=Path,
-        default=None,
-        help="Каталог для графиков сравнения (по умолчанию research_outputs/ml_compare/…).",
-    )
     parser.add_argument(
         "--plots",
         nargs="+",
@@ -278,21 +257,18 @@ def parse_ml_args() -> argparse.Namespace:
         default=False,
         help=(
             "График ROC AUC / accuracy по бинам predictive-фичи (train-fit | holdout test). "
-            "Для ema_spreads_ml — ema_dev_pair_norm, для rsi_spreads_ml — rsi_pair_norm."
+            "Для ema_spreads_ml — ema_dev_pair_norm, для rsi_spreads_ml — rsi_pair_norm, "
+            "для price_sequences_ml — streak_pair_norm."
         ),
     )
     return parser.parse_args()
 
 
 def _validate_ml_args(args: argparse.Namespace) -> None:
-    if args.compare_models:
-        return
     if args.plots_only and not args.plots:
         raise SystemExit("--plots-only требует --plots с именами графиков.")
     if not args.studies:
-        raise SystemExit(
-            "Укажите STUDY (day_of_week_ml, …) или --compare-models для сравнения frozen-моделей."
-        )
+        raise SystemExit("Укажите STUDY (day_of_week_ml, ema_spreads_ml, …).")
     unknown = set(args.studies) - set(ML_STUDY_CHOICES)
     if unknown:
         raise SystemExit(f"Неизвестные ML-исследования: {sorted(unknown)}")
@@ -382,6 +358,47 @@ def _binary_metrics(y_true: np.ndarray, y_prob: np.ndarray) -> dict[str, float]:
     }
     out["roc_auc"] = float(roc_auc_score(y_true, y_prob)) if np.unique(y_true).size > 1 else float("nan")
     return out
+
+
+def _core_metrics(metrics: dict[str, float] | None) -> dict[str, float] | None:
+    if metrics is None:
+        return None
+    return {
+        "accuracy": float(metrics["accuracy"]),
+        "log_loss": float(metrics["log_loss"]),
+        "roc_auc": float(metrics["roc_auc"]),
+    }
+
+
+def _build_metrics_summary(
+    *,
+    train_cpcv_pooled: dict[str, float] | None,
+    train_fit: dict[str, float],
+    holdout_test: dict[str, float],
+    holdout_test_by_weekday: dict[str, dict[str, float]],
+) -> dict[str, object]:
+    summary: dict[str, object] = {}
+    pooled = _core_metrics(train_cpcv_pooled)
+    if pooled is not None:
+        summary["train_cpcv_pooled"] = pooled
+    summary["train_fit"] = _core_metrics(train_fit)
+    summary["holdout_test"] = _core_metrics(holdout_test)
+    summary["holdout_test_by_weekday"] = {
+        name: metrics_core
+        for name, metrics in holdout_test_by_weekday.items()
+        if (metrics_core := _core_metrics(metrics)) is not None
+    }
+    return summary
+
+
+def _save_metrics_summary(path: Path, summary: dict[str, object]) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(_round_json_floats(summary), indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    log.info("[ml] metrics summary saved: %s", path)
+    return path
 
 
 def _pooled_metrics_from_oos_paths(oos_paths: np.ndarray | None) -> dict[str, float] | None:
@@ -504,7 +521,7 @@ def _default_train_test_output_path(spec, n_pairs: int, train_from, test_to) -> 
     return ml_train_test_metrics_path(spec, n_pairs, train_from, test_to)
 
 
-def _load_frozen_model_context(args: argparse.Namespace) -> MlPlotContext:
+def _load_frozen_model_context(args: argparse.Namespace) -> tuple[MlPlotContext, pl.DataFrame]:
     spec = resolve_ml_study(args.studies)
     workers = args.workers if args.workers is not None else _DEFAULT_WORKERS
     pair_start_limit = parse_iso_utc(args.max_pair_start)
@@ -560,13 +577,24 @@ def _load_frozen_model_context(args: argparse.Namespace) -> MlPlotContext:
         y_test=y_test,
         y_test_prob=y_test_prob,
         model=model,
-    )
+    ), test_daily
 
 
 def run_ml_plots_only_pipeline(args: argparse.Namespace) -> dict[str, object]:
     plot_ids = _effective_plot_ids(args)
-    ctx = _load_frozen_model_context(args)
+    ctx, test_daily = _load_frozen_model_context(args)
     plot_paths = run_selected_ml_plots(plot_ids, ctx)
+    compare_cdf_path = _auto_holdout_compare(
+        ctx.spec,
+        test_daily,
+        ctx.test_oos,
+        n_pairs=ctx.n_pairs,
+        train_from=ctx.train_from,
+        train_to=ctx.train_to,
+        test_to=ctx.test_to,
+    )
+    if compare_cdf_path is not None:
+        plot_paths["compare_prob_cdf"] = str(compare_cdf_path)
     summary_path = ml_plots_dir(ctx.spec) / "plots_only_summary.json"
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary = {
@@ -617,7 +645,6 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     pair_start_limit = parse_iso_utc(args.max_pair_start)
     train_from = parse_iso_utc(args.train_from)
     train_to = parse_iso_utc(args.train_to)
-    eval_from = parse_iso_utc(args.train_eval_from)
     test_from = parse_iso_utc(args.test_from)
     test_to = parse_iso_utc(args.test_to)
 
@@ -637,12 +664,6 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     )
     if train_pairs != test_pairs:
         raise RuntimeError("Train/test загрузили разный пул пар; проверьте max-pair-start и data-dir")
-    if args.early_stopping:
-        if eval_from <= train_from or eval_from >= train_to:
-            raise RuntimeError(
-                f"--train-eval-from ({args.train_eval_from}) должен быть строго внутри train "
-                f"({args.train_from} .. {args.train_to})"
-            )
 
     pair_bounds = fit_bounds_for_features(train_daily, spec.feature_columns)
     train_dataset = build_direction_dataset(train_daily, spec, pair_norm_bounds=pair_bounds)
@@ -662,16 +683,38 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     x_train, y_train, _, _ = dataset_to_numpy(train_dataset)
     x_test, y_test, _, _ = dataset_to_numpy(test_dataset)
     if args.early_stopping:
-        fit_result = fit_lightgbm_with_eval_curve(
+        fit_result = fit_lightgbm_with_holdout_early_stopping(
             train_dataset,
-            eval_from=eval_from,
-            eval_to=train_to,
-            plot_path=ml_learning_curve_plot_path(spec, len(train_pairs), train_from, train_to),
-            log_path=ml_learning_curve_log_path(spec, len(train_pairs), train_from, train_to),
+            test_dataset,
+            train_from=train_from,
+            train_to=train_to,
+            eval_from=test_from,
+            eval_to=test_to,
+            plot_path=ml_learning_curve_plot_path(spec, len(train_pairs), train_from, test_to),
+            log_path=ml_learning_curve_log_path(spec, len(train_pairs), train_from, test_to),
             early_stopping_rounds=args.early_stopping_rounds,
         )
     else:
         fit_result = fit_lightgbm_full_train(train_dataset)
+        curve, lc_plot, lc_log, n_fit_rows, n_eval_rows, _, eval_period = record_learning_curve_diagnostic(
+            train_dataset,
+            test_dataset,
+            train_from=train_from,
+            train_to=train_to,
+            eval_from=test_from,
+            eval_to=test_to,
+            plot_path=ml_learning_curve_plot_path(spec, len(train_pairs), train_from, test_to),
+            log_path=ml_learning_curve_log_path(spec, len(train_pairs), train_from, test_to),
+        )
+        fit_result = replace(
+            fit_result,
+            learning_curve=curve,
+            learning_curve_plot_path=lc_plot,
+            learning_curve_log_path=lc_log,
+            n_fit_rows=n_fit_rows,
+            n_eval_rows=n_eval_rows,
+            eval_period=eval_period,
+        )
     model = fit_result.model
     y_train_prob = model.predict_proba(x_train)[:, 1]
     y_test_prob = model.predict_proba(x_test)[:, 1]
@@ -734,8 +777,10 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     early_stopping_meta = None
     if args.early_stopping:
         early_stopping_meta = {
+            "train_period": {"from": args.train_from, "to": args.train_to},
             "eval_period": fit_result.eval_period,
             "best_iteration": fit_result.best_iteration,
+            "early_stopping_rounds": args.early_stopping_rounds,
             "n_fit_rows": fit_result.n_fit_rows,
             "n_eval_rows": fit_result.n_eval_rows,
             "learning_curve_plot_path": (
@@ -790,6 +835,12 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
             "n_rows": train_dataset.frame.height,
             "n_estimators": fit_result.best_iteration,
             "early_stopping": early_stopping_meta,
+            "learning_curve_plot_path": (
+                str(fit_result.learning_curve_plot_path) if fit_result.learning_curve_plot_path else None
+            ),
+            "learning_curve_log_path": (
+                str(fit_result.learning_curve_log_path) if fit_result.learning_curve_log_path else None
+            ),
             "metrics": train_fit_metrics,
             "calibration_metrics": train_fit_calibration,
             "pair_metrics": _group_metrics(train_fit_oos, "pair"),
@@ -808,6 +859,8 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
             "correlation_matrix_plot_path": plot_paths.get("correlation_matrix_heatmap"),
             "shape_summary_plot_path": plot_paths.get("shape_summary_plot"),
             "feature_prob_dependence_plot_path": plot_paths.get("feature_prob_dependence"),
+            "prob_return_dependence_plot_path": plot_paths.get("prob_return_dependence"),
+            "compare_prob_cdf_plot_path": plot_paths.get("compare_prob_cdf"),
             "feature_correlations": plot_paths.get("feature_correlations"),
             "feature_predictive_plot_path": (
                 str(feature_predictive_plot_path) if feature_predictive_plot_path else None
@@ -817,110 +870,138 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     }
     out_path = args.output or _default_train_test_output_path(spec, len(train_pairs), train_from, test_to)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    policy_path = write_policy_from_train_test_payload(
+        payload,
+        spec,
+        n_pairs=len(train_pairs),
+        train_from=train_from,
+        test_to=test_to,
+        metrics_path=out_path,
+    )
+    log.info("[ml] policy saved: %s (t_long=%.4f t_short=%.4f)", policy_path, *(
+        float(json.loads(policy_path.read_text(encoding="utf-8"))["thresholds"][k])
+        for k in ("t_long", "t_short")
+    ))
+    compare_cdf_path = _auto_holdout_compare(
+        spec,
+        test_daily,
+        test_oos,
+        n_pairs=len(train_pairs),
+        train_from=train_from,
+        train_to=train_to,
+        test_to=test_to,
+    )
+    if compare_cdf_path is not None:
+        payload["plot_paths"]["compare_prob_cdf"] = str(compare_cdf_path)
+        payload["holdout_test"]["compare_prob_cdf_plot_path"] = str(compare_cdf_path)
     out_path.write_text(
         json.dumps(_round_json_floats(payload), indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
     log.info("[ml] train/test metrics saved: %s", out_path)
+    summary_path = ml_metrics_summary_path(spec, len(train_pairs), train_from, test_to)
+    _save_metrics_summary(
+        summary_path,
+        _build_metrics_summary(
+            train_cpcv_pooled=_pooled_metrics_from_oos_paths(train_cpcv.oos_paths),
+            train_fit=train_fit_metrics,
+            holdout_test=test_metrics,
+            holdout_test_by_weekday=test_weekday,
+        ),
+    )
     return out_path
 
 
-def _parse_path_overrides(pairs: list[str]) -> dict[str, Path]:
-    out: dict[str, Path] = {}
-    for item in pairs:
-        if "=" not in item:
-            raise ValueError(f"Ожидается MODEL_ID=PATH, получено: {item!r}")
-        model_id, raw = item.split("=", 1)
-        out[model_id.strip()] = Path(raw.strip()).expanduser()
-    return out
-
-
-def run_compare_models_pipeline(args: argparse.Namespace) -> dict[str, str]:
-    if not args.compare_models or len(args.compare_models) < 2:
-        raise RuntimeError("--compare-models: укажите минимум 2 модели")
-
-    model_ids = list(dict.fromkeys(args.compare_models))
-    if args.compare_baseline is not None:
-        if args.compare_baseline not in model_ids:
-            raise RuntimeError("--compare-baseline должен быть среди --compare-models")
-        model_ids = [args.compare_baseline] + [m for m in model_ids if m != args.compare_baseline]
-
-    workers = args.workers if args.workers is not None else _DEFAULT_WORKERS
-    pair_start_limit = parse_iso_utc(args.max_pair_start)
-    train_from = parse_iso_utc(args.train_from)
-    train_to = parse_iso_utc(args.train_to)
-    test_from = parse_iso_utc(args.test_from)
-    test_to = parse_iso_utc(args.test_to)
-    n_pairs = args.n_pairs
-
-    bundle_overrides = _parse_path_overrides(args.compare_model_bundle)
-    policy_overrides = _parse_path_overrides(args.compare_policy)
-
-    test_daily, test_pairs = load_full_pool_daily(
-        args.data_dir.expanduser().resolve(),
-        max_pair_start=pair_start_limit,
-        from_date=test_from,
-        to_date=test_to,
-        workers=workers,
-    )
-    log.info("[ml] compare holdout: pairs=%s rows=%s", len(test_pairs), test_daily.height)
-
-    entries = []
+def _resolve_compare_entries(
+    model_ids: list[str],
+    test_daily: pl.DataFrame,
+    *,
+    n_pairs: int,
+    train_from,
+    train_to,
+    test_to,
+    trained_spec=None,
+    trained_oos: pl.DataFrame | None = None,
+) -> list[CompareModelEntry]:
+    entries: list[CompareModelEntry] = []
     for model_id in model_ids:
-        entry = load_compare_model(
-            model_id,
+        spec = resolve_compare_model(model_id)
+        if (
+            trained_spec is not None
+            and trained_oos is not None
+            and compare_model_id(trained_spec) == model_id
+        ):
+            policy_path = ml_policy_path(spec, n_pairs, train_from, test_to)
+            entries.append(entry_from_trained(model_id, spec, trained_oos, policy_path))
+            continue
+        entries.append(
+            load_compare_model(
+                model_id,
+                test_daily,
+                n_pairs=n_pairs,
+                train_from=train_from,
+                train_to=train_to,
+                test_to=test_to,
+            )
+        )
+    return entries
+
+
+def _run_holdout_compare_cdf(
+    model_ids: list[str],
+    test_daily: pl.DataFrame,
+    *,
+    n_pairs: int,
+    train_from,
+    train_to,
+    test_to,
+    trained_spec,
+    trained_oos: pl.DataFrame,
+) -> Path | None:
+    if len(model_ids) < 2:
+        return None
+    entries = _resolve_compare_entries(
+        model_ids,
+        test_daily,
+        n_pairs=n_pairs,
+        train_from=train_from,
+        train_to=train_to,
+        test_to=test_to,
+        trained_spec=trained_spec,
+        trained_oos=trained_oos,
+    )
+    plot_path = ml_compare_prob_cdf_plot_path(trained_spec, n_pairs, train_from, test_to)
+    return save_prob_cdf_compare(entries, plot_path)
+
+
+def _auto_holdout_compare(
+    spec,
+    test_daily: pl.DataFrame,
+    test_oos: pl.DataFrame,
+    *,
+    n_pairs: int,
+    train_from,
+    train_to,
+    test_to,
+) -> Path | None:
+    model_ids = list(auto_compare_model_ids(spec))
+    if len(model_ids) < 2:
+        return None
+    try:
+        log.info("[ml] auto compare_prob_cdf: %s", model_ids)
+        return _run_holdout_compare_cdf(
+            model_ids,
             test_daily,
             n_pairs=n_pairs,
             train_from=train_from,
             train_to=train_to,
             test_to=test_to,
-            bundle_path=bundle_overrides.get(model_id),
-            policy_path=policy_overrides.get(model_id),
+            trained_spec=spec,
+            trained_oos=test_oos,
         )
-        y_prob = entry.oos["y_prob"].to_numpy()
-        log.info(
-            "[ml] compare %s: rows=%s mean_p_up=%.4f pred_up_rate=%.4f t_long=%.4f t_short=%.4f",
-            model_id,
-            entry.oos.height,
-            float(np.mean(y_prob)),
-            float((y_prob >= 0.5).mean()),
-            entry.t_long,
-            entry.t_short,
-        )
-        entries.append(entry)
-
-    plots_root = args.compare_output_dir or ml_compare_dir(model_ids, test_from, test_to)
-    plots_paths = save_all_compare_plots(entries, plots_root / "plots")
-    summary_path = plots_root / "compare_summary.json"
-    summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary = {
-        "model_ids": model_ids,
-        "holdout_test_period": {"from": args.test_from, "to": args.test_to},
-        "n_pairs": len(test_pairs),
-        "models": [
-            {
-                "model_id": e.model_id,
-                "t_long": e.t_long,
-                "t_short": e.t_short,
-                "mean_p_up": float(e.oos["y_prob"].mean()),
-                "pred_up_rate": float((e.oos["y_prob"].to_numpy() >= 0.5).mean()),
-                **{
-                    f"signal_{k}": v
-                    for k, v in signal_rates(
-                        e.oos["y_prob"].to_numpy(), e.t_long, e.t_short
-                    ).items()
-                },
-            }
-            for e in entries
-        ],
-        "plot_paths": plots_paths,
-    }
-    summary_path.write_text(
-        json.dumps(_round_json_floats(summary), indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    log.info("[ml] compare summary saved: %s", summary_path)
-    return plots_paths
+    except FileNotFoundError as exc:
+        log.warning("[ml] compare_prob_cdf skipped: %s", exc)
+        return None
 
 
 def run_ml_pipeline(args: argparse.Namespace) -> CPCVTrainResult:
@@ -959,16 +1040,6 @@ def run_ml_pipeline(args: argparse.Namespace) -> CPCVTrainResult:
 def main() -> int:
     args = parse_ml_args()
     _validate_ml_args(args)
-    if args.compare_models:
-        test_from = parse_iso_utc(args.test_from)
-        test_to = parse_iso_utc(args.test_to)
-        model_ids = list(dict.fromkeys(args.compare_models))
-        log_root = args.compare_output_dir or ml_compare_dir(model_ids, test_from, test_to)
-        log_file = add_file_logging(log_root / "compare.log")
-        log.info("[ml] compare models: %s", model_ids)
-        log.info("[ml] log file: %s", log_file)
-        run_compare_models_pipeline(args)
-        return 0
 
     spec = resolve_ml_study(args.studies)
     log.info("[ml] studies=%s features=%s output=%s", list(spec.studies), list(spec.feature_columns), spec.output_study)

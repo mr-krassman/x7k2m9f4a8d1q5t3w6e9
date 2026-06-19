@@ -14,7 +14,10 @@ import polars as pl
 from crypto_research.utils.ml.dataset import build_direction_dataset, dataset_to_numpy
 from crypto_research.utils.ml.numeric_features import bounds_map_from_bundle
 from crypto_research.utils.ml.registry import MlStudySpec, resolve_compare_model
+from crypto_research.utils.pipeline.logger import get_logger
 from crypto_research.utils.pipeline.paths import ml_model_bundle_path, ml_policy_path
+
+log = get_logger("ml_model_compare")
 
 
 @dataclass(frozen=True)
@@ -67,6 +70,30 @@ def predict_holdout_oos(
     )
 
 
+def entry_from_trained(
+    model_id: str,
+    spec: MlStudySpec,
+    oos: pl.DataFrame,
+    policy_path: Path,
+) -> CompareModelEntry:
+    if policy_path.is_file():
+        t_long, t_short = _load_policy_thresholds(policy_path, spec)
+    else:
+        t_long, t_short = 0.5, 0.5
+        log.warning(
+            "[ml] compare %s: policy не найден (%s), пороги 0.5/0.5",
+            model_id,
+            policy_path,
+        )
+    return CompareModelEntry(
+        model_id=model_id,
+        spec=spec,
+        oos=oos,
+        t_long=t_long,
+        t_short=t_short,
+    )
+
+
 def load_compare_model(
     model_id: str,
     daily: pl.DataFrame,
@@ -83,9 +110,10 @@ def load_compare_model(
     policy_path = policy_path or ml_policy_path(spec, n_pairs, train_from, test_to)
     if not bundle_path.is_file():
         raise FileNotFoundError(f"model bundle не найден: {bundle_path}")
-    if not policy_path.is_file():
-        raise FileNotFoundError(f"policy не найден: {policy_path}")
-    t_long, t_short = _load_policy_thresholds(policy_path, spec)
+    if policy_path.is_file():
+        t_long, t_short = _load_policy_thresholds(policy_path, spec)
+    else:
+        t_long, t_short = 0.5, 0.5
     oos = predict_holdout_oos(daily, spec=spec, bundle_path=bundle_path)
     return CompareModelEntry(
         model_id=model_id,

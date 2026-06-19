@@ -10,7 +10,12 @@ import numpy as np
 
 from crypto_research.utils.backtest.analytics import PortfolioAnalytics, WEEKDAY_NAMES
 from crypto_research.utils.backtest.fees import FeeSchedule
-from crypto_research.utils.backtest.scenarios import SCENARIO_REPORT_HEADER, EMA_SCENARIO_REPORT_HEADER, RSI_SCENARIO_REPORT_HEADER
+from crypto_research.utils.backtest.scenarios import (
+    EMA_SCENARIO_REPORT_HEADER,
+    PRICE_SEQ_SCENARIO_REPORT_HEADER,
+    RSI_SCENARIO_REPORT_HEADER,
+    SCENARIO_REPORT_HEADER,
+)
 from crypto_research.utils.backtest.bundle_registry import is_algo_bundle_id
 from crypto_research.utils.ml.registry import is_ml_backtest_strategy, is_ml_study_id
 
@@ -43,12 +48,14 @@ class BacktestResult:
     avg_active_pairs_by_weekday: dict[int, float] | None = None
     avg_long_pairs_by_weekday: dict[int, int] | None = None
     avg_short_pairs_by_weekday: dict[int, int] | None = None
+    weekday_total_ret_by_side: dict[str, dict[str, dict[int, float]]] | None = None
     n_benchmark_pairs: int = 49
     exposure_note: str = "Капитал в рынке только в Чт/Пт/Сб."
     by_segment_net: dict[str, PortfolioAnalytics] | None = None
     by_segment_gross: dict[str, PortfolioAnalytics] | None = None
     trading_segments: tuple[str, ...] = ()
     selected_pairs: list[str] | None = None
+    selected_pairs_by_segment: dict[str, list[str]] | None = None
     plot_layout: str = "weekday"
 
 
@@ -287,15 +294,27 @@ def _weekday_table(
     avg_active_pairs_by_weekday: dict[int, float] | None = None,
     avg_long_pairs_by_weekday: dict[int, int] | None = None,
     avg_short_pairs_by_weekday: dict[int, int] | None = None,
+    *,
+    return_column: str | None = None,
+    weekday_total_ret_by_side: dict[str, dict[str, dict[int, float]]] | None = None,
 ) -> list[str]:
     lines = [title, ""]
+    side_totals = (weekday_total_ret_by_side or {}).get(return_column or "", {})
+    long_totals = side_totals.get("long", {})
+    short_totals = side_totals.get("short", {})
+    show_side_ret = bool(side_totals)
     if avg_active_pairs_by_weekday is not None:
         header = (
-            "День | Trades | Пары | Long | Short | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD"
+            "День | Trades | Пары | Long | Short | Total Ret | Ret (long) | Ret (short) | "
+            "Avg trade | Median | σ trade | Sharpe | MaxDD"
+            if show_side_ret
+            else "День | Trades | Пары | Long | Short | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD"
         )
     else:
         header = (
-            "День | Trades | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD"
+            "День | Trades | Total Ret | Ret (long) | Ret (short) | Avg trade | Median | σ trade | Sharpe | MaxDD"
+            if show_side_ret
+            else "День | Trades | Total Ret | Avg trade | Median | σ trade | Sharpe | MaxDD"
         )
     lines.extend([header, "-" * len(header)])
     for wd in trading_weekdays:
@@ -309,9 +328,15 @@ def _weekday_table(
                 f"{(avg_long_pairs_by_weekday or {}).get(wd, 0):>4d} | "
                 f"{(avg_short_pairs_by_weekday or {}).get(wd, 0):>5d} | "
             )
+        side_ret_cell = ""
+        if show_side_ret:
+            side_ret_cell = (
+                f"{_fmt_pct(long_totals.get(wd, 0.0)):>10} | "
+                f"{_fmt_pct(short_totals.get(wd, 0.0)):>11} | "
+            )
         lines.append(
             f"{WEEKDAY_NAMES[wd]:4} | {n_trades:6} | {pairs_cell}"
-            f"{_fmt_pct(m.total_return_pct):>9} | "
+            f"{_fmt_pct(m.total_return_pct):>9} | {side_ret_cell}"
             f"{_fmt_pct(a.avg_trading_day_pct, 3):>9} | "
             f"{_fmt_pct(a.trade_median_pct, 3):>6} | "
             f"{_fmt_pct(a.trade_std_pct, 3):>7} | "
@@ -363,6 +388,8 @@ def format_backtest_report(result: BacktestResult) -> str:
         header = EMA_SCENARIO_REPORT_HEADER.get(result.scenario, header)
     if result.strategy == "rsi_spreads":
         header = RSI_SCENARIO_REPORT_HEADER.get(result.scenario, header)
+    if result.strategy == "price_sequences":
+        header = PRICE_SEQ_SCENARIO_REPORT_HEADER.get(result.scenario, header)
     if header:
         lines.append(header)
     lines.extend([
@@ -388,7 +415,15 @@ def format_backtest_report(result: BacktestResult) -> str:
             )
         else:
             lines.extend(_pairs_by_weekday_block(result.pairs_by_weekday))
-    if result.selected_pairs is not None:
+    if result.selected_pairs_by_segment:
+        for label, pairs in result.selected_pairs_by_segment.items():
+            lines.extend(
+                _selected_pairs_block(
+                    pairs,
+                    f"=== Пары {label} (train-отбор, optimistic) ===",
+                )
+            )
+    elif result.selected_pairs is not None:
         lines.extend(
             _selected_pairs_block(
                 result.selected_pairs,
@@ -414,10 +449,14 @@ def format_backtest_report(result: BacktestResult) -> str:
             "avg_active_pairs_by_weekday": result.avg_active_pairs_by_weekday,
             "avg_long_pairs_by_weekday": result.avg_long_pairs_by_weekday,
             "avg_short_pairs_by_weekday": result.avg_short_pairs_by_weekday,
+            "weekday_total_ret_by_side": result.weekday_total_ret_by_side,
         }
         if result.avg_active_pairs_by_weekday is not None:
             lines.append(
                 "Пары — среднее число активных пар в день недели; Long/Short — общее число сделок за период."
+            )
+            lines.append(
+                "Ret (long) / Ret (short) — Total Return портфеля только по long/short сделкам этого дня недели."
             )
             lines.append("")
         lines.extend(
@@ -425,6 +464,7 @@ def format_backtest_report(result: BacktestResult) -> str:
                 "=== By weekday (net maker) ===",
                 result.by_weekday_net_maker,
                 result.trading_weekdays,
+                return_column="net_maker_return_pct",
                 **wd_kw,
             )
         )
@@ -433,6 +473,7 @@ def format_backtest_report(result: BacktestResult) -> str:
                 "=== By weekday (gross) ===",
                 result.by_weekday_gross,
                 result.trading_weekdays,
+                return_column="gross_return_pct",
                 **wd_kw,
             )
         )

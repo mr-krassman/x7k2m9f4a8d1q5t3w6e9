@@ -12,6 +12,7 @@ from crypto_research.utils.backtest.analytics import (
     PortfolioAnalytics,
     analytics_by_weekday,
     avg_active_long_short_pairs_by_weekday,
+    weekday_total_ret_by_side,
     build_strategy_portfolio_analytics,
     build_portfolio_analytics,
     build_portfolio_daily_weighted,
@@ -219,6 +220,7 @@ def run_day_of_week_backtest(
     ir_maker = information_ratio(strat_maker, bh_ret)
     corr = weekday_correlation_matrix(portfolio, "net_maker_return_pct")
     active_pairs, long_pairs, short_pairs = avg_active_long_short_pairs_by_weekday(pair_returns)
+    side_totals = weekday_total_ret_by_side(pair_returns, peak_pairs)
 
     result = BacktestResult(
         strategy=STRATEGY_NAME,
@@ -244,6 +246,7 @@ def run_day_of_week_backtest(
         avg_active_pairs_by_weekday=active_pairs,
         avg_long_pairs_by_weekday=long_pairs,
         avg_short_pairs_by_weekday=short_pairs,
+        weekday_total_ret_by_side=side_totals,
         n_benchmark_pairs=ctx.n_benchmark_pairs,
     )
 

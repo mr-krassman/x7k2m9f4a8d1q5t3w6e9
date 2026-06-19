@@ -14,10 +14,10 @@ from crypto_research.utils.pipeline.paths import DEFAULT_DATA_DIR
 
 def _strategy_help() -> str:
     return (
-        "rule-based: day_of_week | ema_spreads | rsi_spreads | "
-        "day_of_week ema_spreads [rsi_spreads] --mode and|or; "
-        "ML: day_of_week_ml | ema_spreads_ml | rsi_spreads_ml | "
-        "day_of_week_ml ema_spreads_ml [rsi_spreads_ml]"
+        "rule-based: day_of_week | ema_spreads | rsi_spreads | price_sequences | "
+        "day_of_week ema_spreads [rsi_spreads [price_sequences]] --mode and|or; "
+        "ML: day_of_week_ml | ema_spreads_ml | rsi_spreads_ml | price_sequences_ml | "
+        "day_of_week_ml ema_spreads_ml [rsi_spreads_ml [price_sequences_ml]]"
     )
 
 

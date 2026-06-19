@@ -11,6 +11,7 @@ import polars as pl
 from crypto_research.utils.backtest.analytics import (
     analytics_by_weekday,
     avg_active_long_short_pairs_by_weekday,
+    weekday_total_ret_by_side,
     build_strategy_portfolio_analytics,
     build_portfolio_analytics,
     build_portfolio_daily_weighted,
@@ -42,6 +43,9 @@ from crypto_research.utils.backtest.report import BacktestResult, save_backtest_
 from crypto_research.utils.backtest.scenarios import SCENARIO_OPTIMISTIC
 from crypto_research.utils.backtest.strategies.day_of_week import build_pair_returns as build_dow_pair_returns
 from crypto_research.utils.backtest.strategies.ema_spreads import build_pair_returns as build_ema_pair_returns
+from crypto_research.utils.backtest.strategies.price_sequences import (
+    build_pair_returns as build_ps_pair_returns,
+)
 from crypto_research.utils.backtest.strategies.rsi_spreads import build_pair_returns as build_rsi_pair_returns
 from crypto_research.utils.pipeline.logger import get_logger
 
@@ -66,6 +70,7 @@ class CombinedAlgoBacktestContext:
     pairs_by_weekday: dict[int, list[str]] | None = None
     ema_selected_pairs: list[str] | None = None
     rsi_selected_pairs: list[str] | None = None
+    ps_pairs_by_segment: dict[str, list[str]] | None = None
     frozen_thresholds: pl.DataFrame | None = None
     frozen_edges: np.ndarray | None = None
     ema_period: int = 9
@@ -219,6 +224,16 @@ def _build_study_returns(daily: pl.DataFrame, ctx: CombinedAlgoBacktestContext) 
                     to_date=ctx.to_date,
                 )
             )
+        elif study == "price_sequences":
+            out.append(
+                build_ps_pair_returns(
+                    daily,
+                    ctx.fee,
+                    pairs_by_segment=ctx.ps_pairs_by_segment,
+                    from_date=ctx.from_date,
+                    to_date=ctx.to_date,
+                )
+            )
         else:
             raise ValueError(f"Неизвестная стратегия в combined algo: {study}")
     return out
@@ -273,6 +288,7 @@ def run_combined_algo_backtest(
     ir_maker = information_ratio(merged["net_maker_return_pct"].to_numpy(), merged["bh"].to_numpy())
     corr = weekday_correlation_matrix(portfolio, "net_maker_return_pct")
     active_pairs, long_pairs, short_pairs = avg_active_long_short_pairs_by_weekday(pair_returns)
+    side_totals = weekday_total_ret_by_side(pair_returns, peak_pairs)
     trading_weekdays = tuple(range(7))
     studies_label = "+".join(s.upper() for s in ctx.algo_spec.studies)
 
@@ -280,8 +296,14 @@ def run_combined_algo_backtest(
         f"{STRATEGY_DESCRIPTION}\n"
         f"  Bundle: {ctx.algo_spec.bundle_id}; studies: {', '.join(ctx.algo_spec.studies)}; mode={mode}."
     )
+    ps_union = set()
+    if ctx.ps_pairs_by_segment:
+        for pairs in ctx.ps_pairs_by_segment.values():
+            ps_union.update(pairs)
     selected = sorted(
-        set(ctx.ema_selected_pairs or []) | set(ctx.rsi_selected_pairs or [])
+        set(ctx.ema_selected_pairs or [])
+        | set(ctx.rsi_selected_pairs or [])
+        | ps_union
     ) or None
     result = BacktestResult(
         strategy=ctx.strategy_name,
@@ -309,6 +331,7 @@ def run_combined_algo_backtest(
         avg_active_pairs_by_weekday=active_pairs,
         avg_long_pairs_by_weekday=long_pairs,
         avg_short_pairs_by_weekday=short_pairs,
+        weekday_total_ret_by_side=side_totals,
         n_benchmark_pairs=ctx.n_benchmark_pairs,
         selected_pairs=selected,
         exposure_note=(

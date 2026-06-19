@@ -30,10 +30,16 @@ LW_BENCH = 1.3
 LW_WEEKDAY_DD = 1.2
 
 WEEKDAY_DD_COLORS: dict[int, str] = {
+    0: "#7c3aed",  # Пн
+    1: "#0891b2",  # Вт
+    2: "#059669",  # Ср
     3: "#2563eb",  # Чт
     4: "#d97706",  # Пт
-    5: "#059669",  # Сб
+    5: "#db2777",  # Сб
+    6: "#64748b",  # Вс
 }
+
+ALL_WEEKDAYS: tuple[int, ...] = tuple(range(7))
 
 
 def _apply_style() -> None:
@@ -223,7 +229,6 @@ def save_drawdown_plot(
     trading_weekdays: tuple[int, ...] = (3, 4, 5),
     scenario_label: str | None = None,
     path: Path,
-    layout: str = "weekday",
 ) -> Path:
     _apply_style()
     dates = portfolio["day_utc"].to_numpy()
@@ -232,7 +237,7 @@ def save_drawdown_plot(
     dd_total = _drawdown_for_weekday(maker, weekdays, None)
 
     fig, ax = plt.subplots(figsize=(FIG_W, 5.5), dpi=PLOT_DPI)
-    if layout != "simple" and trading_weekdays:
+    if trading_weekdays:
         for wd in trading_weekdays:
             dd_wd = _drawdown_for_weekday(maker, weekdays, wd)
             color = WEEKDAY_DD_COLORS.get(wd, "#64748b")

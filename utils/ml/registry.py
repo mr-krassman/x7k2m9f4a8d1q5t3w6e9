@@ -8,17 +8,20 @@ from crypto_research.utils.pipeline.study_ids import (
     STUDY_COMBINED,
     STUDY_DAY_OF_WEEK,
     STUDY_EMA_SPREADS,
+    STUDY_PRICE_SEQUENCES,
     STUDY_RSI_SPREADS,
 )
 
 ML_STUDY_DAY_OF_WEEK = "day_of_week_ml"
 ML_STUDY_EMA_SPREADS = "ema_spreads_ml"
 ML_STUDY_RSI_SPREADS = "rsi_spreads_ml"
+ML_STUDY_PRICE_SEQUENCES = "price_sequences_ml"
 
 ML_STUDY_ORDER: tuple[str, ...] = (
     ML_STUDY_DAY_OF_WEEK,
     ML_STUDY_EMA_SPREADS,
     ML_STUDY_RSI_SPREADS,
+    ML_STUDY_PRICE_SEQUENCES,
 )
 ML_STUDY_CHOICES: tuple[str, ...] = ML_STUDY_ORDER
 
@@ -26,10 +29,13 @@ FEATURE_PAIR_ID = "pair_id"
 FEATURE_WEEKDAY_ENC = "weekday_enc"
 FEATURE_EMA_DEV_PAIR_NORM = "ema_dev_pair_norm"
 FEATURE_RSI_PAIR_NORM = "rsi_pair_norm"
+FEATURE_STREAK_PAIR_NORM = "streak_pair_norm"
 
 CATEGORICAL_FEATURES: frozenset[str] = frozenset({FEATURE_PAIR_ID, FEATURE_WEEKDAY_ENC})
 
-RULE_BASED_STRATEGIES: frozenset[str] = frozenset({"day_of_week", "ema_spreads", "rsi_spreads"})
+RULE_BASED_STRATEGIES: frozenset[str] = frozenset(
+    {"day_of_week", "ema_spreads", "rsi_spreads", "price_sequences"}
+)
 
 
 @dataclass(frozen=True)
@@ -81,6 +87,16 @@ ML_STUDY_REGISTRY: dict[str, MlStudyEntry] = {
         predictive_feature=FEATURE_RSI_PAIR_NORM,
         predictive_plot_slug="rsi",
     ),
+    ML_STUDY_PRICE_SEQUENCES: MlStudyEntry(
+        study_id=ML_STUDY_PRICE_SEQUENCES,
+        short_id="streak",
+        extra_features=(FEATURE_STREAK_PAIR_NORM,),
+        output_study=STUDY_PRICE_SEQUENCES,
+        legacy_output_tag=False,
+        policy_mode="global",
+        predictive_feature=FEATURE_STREAK_PAIR_NORM,
+        predictive_plot_slug="streak",
+    ),
 }
 
 COMBINED_BUNDLE_REGISTRY: dict[tuple[str, ...], CombinedBundleEntry] = {
@@ -94,6 +110,22 @@ COMBINED_BUNDLE_REGISTRY: dict[tuple[str, ...], CombinedBundleEntry] = {
         bundle_id="dow_ema_rsi_sp",
         studies=(ML_STUDY_DAY_OF_WEEK, ML_STUDY_EMA_SPREADS, ML_STUDY_RSI_SPREADS),
         feature_slug="dow_ema_rsi",
+        policy_mode="weekday",
+    ),
+    (
+        ML_STUDY_DAY_OF_WEEK,
+        ML_STUDY_EMA_SPREADS,
+        ML_STUDY_RSI_SPREADS,
+        ML_STUDY_PRICE_SEQUENCES,
+    ): CombinedBundleEntry(
+        bundle_id="dow_ema_rsi_streak",
+        studies=(
+            ML_STUDY_DAY_OF_WEEK,
+            ML_STUDY_EMA_SPREADS,
+            ML_STUDY_RSI_SPREADS,
+            ML_STUDY_PRICE_SEQUENCES,
+        ),
+        feature_slug="dow_ema_rsi_streak",
         policy_mode="weekday",
     ),
 }
@@ -187,6 +219,25 @@ def resolve_ml_study(studies: list[str] | tuple[str, ...]) -> MlStudySpec:
         predictive_feature=entry.predictive_feature,
         predictive_plot_slug=entry.predictive_plot_slug,
     )
+
+
+def immediate_parent_bundle_id(spec: MlStudySpec) -> str | None:
+    if not spec.bundle_id or len(spec.studies) <= 1:
+        return None
+    parent = combined_bundle_for(spec.studies[:-1])
+    return parent.bundle_id if parent else None
+
+
+def compare_model_id(spec: MlStudySpec) -> str:
+    return spec.bundle_id or spec.studies[0]
+
+
+def auto_compare_model_ids(spec: MlStudySpec) -> tuple[str, ...]:
+    current = compare_model_id(spec)
+    parent = immediate_parent_bundle_id(spec)
+    if parent is None:
+        return (current,)
+    return (parent, current)
 
 
 def resolve_compare_model(model_id: str) -> MlStudySpec:

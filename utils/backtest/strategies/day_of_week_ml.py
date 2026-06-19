@@ -13,6 +13,7 @@ from crypto_research.utils.backtest.analytics import (
     PortfolioAnalytics,
     analytics_by_weekday,
     avg_active_long_short_pairs_by_weekday,
+    weekday_total_ret_by_side,
     build_strategy_portfolio_analytics,
     build_portfolio_analytics,
     build_portfolio_daily_weighted,
@@ -45,6 +46,7 @@ from crypto_research.utils.ml.numeric_features import (
     NUMERIC_FEATURE_SPECS,
     attach_normalized_features,
     bounds_map_from_bundle,
+    needs_return_pct,
 )
 from crypto_research.utils.ml.registry import FEATURE_PAIR_ID, FEATURE_WEEKDAY_ENC
 from crypto_research.utils.pipeline.logger import get_logger
@@ -113,8 +115,11 @@ def _attach_numeric_features(df: pl.DataFrame, model_bundle: dict) -> pl.DataFra
     feature_columns = list(model_bundle["feature_columns"])
     if not any(c in NUMERIC_FEATURE_SPECS for c in feature_columns):
         return df
+    base_cols = ["day_utc", "pair", "day_close"]
+    if needs_return_pct(feature_columns):
+        base_cols.append("return_pct")
     work = (
-        df.select("day_utc", "pair", "day_close")
+        df.select([c for c in base_cols if c in df.columns])
         .with_row_count("row_idx")
         .sort(["pair", "day_utc"])
     )
@@ -259,6 +264,7 @@ def run_day_of_week_ml_backtest(
     ir_maker = information_ratio(merged["net_maker_return_pct"].to_numpy(), merged["bh"].to_numpy())
     corr = weekday_correlation_matrix(portfolio, "net_maker_return_pct")
     active_pairs, long_pairs, short_pairs = avg_active_long_short_pairs_by_weekday(pair_returns)
+    side_totals = weekday_total_ret_by_side(pair_returns, peak_pairs)
 
     result = BacktestResult(
         strategy=ctx.strategy_name,
@@ -284,6 +290,7 @@ def run_day_of_week_ml_backtest(
         avg_active_pairs_by_weekday=active_pairs,
         avg_long_pairs_by_weekday=long_pairs,
         avg_short_pairs_by_weekday=short_pairs,
+        weekday_total_ret_by_side=side_totals,
         n_benchmark_pairs=ctx.n_benchmark_pairs,
         selected_pairs=ctx.policy.allowed_pairs,
         exposure_note=(
