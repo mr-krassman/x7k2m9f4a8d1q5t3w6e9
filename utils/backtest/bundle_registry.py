@@ -8,9 +8,10 @@ from typing import Literal
 
 from crypto_research.utils.ml.registry import (
     RULE_BASED_STRATEGIES,
+    RULE_BASED_TO_ML_STUDY,
     MlStudySpec,
+    bundle_id_for_ml_studies,
     canonical_ml_studies,
-    combined_bundle_for,
     is_ml_study_id,
     resolve_ml_study,
 )
@@ -23,6 +24,7 @@ ALGO_STUDY_ORDER: tuple[str, ...] = (
     "ema_spreads",
     "rsi_spreads",
     "price_sequences",
+    "volume_spreads",
 )
 
 COMBINE_MODE_OR: CombineMode = "or"
@@ -65,6 +67,22 @@ ALGO_BUNDLE_REGISTRY: dict[tuple[str, ...], AlgoBundleEntry] = {
         bundle_id="dow_ema_rsi_streak",
         studies=("day_of_week", "ema_spreads", "rsi_spreads", "price_sequences"),
     ),
+    (
+        "day_of_week",
+        "ema_spreads",
+        "rsi_spreads",
+        "price_sequences",
+        "volume_spreads",
+    ): AlgoBundleEntry(
+        bundle_id="dow_ema_rsi_streak_vol",
+        studies=(
+            "day_of_week",
+            "ema_spreads",
+            "rsi_spreads",
+            "price_sequences",
+            "volume_spreads",
+        ),
+    ),
 }
 
 ALGO_BUNDLE_ID_TO_STUDIES: dict[str, tuple[str, ...]] = {
@@ -88,6 +106,16 @@ def algo_bundle_for(studies: tuple[str, ...]) -> AlgoBundleEntry | None:
     if len(studies) <= 1:
         return None
     return ALGO_BUNDLE_REGISTRY.get(studies)
+
+
+def resolve_algo_bundle(studies: tuple[str, ...]) -> AlgoBundleEntry:
+    ordered = canonical_algo_studies(studies)
+    registered = algo_bundle_for(ordered)
+    if registered is not None:
+        return registered
+    ml_studies = tuple(RULE_BASED_TO_ML_STUDY[study_id] for study_id in ordered)
+    bundle_id, _ = bundle_id_for_ml_studies(ml_studies)
+    return AlgoBundleEntry(bundle_id=bundle_id, studies=ordered)
 
 
 def combined_bundle_root(bundle_id: str) -> Path:
@@ -133,17 +161,12 @@ def parse_backtest_strategy_args(
 
     try:
         ml_names = canonical_ml_studies(raw)
-        if len(ml_names) == len(raw):
-            bundle = combined_bundle_for(ml_names)
-            if bundle is None:
-                raise ValueError(
-                    f"Нет зарегистрированного ML bundle для: {list(ml_names)}"
-                )
+        if len(ml_names) == len(raw) and len(ml_names) > 1:
             spec = resolve_ml_study(ml_names)
             return ParsedBacktestStrategies(
-                strategy_key=bundle.bundle_id,
+                strategy_key=spec.bundle_id,
                 ml_spec=spec,
-                bundle_id=bundle.bundle_id,
+                bundle_id=spec.bundle_id,
                 bundle_kind="ml",
             )
     except ValueError:
@@ -155,24 +178,22 @@ def parse_backtest_strategy_args(
             "Смешивание rule-based, ML и неизвестных стратегий в одном запуске не поддерживается; "
             f"получено: {raw}"
         )
-    bundle = algo_bundle_for(algo_names)
-    if bundle is None:
-        raise ValueError(
-            f"Нет зарегистрированного algo bundle для: {list(algo_names)}. "
-            "Добавьте запись в ALGO_BUNDLE_REGISTRY."
-        )
-    if combine_mode is None:
-        raise ValueError(
-            f"Для combined rule-based ({' '.join(algo_names)}) укажите --mode and или --mode or"
-        )
-    return ParsedBacktestStrategies(
-        strategy_key=bundle.bundle_id,
-        algo_spec=AlgoBundleSpec(
+    if len(algo_names) > 1:
+        bundle = resolve_algo_bundle(algo_names)
+        if combine_mode is None:
+            raise ValueError(
+                f"Для combined rule-based ({' '.join(algo_names)}) укажите --mode and или --mode or"
+            )
+        return ParsedBacktestStrategies(
+            strategy_key=bundle.bundle_id,
+            algo_spec=AlgoBundleSpec(
+                bundle_id=bundle.bundle_id,
+                studies=bundle.studies,
+                combine_mode=combine_mode,
+            ),
             bundle_id=bundle.bundle_id,
-            studies=bundle.studies,
+            bundle_kind="algo",
             combine_mode=combine_mode,
-        ),
-        bundle_id=bundle.bundle_id,
-        bundle_kind="algo",
-        combine_mode=combine_mode,
-    )
+        )
+
+    raise ValueError(f"Неизвестная стратегия: {raw[0]}")

@@ -69,6 +69,15 @@ PRICE_SEQ_SCENARIO_REPORT_HEADER: dict[str, str] = {
     ),
 }
 
+VOLUME_SCENARIO_REPORT_HEADER: dict[str, str] = {
+    SCENARIO_CONSERVATIVE: (
+        "Сценарий: консервативный (val, все 49 пар, b2 HIGH long, пороги frozen train)"
+    ),
+    SCENARIO_OPTIMISTIC: (
+        "Сценарий: оптимистичный (val, train-отбор пар по b2 HIGH × «Цена росла»)"
+    ),
+}
+
 VAL_FROM = TEMPORAL_VAL_FROM
 VAL_TO = TEMPORAL_VAL_TO
 OPTIMISTIC_TRAIN_FROM = TEMPORAL_TRAIN_FROM

@@ -15,6 +15,7 @@ from crypto_research.utils.backtest.scenarios import (
     PRICE_SEQ_SCENARIO_REPORT_HEADER,
     RSI_SCENARIO_REPORT_HEADER,
     SCENARIO_REPORT_HEADER,
+    VOLUME_SCENARIO_REPORT_HEADER,
 )
 from crypto_research.utils.backtest.bundle_registry import is_algo_bundle_id
 from crypto_research.utils.ml.registry import is_ml_backtest_strategy, is_ml_study_id
@@ -390,6 +391,8 @@ def format_backtest_report(result: BacktestResult) -> str:
         header = RSI_SCENARIO_REPORT_HEADER.get(result.scenario, header)
     if result.strategy == "price_sequences":
         header = PRICE_SEQ_SCENARIO_REPORT_HEADER.get(result.scenario, header)
+    if result.strategy == "volume_spreads":
+        header = VOLUME_SCENARIO_REPORT_HEADER.get(result.scenario, header)
     if header:
         lines.append(header)
     lines.extend([

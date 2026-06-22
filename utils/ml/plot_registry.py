@@ -12,6 +12,10 @@ import polars as pl
 from crypto_research.utils.ml.cpcv_train import CPCVTrainResult
 from crypto_research.utils.ml.dataset import DirectionDataset, dataset_to_numpy
 from crypto_research.utils.ml.feature_dependence_plot import save_feature_prob_dependence_plot
+from crypto_research.utils.ml.p_up_density_split_plot import (
+    compute_p_up_split_threshold,
+    save_p_up_density_split_plot,
+)
 from crypto_research.utils.ml.prob_return_dependence_plot import save_prob_return_dependence_plot
 from crypto_research.utils.ml.feature_diagnostic_plots import save_correlation_matrix_heatmap
 from crypto_research.utils.ml.feature_predictive_plot import save_metrics_over_feature_plot
@@ -29,6 +33,7 @@ from crypto_research.utils.pipeline.paths import (
     ml_correlation_matrix_plot_path,
     ml_feature_prob_dependence_plot_path,
     ml_prob_return_dependence_plot_path,
+    ml_p_up_density_split_plot_path,
     ml_feature_predictive_plot_path,
     ml_oos_calibration_plot_path,
     ml_oos_plot_path,
@@ -39,6 +44,19 @@ from crypto_research.utils.pipeline.paths import (
 
 log = get_logger("ml_plot_registry")
 
+# Пороги из графиков не дублируются в plot_paths train_test.json — только на корне payload.
+PLOT_PATH_METADATA_KEYS: tuple[str, ...] = ("prob_return_thresholds", "p_up_split_threshold")
+
+
+def extract_plot_path_metadata(plot_paths: dict[str, object]) -> dict[str, object]:
+    """Вынимает пороги из plot_paths; в JSON они пишутся один раз на корне."""
+    meta: dict[str, object] = {}
+    for key in PLOT_PATH_METADATA_KEYS:
+        if key in plot_paths:
+            meta[key] = plot_paths.pop(key)
+    return meta
+
+
 ML_PLOT_CORRELATION_MATRIX = "correlation_matrix_heatmap"
 ML_PLOT_SHAPE_SUMMARY = "shape_summary_plot"
 ML_PLOT_OOS_PROB = "oos_prob"
@@ -48,6 +66,7 @@ ML_PLOT_ROC_AUC = "roc_auc"
 ML_PLOT_FEATURE_PREDICTIVE = "feature_predictive"
 ML_PLOT_FEATURE_PROB_DEPENDENCE = "feature_prob_dependence"
 ML_PLOT_PROB_RETURN_DEPENDENCE = "prob_return_dependence"
+ML_PLOT_P_UP_DENSITY_SPLIT = "p_up_density_split"
 ML_PLOT_LEARNING_CURVE = "learning_curve"
 
 ML_PLOT_ALIASES: dict[str, str] = {
@@ -64,6 +83,8 @@ ML_PLOT_ALIASES: dict[str, str] = {
     "dependence_plot": ML_PLOT_FEATURE_PROB_DEPENDENCE,
     ML_PLOT_PROB_RETURN_DEPENDENCE: ML_PLOT_PROB_RETURN_DEPENDENCE,
     "prob_vs_return": ML_PLOT_PROB_RETURN_DEPENDENCE,
+    ML_PLOT_P_UP_DENSITY_SPLIT: ML_PLOT_P_UP_DENSITY_SPLIT,
+    "p_up_split": ML_PLOT_P_UP_DENSITY_SPLIT,
     ML_PLOT_LEARNING_CURVE: ML_PLOT_LEARNING_CURVE,
 }
 
@@ -77,6 +98,7 @@ DEFAULT_TRAIN_TEST_PLOTS: tuple[str, ...] = (
     ML_PLOT_SHAPE_SUMMARY,
     ML_PLOT_FEATURE_PROB_DEPENDENCE,
     ML_PLOT_PROB_RETURN_DEPENDENCE,
+    ML_PLOT_P_UP_DENSITY_SPLIT,
 )
 
 ML_PLOT_CHOICES: tuple[str, ...] = tuple(dict.fromkeys(ML_PLOT_ALIASES.values()))
@@ -95,6 +117,7 @@ class MlPlotContext:
     test_oos: pl.DataFrame
     y_test: np.ndarray
     y_test_prob: np.ndarray
+    y_train_prob: np.ndarray | None = None
     train_dataset: DirectionDataset | None = None
     train_fit_oos: pl.DataFrame | None = None
     train_cpcv: CPCVTrainResult | None = None
@@ -159,24 +182,34 @@ def _plot_feature_prob_dependence(ctx: MlPlotContext) -> dict[str, str]:
 
 
 def _plot_prob_return_dependence(ctx: MlPlotContext) -> dict[str, str]:
-    train_oos = None
-    if ctx.train_cpcv is not None and ctx.train_cpcv.oos_predictions is not None:
-        train_oos = ctx.train_cpcv.oos_predictions
-    elif ctx.train_fit_oos is not None:
-        train_oos = ctx.train_fit_oos
     if ctx.train_dataset is None:
         raise RuntimeError("prob_return_dependence: нет train_dataset")
-    path = save_prob_return_dependence_plot(
+    if ctx.y_train_prob is None:
+        raise RuntimeError("prob_return_dependence: нет y_train_prob (нужен fit или frozen bundle)")
+    path, thresholds = save_prob_return_dependence_plot(
         ml_prob_return_dependence_plot_path(ctx.spec, ctx.n_pairs, ctx.test_from, ctx.test_to),
         train_frame=ctx.train_dataset.frame,
         test_frame=ctx.test_dataset.frame,
         test_y_prob=ctx.y_test_prob,
-        train_oos=train_oos,
+        train_y_prob=ctx.y_train_prob,
         title="return open→close vs P(up)",
         train_label=f"train {ctx.train_from:%Y-%m-%d}..{ctx.train_to:%Y-%m-%d}",
         test_label=f"test {ctx.test_from:%Y-%m-%d}..{ctx.test_to:%Y-%m-%d}",
     )
-    return {"prob_return_dependence": str(path)}
+    return {"prob_return_dependence": str(path), "prob_return_thresholds": thresholds}
+
+
+def _plot_p_up_density_split(ctx: MlPlotContext) -> dict[str, object]:
+    if ctx.y_train_prob is None:
+        raise RuntimeError("p_up_density_split: нет y_train_prob (нужен fit или frozen bundle)")
+    path, split = save_p_up_density_split_plot(
+        ml_p_up_density_split_plot_path(ctx.spec, ctx.n_pairs, ctx.train_from, ctx.train_to),
+        train_y_prob=ctx.y_train_prob,
+        test_y_prob=ctx.y_test_prob,
+        train_label=f"train {ctx.train_from:%Y-%m-%d}..{ctx.train_to:%Y-%m-%d}",
+        test_label=f"test {ctx.test_from:%Y-%m-%d}..{ctx.test_to:%Y-%m-%d}",
+    )
+    return {"p_up_density_split": str(path), "p_up_split_threshold": split}
 
 
 def _plot_oos_prob(ctx: MlPlotContext) -> dict[str, str]:
@@ -263,6 +296,7 @@ _PLOT_HANDLERS: dict[str, Callable[[MlPlotContext], dict[str, object]]] = {
     ML_PLOT_SHAPE_SUMMARY: _plot_shape_summary,
     ML_PLOT_FEATURE_PROB_DEPENDENCE: _plot_feature_prob_dependence,
     ML_PLOT_PROB_RETURN_DEPENDENCE: _plot_prob_return_dependence,
+    ML_PLOT_P_UP_DENSITY_SPLIT: _plot_p_up_density_split,
     ML_PLOT_OOS_PROB: _plot_oos_prob,
     ML_PLOT_OOS_CALIBRATION: _plot_oos_calibration,
     ML_PLOT_WEEKDAY_PAIR_SUMMARY: _plot_weekday_pair_summary,

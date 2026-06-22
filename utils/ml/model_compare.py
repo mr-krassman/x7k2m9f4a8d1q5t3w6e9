@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import pickle
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,8 +13,12 @@ import polars as pl
 from crypto_research.utils.ml.dataset import build_direction_dataset, dataset_to_numpy
 from crypto_research.utils.ml.numeric_features import bounds_map_from_bundle
 from crypto_research.utils.ml.registry import MlStudySpec, resolve_compare_model
+from crypto_research.utils.ml.trading_thresholds import (
+    load_prob_return_thresholds,
+    try_load_prob_return_thresholds,
+)
 from crypto_research.utils.pipeline.logger import get_logger
-from crypto_research.utils.pipeline.paths import ml_model_bundle_path, ml_policy_path
+from crypto_research.utils.pipeline.paths import ml_model_bundle_path, ml_train_test_metrics_path
 
 log = get_logger("ml_model_compare")
 
@@ -33,17 +36,41 @@ def _weekday_expr() -> pl.Expr:
     return ((pl.col("day_utc").dt.weekday() - 1) % 7).cast(pl.Int64).alias("weekday")
 
 
-def _load_policy_thresholds(policy_path: Path, spec: MlStudySpec) -> tuple[float, float]:
-    payload = json.loads(policy_path.read_text(encoding="utf-8"))
-    if (
-        spec.policy_mode == "global"
-        and "global_thresholds" in payload
-        and "selected_pairs_global" in payload
-    ):
-        th = payload["global_thresholds"]
-        return float(th["t_long"]), float(th["t_short"])
-    th = payload["thresholds"]
-    return float(th["t_long"]), float(th["t_short"])
+def _load_trading_thresholds(
+    spec: MlStudySpec,
+    *,
+    model_id: str,
+    n_pairs: int,
+    train_from: datetime,
+    test_to: datetime,
+    metrics_path: Path,
+    override: tuple[float, float] | None = None,
+) -> tuple[float, float]:
+    if override is not None:
+        return override
+    loaded = try_load_prob_return_thresholds(
+        spec,
+        n_pairs,
+        train_from,
+        test_to,
+        metrics_path=metrics_path,
+    )
+    if loaded is not None:
+        t_long, t_short = loaded
+        log.info(
+            "[ml] compare %s thresholds from %s: t_long=%.4f t_short=%.4f",
+            model_id,
+            metrics_path,
+            t_long,
+            t_short,
+        )
+        return t_long, t_short
+    log.warning(
+        "[ml] compare %s: prob_return_thresholds нет в %s, пороги 0.5/0.5",
+        model_id,
+        metrics_path,
+    )
+    return 0.5, 0.5
 
 
 def predict_holdout_oos(
@@ -74,17 +101,22 @@ def entry_from_trained(
     model_id: str,
     spec: MlStudySpec,
     oos: pl.DataFrame,
-    policy_path: Path,
+    metrics_path: Path,
+    *,
+    n_pairs: int,
+    train_from: datetime,
+    test_to: datetime,
+    thresholds: tuple[float, float] | None = None,
 ) -> CompareModelEntry:
-    if policy_path.is_file():
-        t_long, t_short = _load_policy_thresholds(policy_path, spec)
-    else:
-        t_long, t_short = 0.5, 0.5
-        log.warning(
-            "[ml] compare %s: policy не найден (%s), пороги 0.5/0.5",
-            model_id,
-            policy_path,
-        )
+    t_long, t_short = _load_trading_thresholds(
+        spec,
+        model_id=model_id,
+        n_pairs=n_pairs,
+        train_from=train_from,
+        test_to=test_to,
+        metrics_path=metrics_path,
+        override=thresholds,
+    )
     return CompareModelEntry(
         model_id=model_id,
         spec=spec,
@@ -103,16 +135,28 @@ def load_compare_model(
     train_to: datetime,
     test_to: datetime,
     bundle_path: Path | None = None,
-    policy_path: Path | None = None,
+    metrics_path: Path | None = None,
 ) -> CompareModelEntry:
     spec = resolve_compare_model(model_id)
     bundle_path = bundle_path or ml_model_bundle_path(spec, n_pairs, train_from, train_to)
-    policy_path = policy_path or ml_policy_path(spec, n_pairs, train_from, test_to)
+    metrics_path = metrics_path or ml_train_test_metrics_path(spec, n_pairs, train_from, test_to)
     if not bundle_path.is_file():
         raise FileNotFoundError(f"model bundle не найден: {bundle_path}")
-    if policy_path.is_file():
-        t_long, t_short = _load_policy_thresholds(policy_path, spec)
+    if metrics_path.is_file():
+        t_long, t_short = _load_trading_thresholds(
+            spec,
+            model_id=model_id,
+            n_pairs=n_pairs,
+            train_from=train_from,
+            test_to=test_to,
+            metrics_path=metrics_path,
+        )
     else:
+        log.warning(
+            "[ml] compare %s: train_test metrics не найден (%s), пороги 0.5/0.5",
+            model_id,
+            metrics_path,
+        )
         t_long, t_short = 0.5, 0.5
     oos = predict_holdout_oos(daily, spec=spec, bundle_path=bundle_path)
     return CompareModelEntry(

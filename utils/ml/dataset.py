@@ -17,6 +17,7 @@ from crypto_research.utils.ml.numeric_features import (
     active_numeric_specs,
     attach_normalized_features,
     needs_day_close,
+    needs_day_volume,
 )
 from crypto_research.utils.ml.pair_bounds import PairBounds
 from crypto_research.utils.ml.registry import FEATURE_EMA_DEV_PAIR_NORM, FEATURE_PAIR_ID, FEATURE_WEEKDAY_ENC
@@ -37,6 +38,8 @@ from crypto_research.utils.pipeline.load_summary import log_load_summary
 from crypto_research.utils.pipeline.logger import get_logger
 from crypto_research.utils.pipeline.paths import FULL_POOL_FROM, FULL_POOL_TO
 from crypto_research.utils.rsi.constants import SELECTED_RSI_PERIOD
+from crypto_research.utils.ml.registry import FEATURE_VOL_LOG_REL_PAIR
+from crypto_research.utils.volume.constants import SELECTED_VOLUME_EMA_PERIOD
 
 log = get_logger("ml_dataset")
 
@@ -68,6 +71,10 @@ class DirectionDataset:
         from crypto_research.utils.ml.registry import FEATURE_RSI_PAIR_NORM
 
         return SELECTED_RSI_PERIOD if FEATURE_RSI_PAIR_NORM in self.feature_columns else None
+
+    @property
+    def vol_period(self) -> int | None:
+        return SELECTED_VOLUME_EMA_PERIOD if FEATURE_VOL_LOG_REL_PAIR in self.feature_columns else None
 
 
 WeekdayDirectionDataset = DirectionDataset
@@ -116,10 +123,14 @@ def load_full_pool_daily(
     return daily, resolved
 
 
-def _base_weekday_frame(daily: pl.DataFrame, *, need_close: bool) -> pl.DataFrame:
+def _base_weekday_frame(
+    daily: pl.DataFrame, *, need_close: bool, need_volume: bool
+) -> pl.DataFrame:
     cols = ["return_pct", "day_utc", "day_open", "day_high", "day_low", "pair"]
     if need_close:
         cols.append("day_close")
+    if need_volume:
+        cols.append("day_volume")
     frame = daily.select(cols).with_columns(pl.col("day_utc").dt.weekday().alias("weekday"))
     return frame.with_columns(_normalize_weekday_expr())
 
@@ -137,7 +148,11 @@ def build_direction_dataset(
     if resolved_bounds is None and pair_ema_dev_bounds is not None:
         resolved_bounds = {FEATURE_EMA_DEV_PAIR_NORM: pair_ema_dev_bounds}
 
-    weekday_daily = _base_weekday_frame(daily, need_close=needs_day_close(spec.feature_columns))
+    weekday_daily = _base_weekday_frame(
+        daily,
+        need_close=needs_day_close(spec.feature_columns),
+        need_volume=needs_day_volume(spec.feature_columns),
+    )
     weekday_daily = attach_normalized_features(weekday_daily, spec.feature_columns, resolved_bounds)
 
     frame = (

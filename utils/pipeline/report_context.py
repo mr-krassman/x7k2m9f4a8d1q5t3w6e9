@@ -14,6 +14,18 @@ from crypto_research.utils.pipeline.study_ids import (
     STUDY_EMA_PERIOD_SCREEN,
     STUDY_RSI_PERIOD_SCREEN,
     STUDY_RSI_SPREADS,
+    STUDY_VOLATILITY_PERIOD_SCREEN,
+    STUDY_VOLATILITY_SPREADS,
+    STUDY_VOLUME_EMA_PERIOD_SCREEN,
+    STUDY_VOLUME_SPREADS,
+)
+from crypto_research.utils.volatility.constants import (
+    DEFAULT_SCREEN_RANGE_SMA_PERIODS,
+    SELECTED_RANGE_SMA_PERIOD,
+)
+from crypto_research.utils.volume.constants import (
+    DEFAULT_SCREEN_VOLUME_EMA_PERIODS,
+    SELECTED_VOLUME_EMA_PERIOD,
 )
 from crypto_research.utils.rsi.constants import (
     DEFAULT_RSI_PERIODS,
@@ -122,6 +134,14 @@ def build_report_context(args) -> ReportContext:
             default=(
                 DEFAULT_SCREEN_EMA_PERIODS
                 if args.study == STUDY_EMA_PERIOD_SCREEN
+                else DEFAULT_SCREEN_VOLUME_EMA_PERIODS
+                if args.study == STUDY_VOLUME_EMA_PERIOD_SCREEN
+                else DEFAULT_SCREEN_RANGE_SMA_PERIODS
+                if args.study == STUDY_VOLATILITY_PERIOD_SCREEN
+                else (SELECTED_RANGE_SMA_PERIOD,)
+                if args.study == STUDY_VOLATILITY_SPREADS
+                else (SELECTED_VOLUME_EMA_PERIOD,)
+                if args.study == STUDY_VOLUME_SPREADS
                 else DEFAULT_EMA_PERIODS
             ),
         ),

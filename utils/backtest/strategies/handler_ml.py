@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import pickle
 
 from crypto_research.utils.backtest.context import BacktestContext
@@ -21,13 +20,14 @@ from crypto_research.utils.ml.registry import (
     is_ml_study_id,
     resolve_ml_study,
 )
+from crypto_research.utils.ml.trading_thresholds import load_prob_return_thresholds
 from crypto_research.utils.pipeline.dates import parse_iso_utc
 from crypto_research.utils.pipeline.paths import (
     TEMPORAL_TRAIN_FROM,
     TEMPORAL_TRAIN_TO,
     TEMPORAL_VAL_TO,
     ml_model_bundle_path,
-    ml_policy_path,
+    ml_train_test_metrics_path,
 )
 
 
@@ -46,8 +46,8 @@ class MlStrategyHandler(StrategyHandler):
         train_from = parse_iso_utc(TEMPORAL_TRAIN_FROM)
         train_to = parse_iso_utc(TEMPORAL_TRAIN_TO)
         test_to = parse_iso_utc(TEMPORAL_VAL_TO)
-        if args.ml_policy_path is None:
-            args.ml_policy_path = ml_policy_path(spec, n_pairs, train_from, test_to)
+        if args.ml_metrics_path is None:
+            args.ml_metrics_path = ml_train_test_metrics_path(spec, n_pairs, train_from, test_to)
         if args.ml_model_path is None:
             args.ml_model_path = ml_model_bundle_path(spec, n_pairs, train_from, train_to)
         args.ml_output_study = spec.output_study
@@ -59,39 +59,19 @@ class MlStrategyHandler(StrategyHandler):
         if spec is None:
             raise RuntimeError("ml_spec не задан в контексте бэктеста")
 
-        with ctx.ml_policy_path.open("r", encoding="utf-8") as f:  # type: ignore[attr-defined]
-            policy_payload = json.load(f)
+        t_long, t_short, _ = load_prob_return_thresholds(
+            spec,
+            49,
+            parse_iso_utc(TEMPORAL_TRAIN_FROM),
+            parse_iso_utc(TEMPORAL_VAL_TO),
+            metrics_path=ctx.ml_metrics_path,  # type: ignore[attr-defined]
+        )
         with ctx.ml_model_path.open("rb") as f:  # type: ignore[attr-defined]
             model_bundle = pickle.load(f)
 
-        use_global_policy = (
-            spec.policy_mode == "global"
-            and "selected_pairs_global" in policy_payload
-            and "global_thresholds" in policy_payload
-        )
-        if use_global_policy:
-            selected_global = sorted(str(p) for p in policy_payload["selected_pairs_global"])
-            policy = DayOfWeekMlPolicy(
-                t_long=float(policy_payload["global_thresholds"]["t_long"]),
-                t_short=float(policy_payload["global_thresholds"]["t_short"]),
-                pairs_by_weekday={wd: selected_global for wd in range(7)},
-                allowed_pairs=selected_global,
-            )
-            pair_filter = selected_global
-        else:
-            pairs_by_weekday = {
-                int(k): sorted(v)
-                for k, v in policy_payload["selected_pairs_by_weekday"].items()
-            }
-            selected_union = sorted({p for vals in pairs_by_weekday.values() for p in vals})
-            policy = DayOfWeekMlPolicy(
-                t_long=float(policy_payload["thresholds"]["t_long"]),
-                t_short=float(policy_payload["thresholds"]["t_short"]),
-                pairs_by_weekday=pairs_by_weekday,
-            )
-            pair_filter = selected_union
+        policy = DayOfWeekMlPolicy(t_long=t_long, t_short=t_short)
         return StrategyPrepareResult(
-            pair_filter=pair_filter,
+            pair_filter=None,
             extras={"policy": policy, "model_bundle": model_bundle},
         )
 

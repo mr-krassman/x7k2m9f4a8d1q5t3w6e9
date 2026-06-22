@@ -36,7 +36,7 @@ class BacktestContext:
     max_pair_start: datetime
     pairs: list[str] | None
     workers: int
-    ml_policy_path: Path | None = None
+    ml_metrics_path: Path | None = None
     ml_model_path: Path | None = None
     ml_output_study: str | None = None
     ml_spec: MlStudySpec | None = None
@@ -72,7 +72,7 @@ def build_backtest_context(args) -> BacktestContext:
         max_pair_start=max_pair_start,
         pairs=args.pairs,
         workers=workers,
-        ml_policy_path=getattr(args, "ml_policy_path", None),
+        ml_metrics_path=getattr(args, "ml_metrics_path", None),
         ml_model_path=getattr(args, "ml_model_path", None),
         ml_output_study=getattr(args, "ml_output_study", None),
         ml_spec=getattr(args, "ml_spec", None),

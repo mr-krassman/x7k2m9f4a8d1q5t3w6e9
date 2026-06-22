@@ -18,7 +18,17 @@ _REPO_PARENT = Path(__file__).resolve().parent.parent
 if str(_REPO_PARENT) not in sys.path:
     sys.path.insert(0, str(_REPO_PARENT))
 
-from crypto_research.ml_calibrate_policy import write_policy_from_train_test_payload
+from crypto_research.utils.ml.threshold_metrics import (
+    core_threshold_signal_metrics,
+    threshold_signal_metrics_optional,
+    weekday_threshold_signal_metrics,
+)
+from crypto_research.utils.ml.p_up_density_split_plot import compute_p_up_split_threshold
+from crypto_research.utils.ml.prob_return_dependence_plot import compute_prob_return_thresholds
+from crypto_research.utils.ml.trading_thresholds import (
+    resolve_prob_return_threshold_pair,
+    resolve_prob_return_thresholds_dict,
+)
 from crypto_research.utils.ml.cpcv_train import (
     DEFAULT_EMBARGO_DAYS,
     DEFAULT_N_SPLITS,
@@ -46,6 +56,7 @@ from crypto_research.utils.ml.plot_registry import (
     ML_PLOT_ROC_AUC,
     ML_PLOT_WEEKDAY_PAIR_SUMMARY,
     MlPlotContext,
+    extract_plot_path_metadata,
     resolve_plot_ids,
     run_selected_ml_plots,
 )
@@ -96,7 +107,6 @@ from crypto_research.utils.pipeline.paths import (
     ml_oos_calibration_plot_path,
     ml_oos_plot_path,
     ml_plots_dir,
-    ml_policy_path,
     ml_train_test_metrics_path,
 )
 
@@ -106,13 +116,13 @@ JSON_FLOAT_PRECISION = 4
 
 def parse_ml_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="ML: direction_up, CPCV + LightGBM (day_of_week_ml / ema_spreads_ml / rsi_spreads_ml / price_sequences_ml).",
+        description="ML: direction_up, CPCV + LightGBM (day_of_week_ml / ema_spreads_ml / rsi_spreads_ml / price_sequences_ml / volume_spreads_ml).",
     )
     parser.add_argument(
         "studies",
         nargs="*",
         metavar="STUDY",
-        help="Исследования: day_of_week_ml, ema_spreads_ml, rsi_spreads_ml, price_sequences_ml; combined: day_of_week_ml ema_spreads_ml [rsi_spreads_ml [price_sequences_ml]]",
+        help="Исследования: day_of_week_ml, ema_spreads_ml, …; combined — любое подмножество (2+), порядок не важен: day_of_week_ml ema_spreads_ml volume_spreads_ml",
     )
     parser.add_argument(
         "--data-dir",
@@ -258,6 +268,7 @@ def parse_ml_args() -> argparse.Namespace:
         help=(
             "График ROC AUC / accuracy по бинам predictive-фичи (train-fit | holdout test). "
             "Для ema_spreads_ml — ema_dev_pair_norm, для rsi_spreads_ml — rsi_pair_norm, "
+            "для volume_spreads_ml — vol_log_rel_pair (сырой ln(V/EMA(V))), "
             "для price_sequences_ml — streak_pair_norm."
         ),
     )
@@ -345,8 +356,15 @@ def _save_result(
     return path
 
 
-def _binary_metrics(y_true: np.ndarray, y_prob: np.ndarray) -> dict[str, float]:
-    y_pred = (y_prob >= 0.5).astype(np.int8)
+def _binary_metrics(
+    y_true: np.ndarray,
+    y_prob: np.ndarray,
+    *,
+    classification_threshold: float | None = None,
+) -> dict[str, float]:
+    t_cls = 0.5 if classification_threshold is None else float(classification_threshold)
+    y_pred = (y_prob >= t_cls).astype(np.int8)
+    y_pred_05 = (y_prob >= 0.5).astype(np.int8)
     out: dict[str, float] = {
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "log_loss": float(log_loss(y_true, y_prob, labels=[0, 1])),
@@ -354,7 +372,11 @@ def _binary_metrics(y_true: np.ndarray, y_prob: np.ndarray) -> dict[str, float]:
         "pred_up_rate": float(y_pred.mean()),
         "base_rate_up": float(y_true.mean()),
         "mean_p_up": float(y_prob.mean()),
+        "median_p_up": float(np.median(y_prob)),
         "mean_p_down": float(1.0 - y_prob.mean()),
+        "classification_threshold": t_cls,
+        "accuracy_at_0_5": float(accuracy_score(y_true, y_pred_05)),
+        "pred_up_rate_at_0_5": float(y_pred_05.mean()),
     }
     out["roc_auc"] = float(roc_auc_score(y_true, y_prob)) if np.unique(y_true).size > 1 else float("nan")
     return out
@@ -372,12 +394,21 @@ def _core_metrics(metrics: dict[str, float] | None) -> dict[str, float] | None:
 
 def _build_metrics_summary(
     *,
+    prob_return_thresholds: dict[str, float | str | int | None] | None,
+    p_up_split_threshold: dict[str, float | str | int | None] | None,
     train_cpcv_pooled: dict[str, float] | None,
     train_fit: dict[str, float],
     holdout_test: dict[str, float],
     holdout_test_by_weekday: dict[str, dict[str, float]],
+    train_fit_signal: dict[str, float | int] | None,
+    holdout_test_signal: dict[str, float | int] | None,
+    holdout_test_by_weekday_signal: dict[str, dict[str, float | int]],
 ) -> dict[str, object]:
     summary: dict[str, object] = {}
+    if prob_return_thresholds is not None:
+        summary["prob_return_thresholds"] = prob_return_thresholds
+    if p_up_split_threshold is not None:
+        summary["p_up_split_threshold"] = p_up_split_threshold
     pooled = _core_metrics(train_cpcv_pooled)
     if pooled is not None:
         summary["train_cpcv_pooled"] = pooled
@@ -388,6 +419,19 @@ def _build_metrics_summary(
         for name, metrics in holdout_test_by_weekday.items()
         if (metrics_core := _core_metrics(metrics)) is not None
     }
+    train_signal_core = core_threshold_signal_metrics(train_fit_signal)
+    if train_signal_core is not None:
+        summary["train_fit_signal"] = train_signal_core
+    holdout_signal_core = core_threshold_signal_metrics(holdout_test_signal)
+    if holdout_signal_core is not None:
+        summary["holdout_test_signal"] = holdout_signal_core
+    weekday_signal = {
+        name: core
+        for name, metrics in holdout_test_by_weekday_signal.items()
+        if (core := core_threshold_signal_metrics(metrics)) is not None
+    }
+    if weekday_signal:
+        summary["holdout_test_by_weekday_signal"] = weekday_signal
     return summary
 
 
@@ -399,6 +443,46 @@ def _save_metrics_summary(path: Path, summary: dict[str, object]) -> Path:
     )
     log.info("[ml] metrics summary saved: %s", path)
     return path
+
+
+def _threshold_pair(
+    prob_return_thresholds: dict[str, float | str | int | None] | None,
+) -> tuple[float, float]:
+    if not prob_return_thresholds:
+        return resolve_prob_return_threshold_pair(None, None)
+    raw_long = prob_return_thresholds.get("t_long")
+    raw_short = prob_return_thresholds.get("t_short")
+    return resolve_prob_return_threshold_pair(
+        float(raw_long) if raw_long is not None else None,
+        float(raw_short) if raw_short is not None else None,
+    )
+
+
+def _signal_metrics_blocks(
+    *,
+    prob_return_thresholds: dict[str, float | str | int | None] | None,
+    train_fit_oos: pl.DataFrame,
+    test_oos: pl.DataFrame,
+    y_train: np.ndarray,
+    y_train_prob: np.ndarray,
+    y_test: np.ndarray,
+    y_test_prob: np.ndarray,
+) -> tuple[
+    dict[str, float | int] | None,
+    dict[str, float | int] | None,
+    dict[str, dict[str, float | int]],
+]:
+    t_long, t_short = _threshold_pair(prob_return_thresholds)
+    train_signal = threshold_signal_metrics_optional(
+        y_train, y_train_prob, t_long=t_long, t_short=t_short
+    )
+    test_signal = threshold_signal_metrics_optional(
+        y_test, y_test_prob, t_long=t_long, t_short=t_short
+    )
+    test_weekday_signal = weekday_threshold_signal_metrics(
+        test_oos, t_long=t_long, t_short=t_short
+    )
+    return train_signal, test_signal, test_weekday_signal
 
 
 def _pooled_metrics_from_oos_paths(oos_paths: np.ndarray | None) -> dict[str, float] | None:
@@ -435,29 +519,47 @@ def _fold_threshold_hits(fold_metrics: tuple[dict[str, float], ...]) -> dict[str
     return {"roc_auc_gt_0_5": auc_hits, "accuracy_gt_0_5": acc_hits, "n_folds": len(fold_metrics)}
 
 
-def _weekday_holdout_metrics(oos: pl.DataFrame) -> dict[str, dict[str, float]]:
+def _weekday_holdout_metrics(
+    oos: pl.DataFrame,
+    *,
+    classification_threshold: float | None = None,
+) -> dict[str, dict[str, float]]:
     oos_wd = oos.with_columns(((pl.col("day_utc").dt.weekday() - 1) % 7).alias("weekday"))
     out: dict[str, dict[str, float]] = {}
     for wd, name in enumerate(WEEKDAY_NAMES):
         sub = oos_wd.filter(pl.col("weekday") == wd)
         if sub.is_empty():
             continue
-        out[name] = _binary_metrics(sub["y_true"].to_numpy(), sub["y_prob"].to_numpy())
+        out[name] = _binary_metrics(
+            sub["y_true"].to_numpy(),
+            sub["y_prob"].to_numpy(),
+            classification_threshold=classification_threshold,
+        )
     return out
 
 
 def _group_metrics(
     oos: pl.DataFrame,
     group_col: str,
+    *,
+    classification_threshold: float | None = None,
 ) -> dict[str, dict[str, float]]:
     out: dict[str, dict[str, float]] = {}
     for key in oos[group_col].unique().sort().to_list():
         sub = oos.filter(pl.col(group_col) == key)
-        out[str(key)] = _binary_metrics(sub["y_true"].to_numpy(), sub["y_prob"].to_numpy())
+        out[str(key)] = _binary_metrics(
+            sub["y_true"].to_numpy(),
+            sub["y_prob"].to_numpy(),
+            classification_threshold=classification_threshold,
+        )
     return out
 
 
-def _weekday_pair_metrics(oos: pl.DataFrame) -> dict[str, dict[str, float]]:
+def _weekday_pair_metrics(
+    oos: pl.DataFrame,
+    *,
+    classification_threshold: float | None = None,
+) -> dict[str, dict[str, float]]:
     df = oos.with_columns(((pl.col("day_utc").dt.weekday() - 1) % 7).alias("weekday"))
     grouped = df.group_by("weekday", "pair").agg(
         pl.col("y_true").alias("y_true_list"),
@@ -468,7 +570,11 @@ def _weekday_pair_metrics(oos: pl.DataFrame) -> dict[str, dict[str, float]]:
         key = f"{WEEKDAY_NAMES[int(row['weekday'])]}::{row['pair']}"
         y_true = np.array(row["y_true_list"], dtype=np.int8)
         y_prob = np.array(row["y_prob_list"], dtype=float)
-        out[key] = _binary_metrics(y_true, y_prob)
+        out[key] = _binary_metrics(
+            y_true,
+            y_prob,
+            classification_threshold=classification_threshold,
+        )
     return out
 
 
@@ -576,6 +682,7 @@ def _load_frozen_model_context(args: argparse.Namespace) -> tuple[MlPlotContext,
         test_oos=_model_oos_frame(test_dataset, y_test_prob),
         y_test=y_test,
         y_test_prob=y_test_prob,
+        y_train_prob=y_train_prob,
         model=model,
     ), test_daily
 
@@ -584,6 +691,10 @@ def run_ml_plots_only_pipeline(args: argparse.Namespace) -> dict[str, object]:
     plot_ids = _effective_plot_ids(args)
     ctx, test_daily = _load_frozen_model_context(args)
     plot_paths = run_selected_ml_plots(plot_ids, ctx)
+    plot_meta = extract_plot_path_metadata(plot_paths)
+    prob_return_thresholds = plot_meta.get("prob_return_thresholds")
+    if not isinstance(prob_return_thresholds, dict):
+        prob_return_thresholds = None
     compare_cdf_path = _auto_holdout_compare(
         ctx.spec,
         test_daily,
@@ -592,6 +703,7 @@ def run_ml_plots_only_pipeline(args: argparse.Namespace) -> dict[str, object]:
         train_from=ctx.train_from,
         train_to=ctx.train_to,
         test_to=ctx.test_to,
+        prob_return_thresholds=prob_return_thresholds,
     )
     if compare_cdf_path is not None:
         plot_paths["compare_prob_cdf"] = str(compare_cdf_path)
@@ -605,6 +717,10 @@ def run_ml_plots_only_pipeline(args: argparse.Namespace) -> dict[str, object]:
         "n_pairs": ctx.n_pairs,
         "plot_paths": plot_paths,
     }
+    if isinstance(plot_meta.get("prob_return_thresholds"), dict):
+        summary["prob_return_thresholds"] = plot_meta["prob_return_thresholds"]
+    if isinstance(plot_meta.get("p_up_split_threshold"), dict):
+        summary["p_up_split_threshold"] = plot_meta["p_up_split_threshold"]
     summary_path.write_text(
         json.dumps(_round_json_floats(summary), indent=2, ensure_ascii=False),
         encoding="utf-8",
@@ -633,6 +749,8 @@ def _build_model_bundle(
         bundle["ema_period"] = dataset.ema_period
     if dataset.rsi_period is not None:
         bundle["rsi_period"] = dataset.rsi_period
+    if dataset.vol_period is not None:
+        bundle["vol_period"] = dataset.vol_period
     bundle.update(bounds_map_to_bundle(dataset.pair_norm_bounds))
     if early_stopping is not None:
         bundle["early_stopping"] = early_stopping
@@ -742,11 +860,31 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         test_oos=test_oos,
         y_test=y_test,
         y_test_prob=y_test_prob,
+        y_train_prob=y_train_prob,
         train_cpcv=train_cpcv,
         fit_result=fit_result,
         model=model,
     )
     plot_paths = run_selected_ml_plots(plot_ids, plot_ctx)
+    plot_meta = extract_plot_path_metadata(plot_paths)
+    prob_return_thresholds = plot_meta.get("prob_return_thresholds")
+    if not isinstance(prob_return_thresholds, dict):
+        prob_return_thresholds = compute_prob_return_thresholds(train_dataset.frame, y_train_prob)
+    else:
+        prob_return_thresholds = resolve_prob_return_thresholds_dict(prob_return_thresholds)
+    p_up_split_threshold = plot_meta.get("p_up_split_threshold")
+    if not isinstance(p_up_split_threshold, dict):
+        p_up_split_threshold = compute_p_up_split_threshold(y_train_prob)
+    classification_threshold = float(p_up_split_threshold["threshold"])
+    train_signal_metrics, test_signal_metrics, test_weekday_signal_metrics = _signal_metrics_blocks(
+        prob_return_thresholds=prob_return_thresholds,
+        train_fit_oos=train_fit_oos,
+        test_oos=test_oos,
+        y_train=y_train,
+        y_train_prob=y_train_prob,
+        y_test=y_test,
+        y_test_prob=y_test_prob,
+    )
     feature_predictive_plot_paths = {
         k.removeprefix("feature_predictive_"): str(v)
         for k, v in plot_paths.items()
@@ -758,11 +896,17 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     elif feature_predictive_plot_paths:
         feature_predictive_plot_path = next(iter(feature_predictive_plot_paths.values()))
 
-    test_metrics = _binary_metrics(y_test, y_test_prob)
-    train_fit_metrics = _binary_metrics(y_train, y_train_prob)
+    test_metrics = _binary_metrics(
+        y_test, y_test_prob, classification_threshold=classification_threshold
+    )
+    train_fit_metrics = _binary_metrics(
+        y_train, y_train_prob, classification_threshold=classification_threshold
+    )
     train_fit_calibration = oos_calibration_metrics(train_fit_oos)
     test_calibration = oos_calibration_metrics(test_oos)
-    test_weekday = _weekday_holdout_metrics(test_oos)
+    test_weekday = _weekday_holdout_metrics(
+        test_oos, classification_threshold=classification_threshold
+    )
     train_weekday_metrics = _attach_train_and_test_base_rates(
         train_cpcv.weekday_metrics,
         train_weekday_base=train_weekday_base,
@@ -808,6 +952,8 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         "holdout_test_period": {"from": args.test_from, "to": args.test_to},
         "plot_ids": list(plot_ids),
         "plot_paths": plot_paths,
+        "prob_return_thresholds": prob_return_thresholds,
+        "p_up_split_threshold": p_up_split_threshold,
         "train_cpcv": {
             "n_rows": train_dataset.frame.height,
             "n_splits": train_cpcv.n_splits,
@@ -842,16 +988,23 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
                 str(fit_result.learning_curve_log_path) if fit_result.learning_curve_log_path else None
             ),
             "metrics": train_fit_metrics,
+            "signal_metrics": train_signal_metrics,
             "calibration_metrics": train_fit_calibration,
-            "pair_metrics": _group_metrics(train_fit_oos, "pair"),
-            "weekday_pair_metrics": _weekday_pair_metrics(train_fit_oos),
+            "pair_metrics": _group_metrics(train_fit_oos, "pair", classification_threshold=classification_threshold),
+            "weekday_pair_metrics": _weekday_pair_metrics(
+                train_fit_oos, classification_threshold=classification_threshold
+            ),
         },
         "holdout_test": {
             "n_rows": test_dataset.frame.height,
             "metrics": test_metrics,
+            "signal_metrics": test_signal_metrics,
             "weekday_metrics": test_weekday,
-            "pair_metrics": _group_metrics(test_oos, "pair"),
-            "weekday_pair_metrics": _weekday_pair_metrics(test_oos),
+            "weekday_signal_metrics": test_weekday_signal_metrics or None,
+            "pair_metrics": _group_metrics(test_oos, "pair", classification_threshold=classification_threshold),
+            "weekday_pair_metrics": _weekday_pair_metrics(
+                test_oos, classification_threshold=classification_threshold
+            ),
             "calibration_metrics": test_calibration,
             "oos_plot_path": plot_paths.get("oos_prob"),
             "oos_calibration_plot_path": plot_paths.get("oos_calibration"),
@@ -860,6 +1013,7 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
             "shape_summary_plot_path": plot_paths.get("shape_summary_plot"),
             "feature_prob_dependence_plot_path": plot_paths.get("feature_prob_dependence"),
             "prob_return_dependence_plot_path": plot_paths.get("prob_return_dependence"),
+            "p_up_density_split_plot_path": plot_paths.get("p_up_density_split"),
             "compare_prob_cdf_plot_path": plot_paths.get("compare_prob_cdf"),
             "feature_correlations": plot_paths.get("feature_correlations"),
             "feature_predictive_plot_path": (
@@ -870,18 +1024,6 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     }
     out_path = args.output or _default_train_test_output_path(spec, len(train_pairs), train_from, test_to)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    policy_path = write_policy_from_train_test_payload(
-        payload,
-        spec,
-        n_pairs=len(train_pairs),
-        train_from=train_from,
-        test_to=test_to,
-        metrics_path=out_path,
-    )
-    log.info("[ml] policy saved: %s (t_long=%.4f t_short=%.4f)", policy_path, *(
-        float(json.loads(policy_path.read_text(encoding="utf-8"))["thresholds"][k])
-        for k in ("t_long", "t_short")
-    ))
     compare_cdf_path = _auto_holdout_compare(
         spec,
         test_daily,
@@ -890,6 +1032,7 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
         train_from=train_from,
         train_to=train_to,
         test_to=test_to,
+        prob_return_thresholds=prob_return_thresholds,
     )
     if compare_cdf_path is not None:
         payload["plot_paths"]["compare_prob_cdf"] = str(compare_cdf_path)
@@ -903,10 +1046,15 @@ def run_ml_train_test_pipeline(args: argparse.Namespace) -> Path:
     _save_metrics_summary(
         summary_path,
         _build_metrics_summary(
+            prob_return_thresholds=prob_return_thresholds,
+            p_up_split_threshold=p_up_split_threshold,
             train_cpcv_pooled=_pooled_metrics_from_oos_paths(train_cpcv.oos_paths),
             train_fit=train_fit_metrics,
             holdout_test=test_metrics,
             holdout_test_by_weekday=test_weekday,
+            train_fit_signal=train_signal_metrics,
+            holdout_test_signal=test_signal_metrics,
+            holdout_test_by_weekday_signal=test_weekday_signal_metrics,
         ),
     )
     return out_path
@@ -922,6 +1070,7 @@ def _resolve_compare_entries(
     test_to,
     trained_spec=None,
     trained_oos: pl.DataFrame | None = None,
+    trained_thresholds: tuple[float, float] | None = None,
 ) -> list[CompareModelEntry]:
     entries: list[CompareModelEntry] = []
     for model_id in model_ids:
@@ -931,8 +1080,19 @@ def _resolve_compare_entries(
             and trained_oos is not None
             and compare_model_id(trained_spec) == model_id
         ):
-            policy_path = ml_policy_path(spec, n_pairs, train_from, test_to)
-            entries.append(entry_from_trained(model_id, spec, trained_oos, policy_path))
+            metrics_path = ml_train_test_metrics_path(spec, n_pairs, train_from, test_to)
+            entries.append(
+                entry_from_trained(
+                    model_id,
+                    spec,
+                    trained_oos,
+                    metrics_path,
+                    n_pairs=n_pairs,
+                    train_from=train_from,
+                    test_to=test_to,
+                    thresholds=trained_thresholds,
+                )
+            )
             continue
         entries.append(
             load_compare_model(
@@ -957,6 +1117,7 @@ def _run_holdout_compare_cdf(
     test_to,
     trained_spec,
     trained_oos: pl.DataFrame,
+    trained_thresholds: tuple[float, float] | None = None,
 ) -> Path | None:
     if len(model_ids) < 2:
         return None
@@ -969,6 +1130,7 @@ def _run_holdout_compare_cdf(
         test_to=test_to,
         trained_spec=trained_spec,
         trained_oos=trained_oos,
+        trained_thresholds=trained_thresholds,
     )
     plot_path = ml_compare_prob_cdf_plot_path(trained_spec, n_pairs, train_from, test_to)
     return save_prob_cdf_compare(entries, plot_path)
@@ -983,10 +1145,14 @@ def _auto_holdout_compare(
     train_from,
     train_to,
     test_to,
+    prob_return_thresholds: dict[str, float | str | int | None] | None = None,
 ) -> Path | None:
     model_ids = list(auto_compare_model_ids(spec))
     if len(model_ids) < 2:
         return None
+    trained_thresholds: tuple[float, float] | None = None
+    if prob_return_thresholds is not None:
+        trained_thresholds = _threshold_pair(prob_return_thresholds)
     try:
         log.info("[ml] auto compare_prob_cdf: %s", model_ids)
         return _run_holdout_compare_cdf(
@@ -998,6 +1164,7 @@ def _auto_holdout_compare(
             test_to=test_to,
             trained_spec=spec,
             trained_oos=test_oos,
+            trained_thresholds=trained_thresholds,
         )
     except FileNotFoundError as exc:
         log.warning("[ml] compare_prob_cdf skipped: %s", exc)

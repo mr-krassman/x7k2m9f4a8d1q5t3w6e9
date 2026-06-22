@@ -30,7 +30,10 @@ from crypto_research.utils.ml.registry import (
     FEATURE_EMA_DEV_PAIR_NORM,
     FEATURE_RSI_PAIR_NORM,
     FEATURE_STREAK_PAIR_NORM,
+    FEATURE_VOL_LOG_REL_PAIR,
 )
+from crypto_research.utils.volume.constants import SELECTED_VOLUME_EMA_PERIOD
+from crypto_research.utils.volume.volume import attach_volume_columns, vol_log_rel_prev_column
 from crypto_research.utils.price_sequences.streak import (
     STREAK_SIGNED_PREV_COL,
     attach_streak_signed_prev,
@@ -41,7 +44,7 @@ from crypto_research.utils.rsi.rsi import attach_rsi_prev_columns, build_rsi_wor
 
 log = get_logger("ml_numeric_features")
 
-NormKind = Literal["signed_dev", "linear"]
+NormKind = Literal["signed_dev", "linear", "raw"]
 
 
 @dataclass(frozen=True)
@@ -69,6 +72,13 @@ def _attach_rsi(frame: pl.DataFrame, period: int) -> pl.DataFrame:
             parts.append(attach_rsi_prev_columns(sub, period))
         return pl.concat(parts)
     return attach_rsi_prev_columns(frame.sort("day_utc"), period)
+
+
+def _attach_volume(frame: pl.DataFrame, period: int) -> pl.DataFrame:
+    sorted_frame = (
+        frame.sort(["pair", "day_utc"]) if "pair" in frame.columns else frame.sort("day_utc")
+    )
+    return attach_volume_columns(sorted_frame, (period,))
 
 
 def _attach_streak(frame: pl.DataFrame, _period: int) -> pl.DataFrame:
@@ -109,6 +119,17 @@ NUMERIC_FEATURE_SPECS: dict[str, NumericFeatureSpec] = {
         plot_x_label="streak_pair_norm",
         plot_bin_width=0.2,
     ),
+    FEATURE_VOL_LOG_REL_PAIR: NumericFeatureSpec(
+        column=FEATURE_VOL_LOG_REL_PAIR,
+        bundle_key="vol_log_rel_period",
+        plot_slug="vol_log_rel",
+        period=SELECTED_VOLUME_EMA_PERIOD,
+        norm="raw",
+        raw_column=vol_log_rel_prev_column,
+        attach=_attach_volume,
+        plot_x_label="vol_log_rel_pair",
+        plot_bin_width=0.15,
+    ),
 }
 
 
@@ -124,12 +145,18 @@ def needs_return_pct(feature_columns: tuple[str, ...] | list[str]) -> bool:
     return FEATURE_STREAK_PAIR_NORM in feature_columns
 
 
+def needs_day_volume(feature_columns: tuple[str, ...] | list[str]) -> bool:
+    return FEATURE_VOL_LOG_REL_PAIR in feature_columns
+
+
 def fit_bounds_for_features(
     daily: pl.DataFrame,
     feature_columns: tuple[str, ...] | list[str],
 ) -> dict[str, dict[str, PairBounds | PairEmaDevBounds]]:
     out: dict[str, dict[str, PairBounds | PairEmaDevBounds]] = {}
     for spec in active_numeric_specs(feature_columns):
+        if spec.norm == "raw":
+            continue
         if spec.norm == "signed_dev":
             out[spec.column] = fit_pair_ema_dev_bounds_from_daily(daily, ema_period=spec.period)
         elif spec.column == FEATURE_STREAK_PAIR_NORM:
@@ -152,6 +179,9 @@ def attach_normalized_features(
     for spec in active_numeric_specs(feature_columns):
         work = spec.attach(work, spec.period)
         raw_col = spec.raw_column(spec.period)
+        if spec.norm == "raw":
+            work = work.with_columns(pl.col(raw_col).alias(spec.column))
+            continue
         raw = work[raw_col].to_numpy().astype(np.float64, copy=False)
         pairs_arr = work["pair"].to_numpy().astype(object, copy=False)
         bounds = resolved.get(spec.column)
@@ -176,6 +206,9 @@ def bounds_map_to_bundle(
     out: dict[str, object] = {}
     for column, bounds in bounds_map.items():
         spec = NUMERIC_FEATURE_SPECS[column]
+        if spec.norm == "raw":
+            out[f"{column}_period"] = spec.period
+            continue
         if spec.norm == "signed_dev":
             out[spec.bundle_key] = pair_ema_dev_bounds_to_dict(bounds)  # type: ignore[arg-type]
         else:

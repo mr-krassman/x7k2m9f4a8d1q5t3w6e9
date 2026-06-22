@@ -1,0 +1,111 @@
+=== Отчёт: сводка EMA(volume,100) — подтверждение сигналов ===
+
+Три блока (как day_of_week / ema_spreads):
+  1. Универсальность среди пар — train/val когорты на одном периоде
+  2. Устойчивость во времени — один пул пар, два периода
+  3. Полный пул — все пары, весь период, итог = пересечение статусов 1 и 2
+
+=== Универсальность среди пар ===
+
+Период (UTC): 2022-01-01 .. 2026-05-31
+Train: 24 пар (первая свеча ≤ 2022-01-01)
+Val: 25 пар (пул ≤ 2023-01-01, вне train-cohort)
+Пары train и val не пересекаются.
+
+Train: aaveusdt, adausdt, algousdt, aliceusdt, atomusdt, avaxusdt, bchusdt, bnbusdt, btcusdt, crvusdt, dogeusdt
+      dotusdt, dydxusdt, enjusdt, ethusdt, filusdt, galausdt, linkusdt, ltcusdt, nearusdt, solusdt, uniusdt
+      xrpusdt, zecusdt
+
+Val: 1000luncusdt, apeusdt, api3usdt, aptusdt, axsusdt, chzusdt, dashusdt, egldusdt, etcusdt, gmtusdt, hbarusdt
+      icpusdt, injusdt, ldousdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, storjusdt, stxusdt, trxusdt
+      xlmusdt, xmrusdt, zenusdt
+
+=== Сводная таблица: универсальность среди пар ===
+
+EMA(volume,100). Δ — отклонение доли колонки от BASE (п.п.), как в блоке Δ spread.
+Материальность на train: |Δ| ≥ 1.5 п.п.
+p-value (train) — permutation по Δ каждой train-пары (sign-flip), H₀: mean=0.
+Поправка Бонферрони: α=0.05, порог «значим» p < 0.0050 (0.05/10).
+Подтверждение на val: val-пары с тем же знаком Δ, что pooled train; ✅ ≥ 60%, иначе ❌.
+
+Сигнал                              | Δ train, п.п. | Δ val, п.п. | Δ (val−train) | p-value (train) | Подтверждение на val | Статус   
+--------------------------------------------------------------------------------------------------------------------------------------
+b0 LOW(<=q30) × Цена росла          | -1.24 п.п.    | -0.73 п.п.  | +0.51 п.п.    | 0.0015          | 17/25 (68%) ✅        | не значим
+b0 LOW(<=q30) × Цена падала         | +1.17 п.п.    | +0.58 п.п.  | -0.58 п.п.    | 0.0022          | 16/25 (64%) ✅        | не значим
+b1 NORMAL(q30-q70) × Цена росла     | +0.20 п.п.    | +0.68 п.п.  | +0.48 п.п.    | 0.5109          | 16/25 (64%) ✅        | не значим
+b1 NORMAL(q30-q70) × Цена падала    | -0.14 п.п.    | -0.66 п.п.  | -0.52 п.п.    | 0.6404          | 17/25 (68%) ✅        | не значим
+b2 HIGH(q70-q85) × Цена росла       | +1.35 п.п.    | +0.53 п.п.  | -0.82 п.п.    | 0.0202          | 14/25 (56%) ❌        | не значим
+b2 HIGH(q70-q85) × Цена падала      | -1.43 п.п.    | -0.41 п.п.  | +1.02 п.п.    | 0.0149          | 13/25 (52%) ❌        | не значим
+b3 VERY_HIGH(q85-q95) × Цена росла  | +1.28 п.п.    | -0.35 п.п.  | -1.63 п.п.    | 0.1450          | 11/25 (44%) ❌        | не значим
+b3 VERY_HIGH(q85-q95) × Цена падала | -1.21 п.п.    | +0.46 п.п.  | +1.67 п.п.    | 0.1626          | 10/25 (40%) ❌        | не значим
+b4 SPIKE(>q95) × Цена росла         | -0.75 п.п.    | -1.89 п.п.  | -1.14 п.п.    | 0.4864          | 15/25 (60%) ✅        | не значим
+b4 SPIKE(>q95) × Цена падала        | +0.83 п.п.    | +2.04 п.п.  | +1.21 п.п.    | 0.4387          | 16/25 (64%) ✅        | не значим
+
+=== Устойчивость во времени ===
+
+Пул: 49 пар (первая свеча ≤ 2023-01-01)
+Train-период (UTC): 2022-01-01 .. 2024-04-01
+Val-период (UTC): 2024-04-01 .. 2026-05-31
+Одни и те же пары в обоих периодах.
+
+Пары: 1000luncusdt, aaveusdt, adausdt, algousdt, aliceusdt, apeusdt, api3usdt, aptusdt, atomusdt, avaxusdt, axsusdt
+      bchusdt, bnbusdt, btcusdt, chzusdt, crvusdt, dashusdt, dogeusdt, dotusdt, dydxusdt, egldusdt, enjusdt
+      etcusdt, ethusdt, filusdt, galausdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, linkusdt, ltcusdt
+      nearusdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, solusdt, storjusdt, stxusdt, trxusdt, uniusdt
+      xlmusdt, xmrusdt, xrpusdt, zecusdt, zenusdt
+
+=== Сводная таблица: устойчивость во времени ===
+
+EMA(volume,100). Δ — отклонение доли колонки от BASE (п.п.), как в блоке Δ spread.
+Материальность на train: |Δ| ≥ 1.5 п.п.
+p-value (train) — permutation по Δ каждой train-пары (sign-flip), H₀: mean=0.
+Поправка Бонферрони: α=0.05, порог «значим» p < 0.0050 (0.05/10).
+Подтверждение на val: пары с тем же знаком Δ во 2-м периоде, что в train-периоде; ✅ ≥ 60%, иначе ❌.
+
+Сигнал                              | Δ train, п.п. | Δ val, п.п. | Δ (val−train) | p-value (train) | Подтверждение на val | Статус   
+--------------------------------------------------------------------------------------------------------------------------------------
+b0 LOW(<=q30) × Цена росла          | -0.69 п.п.    | -0.62 п.п.  | +0.08 п.п.    | 0.0645          | 26/49 (53%) ❌        | не значим
+b0 LOW(<=q30) × Цена падала         | +0.39 п.п.    | +0.62 п.п.  | +0.23 п.п.    | 0.3020          | 26/49 (53%) ❌        | не значим
+b1 NORMAL(q30-q70) × Цена росла     | +0.23 п.п.    | +0.48 п.п.  | +0.25 п.п.    | 0.2959          | 24/49 (49%) ❌        | не значим
+b1 NORMAL(q30-q70) × Цена падала    | -0.10 п.п.    | -0.50 п.п.  | -0.40 п.п.    | 0.4960          | 24/49 (49%) ❌        | не значим
+b2 HIGH(q70-q85) × Цена росла       | +1.00 п.п.    | +0.93 п.п.  | -0.07 п.п.    | 0.3411          | 23/49 (47%) ❌        | не значим
+b2 HIGH(q70-q85) × Цена падала      | -0.96 п.п.    | -0.98 п.п.  | -0.02 п.п.    | 0.3483          | 21/49 (43%) ❌        | не значим
+b3 VERY_HIGH(q85-q95) × Цена росла  | +1.27 п.п.    | -0.33 п.п.  | -1.60 п.п.    | 0.1759          | 28/49 (57%) ❌        | не значим
+b3 VERY_HIGH(q85-q95) × Цена падала | -1.10 п.п.    | +0.43 п.п.  | +1.53 п.п.    | 0.2380          | 27/49 (55%) ❌        | не значим
+b4 SPIKE(>q95) × Цена росла         | -3.13 п.п.    | -2.23 п.п.  | +0.90 п.п.    | 0.0056          | 27/49 (55%) ❌        | не значим
+b4 SPIKE(>q95) × Цена падала        | +3.42 п.п.    | +2.29 п.п.  | -1.12 п.п.    | 0.0032          | 27/49 (55%) ❌        | не значим
+
+=== Полный пул (все пары, весь период) ===
+
+Пар: 49 (первая свеча ≤ 2023-01-01)
+Период (UTC): 2022-01-01 .. 2026-05-31
+
+Пары: 1000luncusdt, aaveusdt, adausdt, algousdt, aliceusdt, apeusdt, api3usdt, aptusdt, atomusdt, avaxusdt, axsusdt
+      bchusdt, bnbusdt, btcusdt, chzusdt, crvusdt, dashusdt, dogeusdt, dotusdt, dydxusdt, egldusdt, enjusdt
+      etcusdt, ethusdt, filusdt, galausdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, linkusdt, ltcusdt
+      nearusdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, solusdt, storjusdt, stxusdt, trxusdt, uniusdt
+      xlmusdt, xmrusdt, xrpusdt, zecusdt, zenusdt
+
+=== Сводная таблица: полный пул (все пары, весь период) ===
+
+EMA(volume,100). Δ — pooled отклонение доли колонки от BASE на полном периоде.
+Статус: пересечение статусов из «универсальность среди пар» и «устойчивость во времени».
+
+Сигнал                              | Δ, п.п.    | Статус   
+------------------------------------------------------------
+b0 LOW(<=q30) × Цена росла          | -1.01 п.п. | не значим
+b0 LOW(<=q30) × Цена падала         | +0.90 п.п. | не значим
+b1 NORMAL(q30-q70) × Цена росла     | +0.42 п.п. | не значим
+b1 NORMAL(q30-q70) × Цена падала    | -0.38 п.п. | не значим
+b2 HIGH(q70-q85) × Цена росла       | +0.98 п.п. | не значим
+b2 HIGH(q70-q85) × Цена падала      | -0.97 п.п. | не значим
+b3 VERY_HIGH(q85-q95) × Цена росла  | +0.54 п.п. | не значим
+b3 VERY_HIGH(q85-q95) × Цена падала | -0.45 п.п. | не значим
+b4 SPIKE(>q95) × Цена росла         | -1.27 п.п. | не значим
+b4 SPIKE(>q95) × Цена падала        | +1.37 п.п. | не значим
+
+
+=== Графики ===
+Проверка 1 — Δ train vs val: /home_admin/crypto_bot/crypto_research/research_outputs/volume/volume_regimes/statistics/plots/volume_summary_check_pair_universality_delta_vol100.png
+Проверка 2 — Δ train vs val: /home_admin/crypto_bot/crypto_research/research_outputs/volume/volume_regimes/statistics/plots/volume_summary_check_temporal_stability_delta_vol100.png
+

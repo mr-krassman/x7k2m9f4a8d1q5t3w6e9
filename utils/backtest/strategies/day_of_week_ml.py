@@ -1,4 +1,4 @@
-"""ML-стратегия day_of_week: frozen model + frozen policy (thresholds + pairs_by_weekday)."""
+"""ML-стратегия day_of_week: frozen model + пороги из train_test metrics."""
 
 from __future__ import annotations
 
@@ -46,6 +46,7 @@ from crypto_research.utils.ml.numeric_features import (
     NUMERIC_FEATURE_SPECS,
     attach_normalized_features,
     bounds_map_from_bundle,
+    needs_day_volume,
     needs_return_pct,
 )
 from crypto_research.utils.ml.registry import FEATURE_PAIR_ID, FEATURE_WEEKDAY_ENC
@@ -55,15 +56,15 @@ log = get_logger("strategy_day_of_week_ml")
 
 STRATEGY_NAME = "day_of_week_ml"
 STRATEGY_DESCRIPTION = (
-    "ML сценарий: frozen LightGBM (feature-columns из model_bundle) + frozen policy из train-CPCV.\n"
+    "ML сценарий: frozen LightGBM (feature-columns из model_bundle).\n"
     "  Пороговые правила: long если P(up)>=t_long, short если P(up)<=t_short, иначе flat.\n"
-    "  Отбор (weekday,pair) из policy.json; применяется без дообучения на holdout test."
+    "  Пороги t_long/t_short из train_test.json (prob_return_dependence, train); все пары пула."
 )
 
 COMBINED_ML_DESCRIPTION = (
-    "Combined ML: frozen LightGBM с фичами нескольких исследований + frozen policy из train-CPCV.\n"
+    "Combined ML: frozen LightGBM с фичами нескольких исследований.\n"
     "  Пороговые правила: long если P(up)>=t_long, short если P(up)<=t_short, иначе flat.\n"
-    "  Отбор пар по weekday-policy; модель и policy из combined bundle."
+    "  Пороги из train_test.json (prob_return_dependence); все пары пула."
 )
 
 
@@ -79,8 +80,6 @@ def _strategy_description(strategy_name: str) -> str:
 class DayOfWeekMlPolicy:
     t_long: float
     t_short: float
-    pairs_by_weekday: dict[int, list[str]]
-    allowed_pairs: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -118,6 +117,8 @@ def _attach_numeric_features(df: pl.DataFrame, model_bundle: dict) -> pl.DataFra
     base_cols = ["day_utc", "pair", "day_close"]
     if needs_return_pct(feature_columns):
         base_cols.append("return_pct")
+    if needs_day_volume(feature_columns):
+        base_cols.append("day_volume")
     work = (
         df.select([c for c in base_cols if c in df.columns])
         .with_row_count("row_idx")
@@ -170,21 +171,9 @@ def build_pair_returns_ml(
 ) -> pl.DataFrame:
     df = _normalize_weekday(daily)
     y_prob = _predict_probabilities(df, model_bundle)
-    if policy.allowed_pairs is not None:
-        allowed_set = set(policy.allowed_pairs)
-        allowed_mask = np.array([p in allowed_set for p in df["pair"].to_list()])
-    else:
-        allowed = {
-            (wd, pair)
-            for wd, pairs in policy.pairs_by_weekday.items()
-            for pair in pairs
-        }
-        allowed_mask = np.array(
-            [(int(w), p) in allowed for w, p in zip(df["weekday"].to_list(), df["pair"].to_list())]
-        )
     pos = np.zeros(df.height, dtype=np.float64)
-    pos[(y_prob >= policy.t_long) & allowed_mask] = 1.0
-    pos[(y_prob <= policy.t_short) & allowed_mask] = -1.0
+    pos[y_prob >= policy.t_long] = 1.0
+    pos[y_prob <= policy.t_short] = -1.0
 
     return df.with_columns(
         pl.Series("y_prob", y_prob),
@@ -224,12 +213,8 @@ def run_day_of_week_ml_backtest(
         policy=ctx.policy,
         model_bundle=ctx.model_bundle,
     )
-    if ctx.policy.allowed_pairs is not None:
-        peak_pairs = max(len(ctx.policy.allowed_pairs), 1)
-        trading_weekdays = tuple(range(7))
-    else:
-        peak_pairs = peak_eligible_pairs_per_day(ctx.policy.pairs_by_weekday, len(pairs))
-        trading_weekdays = tuple(sorted([wd for wd, pairs_wd in ctx.policy.pairs_by_weekday.items() if pairs_wd]))
+    peak_pairs = peak_eligible_pairs_per_day(None, len(pairs))
+    trading_weekdays = tuple(range(7))
     portfolio = build_portfolio_daily_weighted(pair_returns, peak_pairs)
     bh_daily = ctx.daily_benchmark_49 if ctx.daily_benchmark_49 is not None else daily
     benchmark_df = build_buy_hold_portfolio(bh_daily)
@@ -286,17 +271,15 @@ def run_day_of_week_ml_backtest(
         weekday_corr=corr,
         trading_weekdays=trading_weekdays,
         scenario=ctx.scenario,
-        pairs_by_weekday=None if ctx.policy.allowed_pairs is not None else ctx.policy.pairs_by_weekday,
+        pairs_by_weekday=None,
         avg_active_pairs_by_weekday=active_pairs,
         avg_long_pairs_by_weekday=long_pairs,
         avg_short_pairs_by_weekday=short_pairs,
         weekday_total_ret_by_side=side_totals,
         n_benchmark_pairs=ctx.n_benchmark_pairs,
-        selected_pairs=ctx.policy.allowed_pairs,
+        selected_pairs=None,
         exposure_note=(
-            "Капитал в рынке определяется global-пулом разрешённых пар (без weekday-гейта)."
-            if ctx.policy.allowed_pairs is not None
-            else "Капитал в рынке определяется weekday-policy (разные списки по дням недели)."
+            "Капитал в рынке: все пары пула; long/short по t_long/t_short из train_test prob_return_dependence."
         ),
     )
 

@@ -12,13 +12,13 @@ import polars as pl
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FormatStrFormatter, MultipleLocator
 
+from crypto_research.utils.ml.trading_thresholds import resolve_prob_return_threshold_pair
 from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("ml_prob_return_dependence_plot")
 
 PLOT_DPI = 200
-FINE_BINS = 48
-REFERENCE_BINS = 40
+FINE_BINS = 50
 SCATTER_MAX_POINTS = 2500
 SCATTER_ALPHA = 0.12
 SCATTER_SIZE = 4
@@ -28,6 +28,7 @@ X_TICK_LABEL_FONTSIZE = 6
 LONG_LINE_COLOR = "#2563eb"
 SHORT_LINE_COLOR = "#dc2626"
 CURVE_COLORS = plt.cm.tab10(np.linspace(0, 1, 10))
+THRESHOLD_EDGE_PCT = 0.25
 
 
 @dataclass(frozen=True)
@@ -39,17 +40,20 @@ class SmoothCurveSpec:
     sigma: float = 0.0
 
 
+THRESHOLD_SMOOTH_SPEC = SmoothCurveSpec("gauss σ=4", "gauss", FINE_BINS, sigma=4.0)
+
+
 SMOOTH_CURVE_SPECS: tuple[SmoothCurveSpec, ...] = (
-    SmoothCurveSpec("bins=6", "bins", 6),
-    SmoothCurveSpec("bins=10", "bins", 10),
-    SmoothCurveSpec("bins=16", "bins", 16),
-    SmoothCurveSpec("bins=24", "bins", 24),
-    SmoothCurveSpec("bins=40", "bins", 40),
-    SmoothCurveSpec("roll w=3", "roll", FINE_BINS, window=3),
-    SmoothCurveSpec("roll w=7", "roll", FINE_BINS, window=7),
-    SmoothCurveSpec("roll w=13", "roll", FINE_BINS, window=13),
-    SmoothCurveSpec("gauss σ=1", "gauss", FINE_BINS, sigma=1.0),
-    SmoothCurveSpec("gauss σ=2.5", "gauss", FINE_BINS, sigma=2.5),
+    # SmoothCurveSpec("bins=6", "bins", 6),
+    # SmoothCurveSpec("bins=10", "bins", 10),
+    # SmoothCurveSpec("bins=16", "bins", 16),
+    # SmoothCurveSpec("bins=24", "bins", 24),
+    SmoothCurveSpec("bins=500", "bins", 50),
+    # SmoothCurveSpec("roll w=3", "roll", FINE_BINS, window=3),
+    # SmoothCurveSpec("roll w=7", "roll", FINE_BINS, window=7),
+    # SmoothCurveSpec("roll w=13", "roll", FINE_BINS, window=13),
+    SmoothCurveSpec("gauss σ=4", "gauss", FINE_BINS, sigma=4.0),
+    # SmoothCurveSpec("gauss σ=2.5", "gauss", FINE_BINS, sigma=2.5),
 )
 
 
@@ -140,23 +144,48 @@ def _correlation_label(x: np.ndarray, y: np.ndarray) -> str:
     return f"Pearson r={r:.3f}, Spearman ρ={rho:.3f}"
 
 
-def _breakeven_thresholds(bx: np.ndarray, by: np.ndarray) -> tuple[float | None, float | None]:
+def _edge_thresholds(
+    bx: np.ndarray,
+    by: np.ndarray,
+    *,
+    edge_pct: float,
+) -> tuple[float | None, float | None]:
+    """
+    t_long: минимальный P(up), с которого сглаженный return > edge_pct и не падает ниже.
+    t_short: максимальный P(up), до которого сглаженный return < -edge_pct и не поднимается выше.
+    """
     if bx.size == 0:
         return None, None
 
     t_long: float | None = None
     for i in range(bx.size):
-        if np.all(by[i:] >= 0.0):
+        if np.all(by[i:] > edge_pct):
             t_long = float(bx[i])
             break
 
     t_short: float | None = None
     for i in range(bx.size - 1, -1, -1):
-        if np.all(by[: i + 1] <= 0.0):
+        if np.all(by[: i + 1] < -edge_pct):
             t_short = float(bx[i])
             break
 
     return t_long, t_short
+
+
+def _train_thresholds_from_smooth_curve(
+    y_prob: np.ndarray,
+    return_pct: np.ndarray,
+    *,
+    spec: SmoothCurveSpec = THRESHOLD_SMOOTH_SPEC,
+    edge_pct: float = THRESHOLD_EDGE_PCT,
+) -> tuple[float | None, float | None]:
+    mask = np.isfinite(return_pct) & np.isfinite(y_prob)
+    x = y_prob[mask]
+    y = return_pct[mask]
+    if x.size == 0:
+        return None, None
+    bx, by = _smooth_curve(x, y, spec)
+    return _edge_thresholds(bx, by, edge_pct=edge_pct)
 
 
 def _aligned_prob_return_from_oos(
@@ -262,7 +291,9 @@ def _plot_prob_vs_return_panel(
     ylim: tuple[float, float],
     panel_title: str,
     scatter_label: str,
-) -> tuple[str, float | None, float | None]:
+    t_long: float | None = None,
+    t_short: float | None = None,
+) -> str:
     mask = np.isfinite(return_pct) & np.isfinite(y_prob)
     x = y_prob[mask]
     y = return_pct[mask]
@@ -271,7 +302,7 @@ def _plot_prob_vs_return_panel(
         ax.set_ylim(ylim)
         _apply_x_ticks(ax, xlim)
         ax.set_title(panel_title, fontsize=10, fontweight="semibold", loc="left")
-        return "r=—, ρ=—", None, None
+        return "r=—, ρ=—"
 
     scatter_m = _subsample_mask(x.size, max_points=SCATTER_MAX_POINTS)
     ax.scatter(
@@ -296,9 +327,11 @@ def _plot_prob_vs_return_panel(
         ax.axvline(0.5, color="#9ca3af", linestyle="--", linewidth=0.8, zorder=1)
     if ylim[0] < 0.0 < ylim[1]:
         ax.axhline(0.0, color="#9ca3af", linestyle="--", linewidth=0.8, zorder=1)
+    if ylim[0] < THRESHOLD_EDGE_PCT < ylim[1]:
+        ax.axhline(THRESHOLD_EDGE_PCT, color="#93c5fd", linestyle=":", linewidth=0.8, zorder=1)
+    if ylim[0] < -THRESHOLD_EDGE_PCT < ylim[1]:
+        ax.axhline(-THRESHOLD_EDGE_PCT, color="#fca5a5", linestyle=":", linewidth=0.8, zorder=1)
 
-    ref_bx, ref_by = _binned_mean(x, y, n_bins=REFERENCE_BINS)
-    t_long, t_short = _breakeven_thresholds(ref_bx, ref_by)
     if t_long is not None and xlim[0] <= t_long <= xlim[1]:
         _draw_threshold_line(ax, t_long, color=LONG_LINE_COLOR)
     if t_short is not None and xlim[0] <= t_short <= xlim[1]:
@@ -325,11 +358,47 @@ def _plot_prob_vs_return_panel(
             Line2D([0], [0], color=CURVE_COLORS[i % len(CURVE_COLORS)], linewidth=1.6, label=spec.label)
             for i, (spec, _, _) in enumerate(curves)
         ],
-        Line2D([0], [0], color=LONG_LINE_COLOR, linestyle="--", linewidth=1.4, label=f"t_long (bins={REFERENCE_BINS})"),
-        Line2D([0], [0], color=SHORT_LINE_COLOR, linestyle="--", linewidth=1.4, label=f"t_short (bins={REFERENCE_BINS})"),
+        Line2D([0], [0], color=LONG_LINE_COLOR, linestyle="--", linewidth=1.4, label=f"t_long (train, >{THRESHOLD_EDGE_PCT:g}%)"),
+        Line2D([0], [0], color=SHORT_LINE_COLOR, linestyle="--", linewidth=1.4, label=f"t_short (train, <−{THRESHOLD_EDGE_PCT:g}%)"),
     ]
     ax.legend(handles=handles, fontsize=6, loc="upper left", framealpha=0.92, ncol=2)
-    return corr, t_long, t_short
+    return corr
+
+
+def compute_prob_return_thresholds(
+    train_frame: pl.DataFrame,
+    train_y_prob: np.ndarray,
+    *,
+    return_column: str = "return_pct",
+) -> dict[str, float | str | int | None]:
+    """Пороги t_long/t_short по train: сглаженная кривая return vs P(up)."""
+    empty_meta = {
+        "edge_pct": THRESHOLD_EDGE_PCT,
+        "smooth": THRESHOLD_SMOOTH_SPEC.label,
+        "n_train_rows": 0,
+        "source": "train prob_return_dependence",
+    }
+    if return_column not in train_frame.columns or train_frame.is_empty():
+        t_long, t_short = resolve_prob_return_threshold_pair(None, None)
+        return {"t_long": t_long, "t_short": t_short, **empty_meta}
+    train_y_prob = np.asarray(train_y_prob, dtype=float)
+    if train_y_prob.size == 0:
+        t_long, t_short = resolve_prob_return_threshold_pair(None, None)
+        return {"t_long": t_long, "t_short": t_short, **empty_meta}
+    train_prob, train_ret = _aligned_prob_return_from_frame(
+        train_frame, train_y_prob, return_column=return_column
+    )
+    t_long, t_short = resolve_prob_return_threshold_pair(
+        *_train_thresholds_from_smooth_curve(train_prob, train_ret),
+    )
+    return {
+        "t_long": t_long,
+        "t_short": t_short,
+        "edge_pct": THRESHOLD_EDGE_PCT,
+        "smooth": THRESHOLD_SMOOTH_SPEC.label,
+        "n_train_rows": int(train_prob.size),
+        "source": "train prob_return_dependence",
+    }
 
 
 def save_prob_return_dependence_plot(
@@ -344,19 +413,28 @@ def save_prob_return_dependence_plot(
     train_label: str = "train",
     test_label: str = "test",
     return_column: str = "return_pct",
-) -> Path:
+) -> tuple[Path, dict[str, float | str | int | None]]:
     path.parent.mkdir(parents=True, exist_ok=True)
+    t_fb_long, t_fb_short = resolve_prob_return_threshold_pair(None, None)
+    empty_thresholds: dict[str, float | str | int | None] = {
+        "t_long": t_fb_long,
+        "t_short": t_fb_short,
+        "edge_pct": THRESHOLD_EDGE_PCT,
+        "smooth": THRESHOLD_SMOOTH_SPEC.label,
+        "n_train_rows": 0,
+        "source": "train prob_return_dependence",
+    }
     if return_column not in test_frame.columns:
         log.warning("[ml] prob_return_dependence: нет колонки %s", return_column)
-        return path
+        return path, empty_thresholds
 
-    if train_oos is not None and not train_oos.is_empty():
-        train_prob, train_ret = _aligned_prob_return_from_oos(
-            train_frame, train_oos, return_column=return_column
-        )
-    elif train_y_prob is not None and not train_frame.is_empty():
+    if train_y_prob is not None and not train_frame.is_empty():
         train_prob, train_ret = _aligned_prob_return_from_frame(
             train_frame, train_y_prob, return_column=return_column
+        )
+    elif train_oos is not None and not train_oos.is_empty():
+        train_prob, train_ret = _aligned_prob_return_from_oos(
+            train_frame, train_oos, return_column=return_column
         )
     else:
         train_prob, train_ret = np.array([]), np.array([])
@@ -371,8 +449,22 @@ def save_prob_return_dependence_plot(
     test_probs, test_rets = _curve_points(test_curves)
     xlim, ylim = _shared_limits(train_probs + test_probs, train_rets + test_rets)
 
+    n_train = int(train_prob.size)
+    n_test = int(test_prob.size)
+    t_long, t_short = resolve_prob_return_threshold_pair(
+        *_train_thresholds_from_smooth_curve(train_prob, train_ret),
+    )
+    thresholds = {
+        "t_long": t_long,
+        "t_short": t_short,
+        "edge_pct": THRESHOLD_EDGE_PCT,
+        "smooth": THRESHOLD_SMOOTH_SPEC.label,
+        "n_train_rows": n_train,
+        "source": "train prob_return_dependence",
+    }
+
     fig, axes = plt.subplots(1, 2, figsize=(15, 6.2), sharey=True)
-    _, train_t_long, train_t_short = _plot_prob_vs_return_panel(
+    _plot_prob_vs_return_panel(
         axes[0],
         train_prob,
         train_ret,
@@ -380,8 +472,10 @@ def save_prob_return_dependence_plot(
         ylim=ylim,
         panel_title=train_label,
         scatter_label="строки train",
+        t_long=t_long,
+        t_short=t_short,
     )
-    _, test_t_long, test_t_short = _plot_prob_vs_return_panel(
+    _plot_prob_vs_return_panel(
         axes[1],
         test_prob,
         test_ret,
@@ -389,11 +483,13 @@ def save_prob_return_dependence_plot(
         ylim=ylim,
         panel_title=test_label,
         scatter_label="строки test",
+        t_long=t_long,
+        t_short=t_short,
     )
-    n_train = int(train_prob.size)
-    n_test = int(test_prob.size)
     fig.suptitle(
-        f"{title} — 10 сглаженных кривых\n(train n={n_train}, test n={n_test})",
+        f"{title}\n"
+        f"(train n={n_train}, test n={n_test}; "
+        f"пороги train {THRESHOLD_SMOOTH_SPEC.label}, |return|>{THRESHOLD_EDGE_PCT:g}%)",
         fontweight="semibold",
         y=1.02,
     )
@@ -401,13 +497,13 @@ def save_prob_return_dependence_plot(
     fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight")
     plt.close(fig)
     log.info(
-        "[ml] P(up) vs return plot saved: %s (train=%s test=%s t_long=%s/%s t_short=%s/%s)",
+        "[ml] P(up) vs return plot saved: %s (train=%s test=%s t_long=%s t_short=%s edge=%.2f%% smooth=%s)",
         path,
         n_train,
         n_test,
-        train_t_long,
-        test_t_long,
-        train_t_short,
-        test_t_short,
+        t_long,
+        t_short,
+        THRESHOLD_EDGE_PCT,
+        THRESHOLD_SMOOTH_SPEC.label,
     )
-    return path
+    return path, thresholds

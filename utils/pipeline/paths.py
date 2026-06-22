@@ -7,8 +7,14 @@ from crypto_research.utils.pipeline.study_ids import (
     STUDY_DAY_OF_WEEK,
     STUDY_EMA_PERIOD_SCREEN,
     STUDY_EMA_SPREADS,
+    STUDY_EMA_HARAMI,
+    STUDY_HARAMI,
+    STUDY_VOLATILITY_PERIOD_SCREEN,
+    STUDY_VOLATILITY_SPREADS,
     STUDY_RSI_PERIOD_SCREEN,
     STUDY_RSI_SPREADS,
+    STUDY_VOLUME_EMA_PERIOD_SCREEN,
+    STUDY_VOLUME_SPREADS,
     STUDY_PRICE_SEQUENCES,
 )
 
@@ -20,9 +26,15 @@ _STUDY_STATS_REL: dict[str, Path] = {
     STUDY_DAY_OF_WEEK: Path("day_of_week") / "statistics",
     STUDY_EMA_SPREADS: Path("ema") / "ema_spreads" / "statistics",
     STUDY_EMA_PERIOD_SCREEN: Path("ema") / "ema_spreads" / "statistics",
+    STUDY_EMA_HARAMI: Path("ema") / "ema_harami" / "statistics",
     STUDY_RSI_PERIOD_SCREEN: Path("rsi") / "rsi_quantiles" / "statistics",
     STUDY_RSI_SPREADS: Path("rsi") / "rsi_quantiles" / "statistics",
+    STUDY_VOLUME_EMA_PERIOD_SCREEN: Path("volume") / "volume_regimes" / "statistics",
+    STUDY_VOLUME_SPREADS: Path("volume") / "volume_regimes" / "statistics",
     STUDY_PRICE_SEQUENCES: Path("price_sequences") / "statistics",
+    STUDY_HARAMI: Path("candlestick") / "harami" / "statistics",
+    STUDY_VOLATILITY_PERIOD_SCREEN: Path("volatility") / "volatility_spreads" / "statistics",
+    STUDY_VOLATILITY_SPREADS: Path("volatility") / "volatility_spreads" / "statistics",
 }
 
 
@@ -138,6 +150,30 @@ def price_sequences_summary_log_path() -> Path:
 
 def price_sequences_summary_plot_path(plot_kind: str) -> Path:
     return study_plots_dir(STUDY_PRICE_SEQUENCES) / f"price_sequences_summary_{plot_kind}.png"
+
+
+def harami_summary_log_path() -> Path:
+    return study_stats_dir(STUDY_HARAMI) / "harami_summary.log"
+
+
+def harami_summary_plot_path(plot_kind: str) -> Path:
+    return study_plots_dir(STUDY_HARAMI) / f"harami_summary_{plot_kind}.png"
+
+
+def harami_signals_audit_log_path() -> Path:
+    return study_stats_dir(STUDY_HARAMI) / "harami_signals_audit.log"
+
+
+def ema_harami_summary_log_path(ema_period: int) -> Path:
+    return study_stats_dir(STUDY_EMA_HARAMI) / f"ema_harami_summary_ema{ema_period}.log"
+
+
+def ema_harami_summary_plot_path(ema_period: int, plot_kind: str) -> Path:
+    return study_plots_dir(STUDY_EMA_HARAMI) / f"ema_harami_summary_{plot_kind}_ema{ema_period}.png"
+
+
+def ema_harami_sample_candles_plot_path(ema_period: int) -> Path:
+    return study_plots_dir(STUDY_EMA_HARAMI) / f"ema_harami_sample_candles_ema{ema_period}.png"
 
 
 def weekday_summary_log_path() -> Path:
@@ -294,6 +330,13 @@ def ml_prob_return_dependence_plot_path(
 ) -> Path:
     tag = ml_output_tag(spec, n_pairs, test_from, test_to)
     return ml_plots_dir(spec) / f"{tag}_prob_return_dependence.png"
+
+
+def ml_p_up_density_split_plot_path(
+    spec, n_pairs: int, train_from: datetime, train_to: datetime
+) -> Path:
+    tag = ml_output_tag(spec, n_pairs, train_from, train_to)
+    return ml_plots_dir(spec) / f"{tag}_p_up_density_split.png"
 
 
 def ml_compare_prob_cdf_plot_path(
@@ -504,3 +547,93 @@ def rsi_summary_log_path(rsi_period: int) -> Path:
 
 def rsi_summary_plot_path(rsi_period: int, plot_kind: str) -> Path:
     return study_plots_dir(STUDY_RSI_SPREADS) / f"rsi_summary_{plot_kind}_rsi{rsi_period}.png"
+
+
+def volume_screen_output_tag(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+) -> str:
+    periods_tag = "_".join(str(p) for p in periods)
+    return f"{n_pairs}pairs_vol{periods_tag}_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+
+
+def volume_ema_period_screen_log_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+) -> Path:
+    tag = volume_screen_output_tag(n_pairs, from_date, to_date, periods)
+    return study_stats_dir(STUDY_VOLUME_EMA_PERIOD_SCREEN) / f"volume_ema_period_screen_{tag}.log"
+
+
+def volume_ema_period_screen_plot_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+    plot_kind: str,
+) -> Path:
+    tag = volume_screen_output_tag(n_pairs, from_date, to_date, periods)
+    return (
+        study_plots_dir(STUDY_VOLUME_EMA_PERIOD_SCREEN)
+        / f"volume_ema_period_screen_{plot_kind}_{tag}.png"
+    )
+
+
+def volatility_screen_output_tag(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+) -> str:
+    periods_tag = "_".join(str(p) for p in periods)
+    return f"{n_pairs}pairs_sma{periods_tag}_{from_date:%Y%m%d}_{to_date:%Y%m%d}"
+
+
+def volatility_period_screen_log_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+) -> Path:
+    tag = volatility_screen_output_tag(n_pairs, from_date, to_date, periods)
+    return study_stats_dir(STUDY_VOLATILITY_PERIOD_SCREEN) / f"volatility_period_screen_{tag}.log"
+
+
+def volatility_period_screen_plot_path(
+    n_pairs: int,
+    from_date: datetime,
+    to_date: datetime,
+    periods: tuple[int, ...],
+    plot_kind: str,
+) -> Path:
+    tag = volatility_screen_output_tag(n_pairs, from_date, to_date, periods)
+    return (
+        study_plots_dir(STUDY_VOLATILITY_PERIOD_SCREEN)
+        / f"volatility_period_screen_{plot_kind}_{tag}.png"
+    )
+
+
+def volatility_summary_log_path(sma_period: int) -> Path:
+    return study_stats_dir(STUDY_VOLATILITY_SPREADS) / f"volatility_summary_sma{sma_period}.log"
+
+
+def volatility_summary_plot_path(sma_period: int, plot_kind: str) -> Path:
+    return (
+        study_plots_dir(STUDY_VOLATILITY_SPREADS)
+        / f"volatility_summary_{plot_kind}_sma{sma_period}.png"
+    )
+
+
+def volume_summary_log_path(vol_period: int) -> Path:
+    return study_stats_dir(STUDY_VOLUME_SPREADS) / f"volume_summary_vol{vol_period}.log"
+
+
+def volume_summary_plot_path(vol_period: int, plot_kind: str) -> Path:
+    return (
+        study_plots_dir(STUDY_VOLUME_SPREADS)
+        / f"volume_summary_{plot_kind}_vol{vol_period}.png"
+    )

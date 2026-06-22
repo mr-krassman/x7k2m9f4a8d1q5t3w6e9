@@ -1,54 +1,189 @@
 {
+  "prob_return_thresholds": {
+    "t_long": 0.5138,
+    "t_short": 0.4717,
+    "edge_pct": 0.25,
+    "smooth": "gauss σ=4",
+    "n_train_rows": 31917,
+    "source": "train prob_return_dependence"
+  },
+  "p_up_split_threshold": {
+    "threshold": 0.5,
+    "method": "default_0_5",
+    "otsu": 0.5039,
+    "valley": null,
+    "n_train_rows": 31917,
+    "source": "train P(up) density"
+  },
   "train_cpcv_pooled": {
-    "accuracy": 0.5116,
-    "log_loss": 0.6936,
-    "roc_auc": 0.5188
+    "accuracy": 0.5112,
+    "log_loss": 0.6935,
+    "roc_auc": 0.5195
   },
   "train_fit": {
-    "accuracy": 0.5691,
-    "log_loss": 0.682,
-    "roc_auc": 0.5972
+    "accuracy": 0.567,
+    "log_loss": 0.6828,
+    "roc_auc": 0.5951
   },
   "holdout_test": {
-    "accuracy": 0.5363,
-    "log_loss": 0.6902,
-    "roc_auc": 0.5474
+    "accuracy": 0.5345,
+    "log_loss": 0.6903,
+    "roc_auc": 0.5471
   },
   "holdout_test_by_weekday": {
     "Пн": {
-      "accuracy": 0.5227,
-      "log_loss": 0.6926,
-      "roc_auc": 0.5321
+      "accuracy": 0.5148,
+      "log_loss": 0.6927,
+      "roc_auc": 0.5316
     },
     "Вт": {
-      "accuracy": 0.5212,
+      "accuracy": 0.5163,
       "log_loss": 0.6972,
-      "roc_auc": 0.537
+      "roc_auc": 0.5368
     },
     "Ср": {
-      "accuracy": 0.5549,
-      "log_loss": 0.6876,
-      "roc_auc": 0.5597
+      "accuracy": 0.5529,
+      "log_loss": 0.6878,
+      "roc_auc": 0.56
     },
     "Чт": {
-      "accuracy": 0.5501,
-      "log_loss": 0.6877,
-      "roc_auc": 0.4973
+      "accuracy": 0.5508,
+      "log_loss": 0.6875,
+      "roc_auc": 0.4984
     },
     "Пт": {
-      "accuracy": 0.5354,
-      "log_loss": 0.6872,
-      "roc_auc": 0.5249
+      "accuracy": 0.5358,
+      "log_loss": 0.6875,
+      "roc_auc": 0.523
     },
     "Сб": {
-      "accuracy": 0.4953,
-      "log_loss": 0.6949,
-      "roc_auc": 0.497
+      "accuracy": 0.4957,
+      "log_loss": 0.6947,
+      "roc_auc": 0.4988
     },
     "Вс": {
-      "accuracy": 0.5746,
-      "log_loss": 0.6843,
-      "roc_auc": 0.5294
+      "accuracy": 0.5755,
+      "log_loss": 0.6847,
+      "roc_auc": 0.5299
+    }
+  },
+  "train_fit_signal": {
+    "t_long": 0.5138,
+    "t_short": 0.4717,
+    "long_rate": 0.3578,
+    "flat_rate": 0.4218,
+    "short_rate": 0.2204,
+    "long_hit_rate": 0.5955,
+    "short_hit_rate": 0.6067,
+    "signal_accuracy": 0.5998,
+    "n_long": 11419,
+    "n_short": 7035,
+    "n_flat": 13463
+  },
+  "holdout_test_signal": {
+    "t_long": 0.5138,
+    "t_short": 0.4717,
+    "long_rate": 0.3859,
+    "flat_rate": 0.4017,
+    "short_rate": 0.2124,
+    "long_hit_rate": 0.5231,
+    "short_hit_rate": 0.5765,
+    "signal_accuracy": 0.542,
+    "n_long": 14694,
+    "n_short": 8085,
+    "n_flat": 15294
+  },
+  "holdout_test_by_weekday_signal": {
+    "Пн": {
+      "t_long": 0.5138,
+      "t_short": 0.4717,
+      "long_rate": 0.1103,
+      "flat_rate": 0.7902,
+      "short_rate": 0.0995,
+      "long_hit_rate": 0.5917,
+      "short_hit_rate": 0.4972,
+      "signal_accuracy": 0.5469,
+      "n_long": 600,
+      "n_short": 541,
+      "n_flat": 4298
+    },
+    "Вт": {
+      "t_long": 0.5138,
+      "t_short": 0.4717,
+      "long_rate": 0.4837,
+      "flat_rate": 0.3887,
+      "short_rate": 0.1276,
+      "long_hit_rate": 0.4838,
+      "short_hit_rate": 0.5951,
+      "signal_accuracy": 0.5071,
+      "n_long": 2631,
+      "n_short": 694,
+      "n_flat": 2114
+    },
+    "Ср": {
+      "t_long": 0.5138,
+      "t_short": 0.4717,
+      "long_rate": 0.4905,
+      "flat_rate": 0.2346,
+      "short_rate": 0.2749,
+      "long_hit_rate": 0.5532,
+      "short_hit_rate": 0.5559,
+      "signal_accuracy": 0.5542,
+      "n_long": 2668,
+      "n_short": 1495,
+      "n_flat": 1276
+    },
+    "Чт": {
+      "t_long": 0.5138,
+      "t_short": 0.4717,
+      "long_rate": 0.0561,
+      "flat_rate": 0.4484,
+      "short_rate": 0.4955,
+      "long_hit_rate": 0.423,
+      "short_hit_rate": 0.5788,
+      "signal_accuracy": 0.563,
+      "n_long": 305,
+      "n_short": 2695,
+      "n_flat": 2439
+    },
+    "Пт": {
+      "t_long": 0.5138,
+      "t_short": 0.4717,
+      "long_rate": 0.8465,
+      "flat_rate": 0.1464,
+      "short_rate": 0.0072,
+      "long_hit_rate": 0.5406,
+      "short_hit_rate": 0.4615,
+      "signal_accuracy": 0.54,
+      "n_long": 4604,
+      "n_short": 39,
+      "n_flat": 796
+    },
+    "Сб": {
+      "t_long": 0.5138,
+      "t_short": 0.4717,
+      "long_rate": 0.6053,
+      "flat_rate": 0.3585,
+      "short_rate": 0.0362,
+      "long_hit_rate": 0.5082,
+      "short_hit_rate": 0.4518,
+      "signal_accuracy": 0.505,
+      "n_long": 3292,
+      "n_short": 197,
+      "n_flat": 1950
+    },
+    "Вс": {
+      "t_long": 0.5138,
+      "t_short": 0.4717,
+      "long_rate": 0.1092,
+      "flat_rate": 0.4451,
+      "short_rate": 0.4457,
+      "long_hit_rate": 0.4899,
+      "short_hit_rate": 0.611,
+      "signal_accuracy": 0.5871,
+      "n_long": 594,
+      "n_short": 2424,
+      "n_flat": 2421
     }
   }
 }

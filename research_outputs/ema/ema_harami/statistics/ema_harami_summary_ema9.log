@@ -1,0 +1,127 @@
+=== Отчёт: сводка EMA(9) + Harami — подтверждение сигналов ===
+
+EMA(9): те же бакеты b0–b6 и пороги t1/t2/near, что в ema_spreads (dev вчера на день сигнала t+1 = конец дня t). Harami с подтверждением: паттерн (t−2, t−1), подтверждение на t (Bullish — close(t) > open(t−2); Bearish — close(t) < open(t−2)); сигнал и доходность — день t+1. Ниже EMA (b4–b6) — только Bullish; выше EMA (b0–b2) — только Bearish. b3 (|dev|≤near) исключён. BASE для Δ — все дни с EMA-бакетом (как ema_spreads). Сравнение с ema_summary_ema9.log — по тем же номерам бакетов.
+
+Три блока (как ema_spreads / harami):
+  1. Универсальность среди пар — train/val когорты на одном периоде
+  2. Устойчивость во времени — один пул пар, два периода
+  3. Полный пул — все пары, весь период, итог = пересечение статусов 1 и 2
+
+Для сравнения с чистой EMA: research_outputs/ema/ema_spreads/statistics/ema_summary_ema9.log
+
+=== Универсальность среди пар ===
+
+Период (UTC): 2022-01-01 .. 2026-05-31
+Train: 24 пар (первая свеча ≤ 2022-01-01)
+Val: 25 пар (пул ≤ 2023-01-01, вне train-cohort)
+Пары train и val не пересекаются.
+
+Train: aaveusdt, adausdt, algousdt, aliceusdt, atomusdt, avaxusdt, bchusdt, bnbusdt, btcusdt, crvusdt, dogeusdt
+      dotusdt, dydxusdt, enjusdt, ethusdt, filusdt, galausdt, linkusdt, ltcusdt, nearusdt, solusdt, uniusdt
+      xrpusdt, zecusdt
+
+Val: 1000luncusdt, apeusdt, api3usdt, aptusdt, axsusdt, chzusdt, dashusdt, egldusdt, etcusdt, gmtusdt, hbarusdt
+      icpusdt, injusdt, ldousdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, storjusdt, stxusdt, trxusdt
+      xlmusdt, xmrusdt, zenusdt
+
+=== Сводная таблица: универсальность среди пар ===
+
+ema_harami EMA(9). Δ — отклонение доли колонки от BASE (п.п.), как в блоке Δ spread.
+Материальность на train: |Δ| ≥ 1.5 п.п.
+p-value (train) — permutation по Δ каждой train-пары (sign-flip), H₀: mean=0.
+Поправка Бонферрони: α=0.05, порог «значим» p < 0.0036 (0.05/14).
+Подтверждение на val: val-пары с тем же знаком Δ, что pooled train; ✅ ≥ 60%, иначе ❌.
+
+Сигнал                                                       | Δ train, п.п. | Δ val, п.п. | Δ (val−train) | p-value (train) | Подтверждение на val | Статус   
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+b0 dev > t2⁺ × Bearish Harami (подтв.) × Цена росла          | -1.17 п.п.    | -15.57 п.п. | -14.40 п.п.   | 0.7098          | 7/12 (58%) ❌         | не значим
+b0 dev > t2⁺ × Bearish Harami (подтв.) × Цена падала         | +1.56 п.п.    | +16.08 п.п. | +14.51 п.п.   | 0.7066          | 7/12 (58%) ❌         | не значим
+b1 t1⁺ < dev ≤ t2⁺ × Bearish Harami (подтв.) × Цена росла    | -3.90 п.п.    | -14.86 п.п. | -10.96 п.п.   | 0.2732          | 15/23 (65%) ✅        | не значим
+b1 t1⁺ < dev ≤ t2⁺ × Bearish Harami (подтв.) × Цена падала   | +4.29 п.п.    | +15.37 п.п. | +11.08 п.п.   | 0.2526          | 15/23 (65%) ✅        | не значим
+b2 near < dev ≤ t1⁺ × Bearish Harami (подтв.) × Цена росла   | -11.12 п.п.   | +4.33 п.п.  | +15.44 п.п.   | 0.1769          | 9/24 (38%) ❌         | не значим
+b2 near < dev ≤ t1⁺ × Bearish Harami (подтв.) × Цена падала  | +11.51 п.п.   | -3.81 п.п.  | -15.33 п.п.   | 0.1714          | 9/24 (38%) ❌         | не значим
+b3 |dev| ≤ near × — × Цена росла                             | —             | —           | —             | n/a             | —                    | не значим
+b3 |dev| ≤ near × — × Цена падала                            | —             | —           | —             | n/a             | —                    | не значим
+b4 t2⁻ ≤ dev < −near × Bullish Harami (подтв.) × Цена росла  | -4.86 п.п.    | +2.10 п.п.  | +6.96 п.п.    | 0.1637          | 10/24 (42%) ❌        | не значим
+b4 t2⁻ ≤ dev < −near × Bullish Harami (подтв.) × Цена падала | +4.56 п.п.    | -1.59 п.п.  | -6.15 п.п.    | 0.1988          | 10/24 (42%) ❌        | не значим
+b5 t1⁻ ≤ dev < t2⁻ × Bullish Harami (подтв.) × Цена росла    | +5.17 п.п.    | -3.00 п.п.  | -8.17 п.п.    | 0.9936          | 12/25 (48%) ❌        | не значим
+b5 t1⁻ ≤ dev < t2⁻ × Bullish Harami (подтв.) × Цена падала   | -6.17 п.п.    | +1.87 п.п.  | +8.04 п.п.    | 0.7901          | 12/25 (48%) ❌        | не значим
+b6 dev < t1⁻ × Bullish Harami (подтв.) × Цена росла          | +4.85 п.п.    | -7.23 п.п.  | -12.08 п.п.   | 0.9369          | 9/19 (47%) ❌         | не значим
+b6 dev < t1⁻ × Bullish Harami (подтв.) × Цена падала         | -4.46 п.п.    | +7.74 п.п.  | +12.20 п.п.   | 0.9885          | 8/19 (42%) ❌         | не значим
+
+=== Устойчивость во времени ===
+
+Пул: 49 пар (первая свеча ≤ 2023-01-01)
+Train-период (UTC): 2022-01-01 .. 2024-04-01
+Val-период (UTC): 2024-04-01 .. 2026-05-31
+Одни и те же пары в обоих периодах.
+
+Пары: 1000luncusdt, aaveusdt, adausdt, algousdt, aliceusdt, apeusdt, api3usdt, aptusdt, atomusdt, avaxusdt, axsusdt
+      bchusdt, bnbusdt, btcusdt, chzusdt, crvusdt, dashusdt, dogeusdt, dotusdt, dydxusdt, egldusdt, enjusdt
+      etcusdt, ethusdt, filusdt, galausdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, linkusdt, ltcusdt
+      nearusdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, solusdt, storjusdt, stxusdt, trxusdt, uniusdt
+      xlmusdt, xmrusdt, xrpusdt, zecusdt, zenusdt
+
+=== Сводная таблица: устойчивость во времени ===
+
+ema_harami EMA(9). Δ — отклонение доли колонки от BASE (п.п.), как в блоке Δ spread.
+Материальность на train: |Δ| ≥ 1.5 п.п.
+p-value (train) — permutation по Δ каждой train-пары (sign-flip), H₀: mean=0.
+Поправка Бонферрони: α=0.05, порог «значим» p < 0.0036 (0.05/14).
+Подтверждение на val: пары с тем же знаком Δ во 2-м периоде, что в train-периоде; ✅ ≥ 60%, иначе ❌.
+
+Сигнал                                                       | Δ train, п.п. | Δ val, п.п. | Δ (val−train) | p-value (train) | Подтверждение на val | Статус   
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+b0 dev > t2⁺ × Bearish Harami (подтв.) × Цена росла          | -7.45 п.п.    | -0.44 п.п.  | +7.01 п.п.    | 0.5892          | 4/7 (57%) ❌          | не значим
+b0 dev > t2⁺ × Bearish Harami (подтв.) × Цена падала         | +8.20 п.п.    | +0.62 п.п.  | -7.58 п.п.    | 0.5793          | 4/7 (57%) ❌          | не значим
+b1 t1⁺ < dev ≤ t2⁺ × Bearish Harami (подтв.) × Цена росла    | -13.64 п.п.   | -8.74 п.п.  | +4.89 п.п.    | 0.0125          | 7/16 (44%) ❌         | не значим
+b1 t1⁺ < dev ≤ t2⁺ × Bearish Harami (подтв.) × Цена падала   | +14.39 п.п.   | +8.93 п.п.  | -5.46 п.п.    | 0.0112          | 7/16 (44%) ❌         | не значим
+b2 near < dev ≤ t1⁺ × Bearish Harami (подтв.) × Цена росла   | -1.65 п.п.    | -3.16 п.п.  | -1.51 п.п.    | 0.7557          | 13/27 (48%) ❌        | не значим
+b2 near < dev ≤ t1⁺ × Bearish Harami (подтв.) × Цена падала  | +2.41 п.п.    | +3.35 п.п.  | +0.94 п.п.    | 0.6738          | 13/27 (48%) ❌        | не значим
+b3 |dev| ≤ near × — × Цена росла                             | —             | —           | —             | n/a             | —                    | не значим
+b3 |dev| ≤ near × — × Цена падала                            | —             | —           | —             | n/a             | —                    | не значим
+b4 t2⁻ ≤ dev < −near × Bullish Harami (подтв.) × Цена росла  | -2.26 п.п.    | -1.59 п.п.  | +0.67 п.п.    | 0.2409          | 24/39 (62%) ✅        | не значим
+b4 t2⁻ ≤ dev < −near × Bullish Harami (подтв.) × Цена падала | +1.06 п.п.    | +1.78 п.п.  | +0.72 п.п.    | 0.3300          | 20/39 (51%) ❌        | не значим
+b5 t1⁻ ≤ dev < t2⁻ × Bullish Harami (подтв.) × Цена росла    | -3.33 п.п.    | +2.20 п.п.  | +5.53 п.п.    | 0.5888          | 21/28 (75%) ✅        | не значим
+b5 t1⁻ ≤ dev < t2⁻ × Bullish Harami (подтв.) × Цена падала   | +2.58 п.п.    | -3.48 п.п.  | -6.05 п.п.    | 0.6530          | 20/28 (71%) ✅        | не значим
+b6 dev < t1⁻ × Bullish Harami (подтв.) × Цена росла          | +4.96 п.п.    | -5.50 п.п.  | -10.46 п.п.   | 0.3756          | 3/10 (30%) ❌         | не значим
+b6 dev < t1⁻ × Bullish Harami (подтв.) × Цена падала         | -4.20 п.п.    | +5.69 п.п.  | +9.89 п.п.    | 0.3971          | 3/10 (30%) ❌         | не значим
+
+=== Полный пул (все пары, весь период) ===
+
+Пар: 49 (первая свеча ≤ 2023-01-01)
+Период (UTC): 2022-01-01 .. 2026-05-31
+
+Пары: 1000luncusdt, aaveusdt, adausdt, algousdt, aliceusdt, apeusdt, api3usdt, aptusdt, atomusdt, avaxusdt, axsusdt
+      bchusdt, bnbusdt, btcusdt, chzusdt, crvusdt, dashusdt, dogeusdt, dotusdt, dydxusdt, egldusdt, enjusdt
+      etcusdt, ethusdt, filusdt, galausdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, linkusdt, ltcusdt
+      nearusdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, solusdt, storjusdt, stxusdt, trxusdt, uniusdt
+      xlmusdt, xmrusdt, xrpusdt, zecusdt, zenusdt
+
+=== Сводная таблица: полный пул (все пары, весь период) ===
+
+ema_harami EMA(9). Δ — pooled отклонение доли колонки от BASE на полном периоде.
+Статус: пересечение статусов из «универсальность среди пар» и «устойчивость во времени».
+
+Сигнал                                                       | Δ, п.п.    | Статус   
+-------------------------------------------------------------------------------------
+b0 dev > t2⁺ × Bearish Harami (подтв.) × Цена росла          | -6.85 п.п. | не значим
+b0 dev > t2⁺ × Bearish Harami (подтв.) × Цена падала         | +7.29 п.п. | не значим
+b1 t1⁺ < dev ≤ t2⁺ × Bearish Harami (подтв.) × Цена росла    | -9.16 п.п. | не значим
+b1 t1⁺ < dev ≤ t2⁺ × Bearish Harami (подтв.) × Цена падала   | +9.60 п.п. | не значим
+b2 near < dev ≤ t1⁺ × Bearish Harami (подтв.) × Цена росла   | -3.64 п.п. | не значим
+b2 near < dev ≤ t1⁺ × Bearish Harami (подтв.) × Цена падала  | +4.09 п.п. | не значим
+b3 |dev| ≤ near × — × Цена росла                             | —          | не значим
+b3 |dev| ≤ near × — × Цена падала                            | —          | не значим
+b4 t2⁻ ≤ dev < −near × Bullish Harami (подтв.) × Цена росла  | -2.01 п.п. | не значим
+b4 t2⁻ ≤ dev < −near × Bullish Harami (подтв.) × Цена падала | +2.05 п.п. | не значим
+b5 t1⁻ ≤ dev < t2⁻ × Bullish Harami (подтв.) × Цена росла    | +1.42 п.п. | не значим
+b5 t1⁻ ≤ dev < t2⁻ × Bullish Harami (подтв.) × Цена падала   | -2.48 п.п. | не значим
+b6 dev < t1⁻ × Bullish Harami (подтв.) × Цена росла          | +0.25 п.п. | не значим
+b6 dev < t1⁻ × Bullish Harami (подтв.) × Цена падала         | +0.19 п.п. | не значим
+
+=== Графики ===
+Проверка 1 — Δ train vs val: /home_admin/crypto_bot/crypto_research/research_outputs/ema/ema_harami/statistics/plots/ema_harami_summary_check_pair_universality_delta_ema9.png
+Проверка 2 — Δ train vs val: /home_admin/crypto_bot/crypto_research/research_outputs/ema/ema_harami/statistics/plots/ema_harami_summary_check_temporal_stability_delta_ema9.png
+Свечи ±10 дней вокруг t+1 (20 Bullish + 20 Bearish): /home_admin/crypto_bot/crypto_research/research_outputs/ema/ema_harami/statistics/plots/ema_harami_sample_candles_ema9.png
+

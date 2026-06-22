@@ -18,7 +18,7 @@
     "feature_slug": "dow_ema_rsi_streak",
     "bundle_id": "dow_ema_rsi_streak",
     "ml_subdir": "ml",
-    "policy_mode": "weekday"
+    "policy_mode": "global"
   },
   "plot_ids": [
     "prob_return_dependence"
@@ -30,6 +30,14 @@
   "n_pairs": 49,
   "plot_paths": {
     "prob_return_dependence": "/home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_rsi_streak/ml/plots/direction_dow_ema_rsi_streak_49pairs_20240401_20260531_prob_return_dependence.png",
+    "prob_return_thresholds": {
+      "t_long": 0.5294,
+      "t_short": 0.4488,
+      "edge_pct": 0.4,
+      "smooth": "gauss σ=4",
+      "n_train_rows": 31675,
+      "source": "train prob_return_dependence"
+    },
     "compare_prob_cdf": "/home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_rsi_streak/ml/plots/direction_dow_ema_rsi_streak_49pairs_20220101_20260531_compare_prob_cdf.png"
   }
 }

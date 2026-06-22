@@ -1,0 +1,383 @@
+2026-06-22 15:50:20 INFO crypto_research.ml_research: [ml] log file: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/direction_dow_ema_streak_vol_20220101_20260531.log
+2026-06-22 15:50:20 INFO crypto_research.ml_dataset: [ml] pair filter: first_candle <= 2023-01-01 → 49 pairs
+2026-06-22 15:50:55 INFO crypto_research.load: [1] Загрузка данных: пар=49 строк=46567998 ~1243.5 MB
+2026-06-22 15:50:55 INFO crypto_research.load:   1000luncusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   aaveusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   adausdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   algousdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   aliceusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   apeusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   api3usdt: rows=1098270 2022-02-28 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   aptusdt: rows=763033 2022-10-19 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   atomusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   avaxusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   axsusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   bchusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   bnbusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   btcusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   chzusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   crvusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   dashusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   dogeusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   dotusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   dydxusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   egldusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   enjusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   etcusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   ethusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   filusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   galausdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   gmtusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   hbarusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   icpusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   injusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   ldousdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   linkusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   ltcusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   nearusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   ontusdt: rows=957048 2022-06-06 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   opusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   paxgusdt: rows=1076619 2022-03-15 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   sandusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   shib1000usdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   solusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   storjusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   stxusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   trxusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   uniusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   xlmusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   xmrusdt: rows=1162824 2022-01-14 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   xrpusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   zecusdt: rows=1182241 2022-01-01 .. 2024-04-01
+2026-06-22 15:50:55 INFO crypto_research.load:   zenusdt: rows=656821 2022-12-31 .. 2024-04-01
+2026-06-22 15:50:56 INFO crypto_research.ml_dataset: [ml] pooled daily: pairs=49 rows=32407 period=2022-01-01..2024-04-01
+2026-06-22 15:50:56 INFO crypto_research.ml_dataset: [ml] pair filter: first_candle <= 2023-01-01 → 49 pairs
+2026-06-22 15:51:26 INFO crypto_research.load: [1] Загрузка данных: пар=49 строк=55515524 ~1482.4 MB
+2026-06-22 15:51:26 INFO crypto_research.load:   1000luncusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   aaveusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   adausdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   algousdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   aliceusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   apeusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   api3usdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   aptusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   atomusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   avaxusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   axsusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   bchusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   bnbusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   btcusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   chzusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   crvusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   dashusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   dogeusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   dotusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   dydxusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   egldusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   enjusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   etcusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   ethusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   filusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   galausdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   gmtusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   hbarusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   icpusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   injusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   ldousdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   linkusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   ltcusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   nearusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   ontusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   opusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   paxgusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   sandusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   shib1000usdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   solusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   storjusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   stxusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   trxusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   uniusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   xlmusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   xmrusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   xrpusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   zecusdt: rows=1132756 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:26 INFO crypto_research.load:   zenusdt: rows=1133280 2024-04-01 .. 2026-05-27
+2026-06-22 15:51:27 INFO crypto_research.ml_dataset: [ml] pooled daily: pairs=49 rows=38563 period=2024-04-01..2026-05-31
+2026-06-22 15:51:27 INFO crypto_research.ml_ema_dev_norm: [ml] ema_dev_pair_norm bounds: pairs=49
+2026-06-22 15:51:27 INFO crypto_research.ml_numeric_features: [ml] bounds ema_dev_pair_norm: pairs=49
+2026-06-22 15:51:28 INFO crypto_research.ml_numeric_features: [ml] bounds streak_pair_norm: pairs=49
+2026-06-22 15:51:28 INFO crypto_research.ml_dataset: [ml] ema_dev_pair_norm: min=-4.914 max=8.584 mean=-0.015
+2026-06-22 15:51:28 INFO crypto_research.ml_dataset: [ml] streak_pair_norm: min=-3.000 max=4.333 mean=-0.016
+2026-06-22 15:51:28 INFO crypto_research.ml_dataset: [ml] vol_log_rel_pair: min=-3.028 max=3.086 mean=-0.190
+2026-06-22 15:51:28 INFO crypto_research.ml_dataset: [ml] dataset studies=['day_of_week_ml', 'ema_spreads_ml', 'price_sequences_ml', 'volume_spreads_ml'] features=['pair_id', 'weekday_enc', 'ema_dev_pair_norm', 'streak_pair_norm', 'vol_log_rel_pair'] rows=29730 pairs=49 up_rate=0.501
+2026-06-22 15:51:28 INFO crypto_research.ml_dataset: [ml] ema_dev_pair_norm: min=-4.918 max=15.840 mean=-0.076
+2026-06-22 15:51:28 INFO crypto_research.ml_dataset: [ml] streak_pair_norm: min=-3.333 max=3.333 mean=-0.079
+2026-06-22 15:51:28 INFO crypto_research.ml_dataset: [ml] vol_log_rel_pair: min=-3.068 max=3.133 mean=-0.200
+2026-06-22 15:51:28 INFO crypto_research.ml_dataset: [ml] dataset studies=['day_of_week_ml', 'ema_spreads_ml', 'price_sequences_ml', 'volume_spreads_ml'] features=['pair_id', 'weekday_enc', 'ema_dev_pair_norm', 'streak_pair_norm', 'vol_log_rel_pair'] rows=36047 pairs=49 up_rate=0.480
+2026-06-22 15:51:28 INFO crypto_research.ml_research: Dataset columns (10): ['day_utc', 'pair', 'weekday', 'return_pct', 'direction_up', 'ema_dev_pair_norm', 'streak_pair_norm', 'vol_log_rel_pair', 'pair_id', 'weekday_enc']
+2026-06-22 15:51:28 INFO crypto_research.ml_research: Dataset head (50 rows):
+shape: (50, 10)
+┌────────────────┬───────────┬─────────┬────────────────┬──────────────┬────────────────┬────────────────┬───────────────┬─────────┬─────────────┐
+│ day_utc        ┆ pair      ┆ weekday ┆ return_pct     ┆ direction_up ┆ ema_dev_pair_n ┆ streak_pair_no ┆ vol_log_rel_p ┆ pair_id ┆ weekday_enc │
+│ ---            ┆ ---       ┆ ---     ┆ ---            ┆ ---          ┆ orm            ┆ rm             ┆ air           ┆ ---     ┆ ---         │
+│ datetime[μs,   ┆ str       ┆ i64     ┆ f64            ┆ i8           ┆ ---            ┆ ---            ┆ ---           ┆ cat     ┆ cat         │
+│ UTC]           ┆           ┆         ┆                ┆              ┆ f64            ┆ f64            ┆ f64           ┆         ┆             │
+╞════════════════╪═══════════╪═════════╪════════════════╪══════════════╪════════════════╪════════════════╪═══════════════╪═════════╪═════════════╡
+│ 2022-02-20     ┆ aaveusdt  ┆ 6       ┆ -6.09172401332 ┆ 0            ┆ -0.69439539085 ┆ 0.333333333333 ┆ -0.9691265301 ┆ 1       ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 2457           ┆              ┆ 99673          ┆ 33326          ┆ 772404        ┆         ┆             │
+│ 2022-02-20     ┆ adausdt   ┆ 6       ┆ -6.54487343526 ┆ 0            ┆ -0.58142931488 ┆ 0.333333333333 ┆ -0.4903590878 ┆ 2       ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 5928           ┆              ┆ 70262          ┆ 33326          ┆ 109275        ┆         ┆             │
+│ 2022-02-20     ┆ algousdt  ┆ 6       ┆ -6.22568021190 ┆ 0            ┆ -0.28100259360 ┆ 0.142857142857 ┆ -0.5037084490 ┆ 3       ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 7596           ┆              ┆ 54408          ┆ 1428           ┆ 386646        ┆         ┆             │
+│ 2022-02-20     ┆ aliceusdt ┆ 6       ┆ -8.24675023083 ┆ 0            ┆ -0.35553055640 ┆ -1             ┆ -0.4464171654 ┆ 4       ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 254            ┆              ┆ 53559          ┆                ┆ 8778954       ┆         ┆             │
+│ 2022-02-20     ┆ atomusdt  ┆ 6       ┆ -2.28764518810 ┆ 0            ┆ -0.39550756896 ┆ -1.33333333333 ┆ -1.3108870164 ┆ 8       ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 25512          ┆              ┆ 479855         ┆ 33333          ┆ 05792         ┆         ┆             │
+│ 2022-02-20     ┆ avaxusdt  ┆ 6       ┆ -9.10693783754 ┆ 0            ┆ -0.07142463900 ┆ 0.428571428571 ┆ 0.01636163268 ┆ 9       ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 543            ┆              ┆ 294121         ┆ 4286           ┆ 8558805       ┆         ┆             │
+│ 2022-02-20     ┆ bchusdt   ┆ 6       ┆ -3.01475120734 ┆ 0            ┆ -0.40406486991 ┆ 0.333333333333 ┆ -0.9032005750 ┆ 11      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 3168           ┆              ┆ 94264          ┆ 33326          ┆ 278558        ┆         ┆             │
+│ 2022-02-20     ┆ bnbusdt   ┆ 6       ┆ -4.79589143048 ┆ 0            ┆ -0.30343814715 ┆ 0.333333333333 ┆ -0.7237964442 ┆ 12      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 3431           ┆              ┆ 445            ┆ 33326          ┆ 962829        ┆         ┆             │
+│ 2022-02-20     ┆ btcusdt   ┆ 6       ┆ -4.26567492012 ┆ 0            ┆ -0.64076246572 ┆ 0.25           ┆ -0.5173283295 ┆ 13      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 7795           ┆              ┆ 13268          ┆                ┆ 058831        ┆         ┆             │
+│ 2022-02-20     ┆ crvusdt   ┆ 6       ┆ -8.94454358410 ┆ 0            ┆ -0.42441085303 ┆ -1             ┆ -1.1047497151 ┆ 15      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 9296           ┆              ┆ 63327          ┆                ┆ 136672        ┆         ┆             │
+│ 2022-02-20     ┆ dogeusdt  ┆ 6       ┆ -3.12278207744 ┆ 0            ┆ -0.28325023090 ┆ 0.666666666666 ┆ -0.3022483140 ┆ 17      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 60615          ┆              ┆ 5535           ┆ 6667           ┆ 4301983       ┆         ┆             │
+│ 2022-02-20     ┆ dydxusdt  ┆ 6       ┆ -9.66719713226 ┆ 0            ┆ -0.63470973838 ┆ -1.33333333333 ┆ -1.2257072617 ┆ 19      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 6542           ┆              ┆ 37632          ┆ 33333          ┆ 92047         ┆         ┆             │
+│ 2022-02-20     ┆ enjusdt   ┆ 6       ┆ -7.79885742870 ┆ 0            ┆ -0.65870700531 ┆ -1.28571428571 ┆ -0.2846239637 ┆ 21      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 9185           ┆              ┆ 63545          ┆ 42856          ┆ 690814        ┆         ┆             │
+│ 2022-02-20     ┆ ethusdt   ┆ 6       ┆ -5.12819991379 ┆ 0            ┆ -0.65767118997 ┆ -1             ┆ -0.2710277470 ┆ 23      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 2151           ┆              ┆ 83877          ┆                ┆ 214243        ┆         ┆             │
+│ 2022-02-20     ┆ filusdt   ┆ 6       ┆ -5.04080288481 ┆ 0            ┆ -0.25376483818 ┆ -0.14285714285 ┆ -0.4143694889 ┆ 24      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 2166           ┆              ┆ 67465          ┆ 71429          ┆ 286417        ┆         ┆             │
+│ 2022-02-20     ┆ galausdt  ┆ 6       ┆ -11.1265074661 ┆ 0            ┆ -0.57920909564 ┆ -1.33333333333 ┆ -0.0662038416 ┆ 25      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 44046          ┆              ┆ 35871          ┆ 33333          ┆ 9866722       ┆         ┆             │
+│ 2022-02-20     ┆ linkusdt  ┆ 6       ┆ -5.94340204341 ┆ 0            ┆ -0.43303955323 ┆ 0.142857142857 ┆ -0.7389872244 ┆ 31      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 9263           ┆              ┆ 16552          ┆ 1428           ┆ 301562        ┆         ┆             │
+│ 2022-02-20     ┆ ltcusdt   ┆ 6       ┆ -4.37266907591 ┆ 0            ┆ -0.61570830374 ┆ 0.142857142857 ┆ -0.7476993674 ┆ 32      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 4426           ┆              ┆ 68053          ┆ 1428           ┆ 368428        ┆         ┆             │
+│ 2022-02-20     ┆ nearusdt  ┆ 6       ┆ -7.56896923775 ┆ 0            ┆ -0.54300386810 ┆ -1             ┆ -0.8821597115 ┆ 33      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 9612           ┆              ┆ 11953          ┆                ┆ 251046        ┆         ┆             │
+│ 2022-02-20     ┆ solusdt   ┆ 6       ┆ -0.59181423559 ┆ 0            ┆ -0.47556460717 ┆ 0.25           ┆ -0.2952860965 ┆ 39      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 94085          ┆              ┆ 3609           ┆                ┆ 085865        ┆         ┆             │
+│ 2022-02-20     ┆ uniusdt   ┆ 6       ┆ -6.83224035560 ┆ 0            ┆ -0.59762107631 ┆ -1.33333333333 ┆ -0.2615085333 ┆ 43      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 4663           ┆              ┆ 85437          ┆ 33333          ┆ 1612917       ┆         ┆             │
+│ 2022-02-20     ┆ xrpusdt   ┆ 6       ┆ -5.42975537350 ┆ 0            ┆ 0.369457838815 ┆ 0.666666666666 ┆ 0.78719682305 ┆ 46      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 6845           ┆              ┆ 12484          ┆ 6667           ┆ 48426         ┆         ┆             │
+│ 2022-02-20     ┆ zecusdt   ┆ 6       ┆ -4.05887197528 ┆ 0            ┆ -0.34040173789 ┆ 0.25           ┆ -0.2090198484 ┆ 47      ┆ 6           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 7023           ┆              ┆ 08638          ┆                ┆ 0183646       ┆         ┆             │
+│ 2022-02-21     ┆ aaveusdt  ┆ 0       ┆ -6.34110578845 ┆ 0            ┆ -0.99769756113 ┆ -0.33333333333 ┆ -0.5880856093 ┆ 1       ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 29             ┆              ┆ 40699          ┆ 333337         ┆ 779426        ┆         ┆             │
+│ 2022-02-21     ┆ adausdt   ┆ 0       ┆ -7.99140796799 ┆ 0            ┆ -1.07307070954 ┆ -0.33333333333 ┆ 0.05156882880 ┆ 2       ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 5058           ┆              ┆ 3148           ┆ 333337         ┆ 9439436       ┆         ┆             │
+│ 2022-02-21     ┆ algousdt  ┆ 0       ┆ -7.11321886132 ┆ 0            ┆ -0.68227256629 ┆ -0.42857142857 ┆ -0.3454340003 ┆ 3       ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 5893           ┆              ┆ 82868          ┆ 14286          ┆ 4553073       ┆         ┆             │
+│ 2022-02-21     ┆ aliceusdt ┆ 0       ┆ -8.91719899983 ┆ 0            ┆ -0.83634016487 ┆ -1.28571428571 ┆ 0.13816837253 ┆ 4       ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 66             ┆              ┆ 04818          ┆ 42856          ┆ 77314         ┆         ┆             │
+│ 2022-02-21     ┆ atomusdt  ┆ 0       ┆ -8.71234093715 ┆ 0            ┆ -0.50084133183 ┆ -1.66666666666 ┆ -0.5832505541 ┆ 8       ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 4933           ┆              ┆ 5234           ┆ 66665          ┆ 168451        ┆         ┆             │
+│ 2022-02-21     ┆ avaxusdt  ┆ 0       ┆ -9.45666869261 ┆ 0            ┆ -0.75249901389 ┆ -0.14285714285 ┆ 0.09275225642 ┆ 9       ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 7924           ┆              ┆ 99502          ┆ 71429          ┆ 942468        ┆         ┆             │
+│ 2022-02-21     ┆ bchusdt   ┆ 0       ┆ -6.46494318371 ┆ 0            ┆ -0.63419365571 ┆ -0.33333333333 ┆ -0.5433901633 ┆ 11      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 6127           ┆              ┆ 14668          ┆ 333337         ┆ 663202        ┆         ┆             │
+│ 2022-02-21     ┆ bnbusdt   ┆ 0       ┆ -6.28699047223 ┆ 0            ┆ -0.87321313407 ┆ -0.33333333333 ┆ -0.1883746076 ┆ 12      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 7754           ┆              ┆ 577            ┆ 333337         ┆ 2008687       ┆         ┆             │
+│ 2022-02-21     ┆ btcusdt   ┆ 0       ┆ -3.52887498370 ┆ 0            ┆ -1.10548048701 ┆ -0.25          ┆ 0.23774747497 ┆ 13      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 48625          ┆              ┆ 07424          ┆                ┆ 95184         ┆         ┆             │
+│ 2022-02-21     ┆ crvusdt   ┆ 0       ┆ -8.21218484718 ┆ 0            ┆ -0.86943139350 ┆ -1.28571428571 ┆ -0.3676452085 ┆ 15      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 3531           ┆              ┆ 7531           ┆ 42856          ┆ 312452        ┆         ┆             │
+│ 2022-02-21     ┆ dogeusdt  ┆ 0       ┆ -6.22710242828 ┆ 0            ┆ -0.52048012422 ┆ -0.33333333333 ┆ -0.6725450204 ┆ 17      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 8845           ┆              ┆ 46009          ┆ 333337         ┆ 110338        ┆         ┆             │
+│ 2022-02-21     ┆ dotusdt   ┆ 0       ┆ -4.34910484966 ┆ 0            ┆ -1.02436551205 ┆ -0.33333333333 ┆ -0.1792758534 ┆ 18      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 5373           ┆              ┆ 29362          ┆ 333337         ┆ 6985855       ┆         ┆             │
+│ 2022-02-21     ┆ dydxusdt  ┆ 0       ┆ -6.84210314975 ┆ 0            ┆ -1.11360095060 ┆ -1.66666666666 ┆ -0.4240863724 ┆ 19      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 2137           ┆              ┆ 02766          ┆ 66665          ┆ 064114        ┆         ┆             │
+│ 2022-02-21     ┆ enjusdt   ┆ 0       ┆ -9.53625251003 ┆ 0            ┆ -1.07421191046 ┆ -1.57142857142 ┆ -0.0853665670 ┆ 21      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 2929           ┆              ┆ 1732           ┆ 85714          ┆ 128287        ┆         ┆             │
+│ 2022-02-21     ┆ ethusdt   ┆ 0       ┆ -1.98694636157 ┆ 0            ┆ -1.03154675146 ┆ -1.25          ┆ 0.26849942096 ┆ 23      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 22893          ┆              ┆ 16152          ┆                ┆ 85171         ┆         ┆             │
+│ 2022-02-21     ┆ filusdt   ┆ 0       ┆ -6.06673772134 ┆ 0            ┆ -0.56300102459 ┆ -0.42857142857 ┆ -0.4116504798 ┆ 24      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 7174           ┆              ┆ 6511           ┆ 14286          ┆ 2422875       ┆         ┆             │
+│ 2022-02-21     ┆ galausdt  ┆ 0       ┆ -10.3609503673 ┆ 0            ┆ -1.19649761284 ┆ -1.66666666666 ┆ 0.37650106643 ┆ 25      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 43982          ┆              ┆ 25169          ┆ 66665          ┆ 665016        ┆         ┆             │
+│ 2022-02-21     ┆ linkusdt  ┆ 0       ┆ -7.55945251994 ┆ 0            ┆ -0.85319829631 ┆ -0.42857142857 ┆ -0.4102986021 ┆ 31      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 6048           ┆              ┆ 56404          ┆ 14286          ┆ 1258784       ┆         ┆             │
+│ 2022-02-21     ┆ ltcusdt   ┆ 0       ┆ -7.17131983272 ┆ 0            ┆ -0.90842684978 ┆ -0.42857142857 ┆ -0.4067311483 ┆ 32      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 2559           ┆              ┆ 50944          ┆ 14286          ┆ 777204        ┆         ┆             │
+│ 2022-02-21     ┆ nearusdt  ┆ 0       ┆ -7.97327615740 ┆ 0            ┆ -0.89552612281 ┆ -1.28571428571 ┆ -0.6534040591 ┆ 33      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 2602           ┆              ┆ 31198          ┆ 42856          ┆ 427108        ┆         ┆             │
+│ 2022-02-21     ┆ solusdt   ┆ 0       ┆ -8.56071796802 ┆ 0            ┆ -0.42235013296 ┆ -0.25          ┆ 0.54789878174 ┆ 39      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 4926           ┆              ┆ 919927         ┆                ┆ 12858         ┆         ┆             │
+│ 2022-02-21     ┆ uniusdt   ┆ 0       ┆ -8.89625746369 ┆ 0            ┆ -1.02875436898 ┆ -1.66666666666 ┆ 0.29961528952 ┆ 43      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 3809           ┆              ┆ 13423          ┆ 66665          ┆ 549105        ┆         ┆             │
+│ 2022-02-21     ┆ xrpusdt   ┆ 0       ┆ -9.71935557309 ┆ 0            ┆ -0.35739926804 ┆ -0.33333333333 ┆ 0.64610001320 ┆ 46      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 9673           ┆              ┆ 76147          ┆ 333337         ┆ 71163         ┆         ┆             │
+│ 2022-02-21     ┆ zecusdt   ┆ 0       ┆ -6.69456473578 ┆ 0            ┆ -0.57053134038 ┆ -0.25          ┆ -0.1696441137 ┆ 47      ┆ 0           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 3186           ┆              ┆ 80451          ┆                ┆ 4433275       ┆         ┆             │
+│ 2022-02-22     ┆ aaveusdt  ┆ 1       ┆ 4.591434938898 ┆ 1            ┆ -1.25712572125 ┆ -0.66666666666 ┆ 0.07216173659 ┆ 1       ┆ 1           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 346            ┆              ┆ 3436           ┆ 66667          ┆ 12745         ┆         ┆             │
+│ 2022-02-22     ┆ adausdt   ┆ 1       ┆ 3.583939811415 ┆ 1            ┆ -1.59227404902 ┆ -0.66666666666 ┆ 0.61747229154 ┆ 2       ┆ 1           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 2434           ┆              ┆ 01395          ┆ 66667          ┆ 59159         ┆         ┆             │
+│ 2022-02-22     ┆ algousdt  ┆ 1       ┆ 3.509888094659 ┆ 1            ┆ -1.06119768675 ┆ -0.71428571428 ┆ 0.25067833732 ┆ 3       ┆ 1           │
+│ 00:00:00 UTC   ┆           ┆         ┆ 0207           ┆              ┆ 5038           ┆ 57143          ┆ 74378         ┆         ┆             │
+└────────────────┴───────────┴─────────┴────────────────┴──────────────┴────────────────┴────────────────┴───────────────┴─────────┴─────────────┘
+2026-06-22 15:51:28 INFO crypto_research.ml_cpcv: [ml] X: shape=(29730, 5) columns=['pair_id', 'weekday_enc', 'ema_dev_pair_norm', 'streak_pair_norm', 'vol_log_rel_pair'] dtypes={'pair_id': 'category', 'weekday_enc': 'category', 'ema_dev_pair_norm': 'float64', 'streak_pair_norm': 'float64', 'vol_log_rel_pair': 'float64'}
+2026-06-22 15:51:28 INFO crypto_research.ml_cpcv: [ml] X head (3 rows):
+  pair_id weekday_enc  ema_dev_pair_norm  streak_pair_norm  vol_log_rel_pair
+0       1           6          -0.694395          0.333333         -0.969127
+1       2           6          -0.581429          0.333333         -0.490359
+2       3           6          -0.281003          0.142857         -0.503708
+2026-06-22 15:51:28 INFO crypto_research.ml_cpcv: [ml] y (direction_up): shape=(29730,) dtype=int8 distribution={0: 14828, 1: 14902}
+2026-06-22 15:51:28 INFO crypto_research.ml_cpcv: [ml] y head (3 values): [0, 0, 0]
+2026-06-22 15:51:28 INFO crypto_research.ml_cpcv: [ml] CV: CombinatorialPurgedCV n_splits=7 n_test_groups=2 embargo_days=1 n_folds=C(7,2)=21 n_days=772
+2026-06-22 15:51:28 INFO crypto_research.ml_cpcv: [ml] CV time range: 2022-02-20 00:00:00+00:00 .. 2024-04-01 00:00:00+00:00 (prediction_times=evaluation_times, purge=None)
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] CV day splits:
+  fold1: train_days=549 test_days=222
+  fold2: train_days=549 test_days=221
+  fold3: train_days=549 test_days=221
+  fold4: train_days=549 test_days=221
+  fold5: train_days=549 test_days=221
+  fold6: train_days=550 test_days=221
+  fold7: train_days=550 test_days=221
+  fold8: train_days=549 test_days=221
+  fold9: train_days=549 test_days=221
+  fold10: train_days=549 test_days=221
+  fold11: train_days=550 test_days=221
+  fold12: train_days=551 test_days=220
+  fold13: train_days=550 test_days=220
+  fold14: train_days=550 test_days=220
+  fold15: train_days=551 test_days=220
+  fold16: train_days=551 test_days=220
+  fold17: train_days=550 test_days=220
+  fold18: train_days=551 test_days=220
+  fold19: train_days=551 test_days=220
+  fold20: train_days=551 test_days=220
+  fold21: train_days=552 test_days=220
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 1/21 → model.fit: X_train=(23817, 5) y_train=(23817,) days=('2022-10-01 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 11812, 1: 12005}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 1/21 → model.predict: X_test=(5885, 5) y_test=(5885,) days=('2022-02-20 00:00:00+00:00', '2022-09-29 00:00:00+00:00') dist={0: 2995, 1: 2890}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 1 X_train head:
+     pair_id weekday_enc  ema_dev_pair_norm  streak_pair_norm  vol_log_rel_pair
+5913       1           5          -0.183580         -0.333333         -0.457102
+5914       2           5          -0.244858         -0.333333         -0.165836
+5915       3           5          -0.062716         -0.428571          0.520864
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 1 y_train head: [0, 0, 1]
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 1 X_test head:
+  pair_id weekday_enc  ema_dev_pair_norm  streak_pair_norm  vol_log_rel_pair
+0       1           6          -0.694395          0.333333         -0.969127
+1       2           6          -0.581429          0.333333         -0.490359
+2       3           6          -0.281003          0.142857         -0.503708
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 1 y_test head: [0, 0, 0]
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 1/21 train=23817 test=5885 acc=0.5376 auc=0.5433
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 2/21 → model.fit: X_train=(23740, 5) y_train=(23740,) days=('2022-06-12 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 11763, 1: 11977}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 2/21 → model.predict: X_test=(5934, 5) y_test=(5934,) days=('2022-02-20 00:00:00+00:00', '2023-01-17 00:00:00+00:00') dist={0: 3012, 1: 2922}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 2/21 train=23740 test=5934 acc=0.5292 auc=0.5315
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 3/21 → model.fit: X_train=(22088, 5) y_train=(22088,) days=('2022-06-12 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 10825, 1: 11263}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 3/21 → model.predict: X_test=(7566, 5) y_test=(7566,) days=('2022-02-20 00:00:00+00:00', '2023-05-07 00:00:00+00:00') dist={0: 3930, 1: 3636}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 3/21 train=22088 test=7566 acc=0.5375 auc=0.5552
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 4/21 → model.fit: X_train=(21475, 5) y_train=(21475,) days=('2022-06-12 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 10506, 1: 10969}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 4/21 → model.predict: X_test=(8182, 5) y_test=(8182,) days=('2022-02-20 00:00:00+00:00', '2023-08-25 00:00:00+00:00') dist={0: 4263, 1: 3919}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 4/21 train=21475 test=8182 acc=0.5271 auc=0.5498
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 5/21 → model.fit: X_train=(21480, 5) y_train=(21480,) days=('2022-06-12 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 10901, 1: 10579}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 5/21 → model.predict: X_test=(8175, 5) y_test=(8175,) days=('2022-02-20 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 3890, 1: 4285}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 5/21 train=21480 test=8175 acc=0.5354 auc=0.5477
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 6/21 → model.fit: X_train=(21480, 5) y_train=(21480,) days=('2022-06-12 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 10739, 1: 10741}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 6/21 → model.predict: X_test=(8223, 5) y_test=(8223,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 4063, 1: 4160}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 6/21 train=21480 test=8223 acc=0.5198 auc=0.5201
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 7/21 → model.fit: X_train=(23576, 5) y_train=(23576,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 11724, 1: 11852}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 7/21 → model.predict: X_test=(6125, 5) y_test=(6125,) days=('2022-06-11 00:00:00+00:00', '2023-01-17 00:00:00+00:00') dist={0: 3077, 1: 3048}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 7/21 train=23576 test=6125 acc=0.5202 auc=0.5267
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 8/21 → model.fit: X_train=(21896, 5) y_train=(21896,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 10765, 1: 11131}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 8/21 → model.predict: X_test=(7757, 5) y_test=(7757,) days=('2022-06-11 00:00:00+00:00', '2023-05-07 00:00:00+00:00') dist={0: 3995, 1: 3762}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 8/21 train=21896 test=7757 acc=0.5377 auc=0.5509
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 9/21 → model.fit: X_train=(21283, 5) y_train=(21283,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 10446, 1: 10837}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 9/21 → model.predict: X_test=(8373, 5) y_test=(8373,) days=('2022-06-11 00:00:00+00:00', '2023-08-25 00:00:00+00:00') dist={0: 4328, 1: 4045}
+2026-06-22 15:51:30 INFO crypto_research.ml_cpcv: [ml] fold 9/21 train=21283 test=8373 acc=0.5441 auc=0.5581
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 10/21 → model.fit: X_train=(21288, 5) y_train=(21288,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 10841, 1: 10447}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 10/21 → model.predict: X_test=(8366, 5) y_test=(8366,) days=('2022-06-11 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 3955, 1: 4411}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 10/21 train=21288 test=8366 acc=0.5133 auc=0.5226
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 11/21 → model.fit: X_train=(21288, 5) y_train=(21288,) days=('2022-02-20 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 10679, 1: 10609}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 11/21 → model.predict: X_test=(8414, 5) y_test=(8414,) days=('2022-06-11 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 4128, 1: 4286}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 11/21 train=21288 test=8414 acc=0.4698 auc=0.4655
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 12/21 → model.fit: X_train=(21875, 5) y_train=(21875,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 10769, 1: 11106}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 12/21 → model.predict: X_test=(7806, 5) y_test=(7806,) days=('2022-09-30 00:00:00+00:00', '2023-05-07 00:00:00+00:00') dist={0: 4012, 1: 3794}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 12/21 train=21875 test=7806 acc=0.5079 auc=0.5166
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 13/21 → model.fit: X_train=(21233, 5) y_train=(21233,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 10423, 1: 10810}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 13/21 → model.predict: X_test=(8422, 5) y_test=(8422,) days=('2022-09-30 00:00:00+00:00', '2023-08-25 00:00:00+00:00') dist={0: 4345, 1: 4077}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 13/21 train=21233 test=8422 acc=0.5188 auc=0.5323
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 14/21 → model.fit: X_train=(21238, 5) y_train=(21238,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 10818, 1: 10420}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 14/21 → model.predict: X_test=(8415, 5) y_test=(8415,) days=('2022-09-30 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 3972, 1: 4443}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 14/21 train=21238 test=8415 acc=0.5176 auc=0.5305
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 15/21 → model.fit: X_train=(21238, 5) y_train=(21238,) days=('2022-02-20 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 10656, 1: 10582}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 15/21 → model.predict: X_test=(8463, 5) y_test=(8463,) days=('2022-09-30 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 4145, 1: 4318}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 15/21 train=21238 test=8463 acc=0.5056 auc=0.5113
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 16/21 → model.fit: X_train=(19630, 5) y_train=(19630,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 9532, 1: 10098}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 16/21 → model.predict: X_test=(10054, 5) y_test=(10054,) days=('2023-01-18 00:00:00+00:00', '2023-08-25 00:00:00+00:00') dist={0: 5263, 1: 4791}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 16/21 train=19630 test=10054 acc=0.4986 auc=0.5139
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 17/21 → model.fit: X_train=(19586, 5) y_train=(19586,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 9880, 1: 9706}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 17/21 → model.predict: X_test=(10047, 5) y_test=(10047,) days=('2023-01-18 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 4890, 1: 5157}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 17/21 train=19586 test=10047 acc=0.5323 auc=0.5480
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 18/21 → model.fit: X_train=(19586, 5) y_train=(19586,) days=('2022-02-20 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 9718, 1: 9868}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 18/21 → model.predict: X_test=(10095, 5) y_test=(10095,) days=('2023-01-18 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 5063, 1: 5032}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 18/21 train=19586 test=10095 acc=0.5264 auc=0.5346
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 19/21 → model.fit: X_train=(19019, 5) y_train=(19019,) days=('2022-02-20 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 9594, 1: 9425}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 19/21 → model.predict: X_test=(10663, 5) y_test=(10663,) days=('2023-05-08 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 5223, 1: 5440}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 19/21 train=19019 test=10663 acc=0.5143 auc=0.5262
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 20/21 → model.fit: X_train=(18973, 5) y_train=(18973,) days=('2022-02-20 00:00:00+00:00', '2023-12-13 00:00:00+00:00') dist={0: 9399, 1: 9574}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 20/21 → model.predict: X_test=(10711, 5) y_test=(10711,) days=('2023-05-08 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 5396, 1: 5315}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 20/21 train=18973 test=10711 acc=0.5438 auc=0.5542
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 21/21 → model.fit: X_train=(19026, 5) y_train=(19026,) days=('2022-02-20 00:00:00+00:00', '2023-08-25 00:00:00+00:00') dist={0: 9805, 1: 9221}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 21/21 → model.predict: X_test=(10704, 5) y_test=(10704,) days=('2023-08-26 00:00:00+00:00', '2024-04-01 00:00:00+00:00') dist={0: 5023, 1: 5681}
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] fold 21/21 train=19026 test=10704 acc=0.4923 auc=0.5145
+2026-06-22 15:51:31 INFO crypto_research.ml_cpcv: [ml] CPCV mean: folds=21 acc=0.5205 logloss=0.6955 auc=0.5311
+2026-06-22 15:51:32 INFO crypto_research.ml_cpcv: [ml] OOS paths: rows=29730 cols=[time_ns, y_prob, y_true] folds_merged=21
+2026-06-22 15:51:32 INFO crypto_research.ml_cpcv: [ml] OOS calibration: brier=0.2506 ece=0.0163
+2026-06-22 15:51:32 INFO crypto_research.ml_cpcv: [ml] OOS weekday Пн: n=4265 base_up=0.4957 pred_up=0.4619 acc=0.4860 logloss=0.7038 auc=0.4707
+2026-06-22 15:51:32 INFO crypto_research.ml_cpcv: [ml] OOS weekday Вт: n=4238 base_up=0.5085 pred_up=0.4764 acc=0.5536 logloss=0.6891 auc=0.5527
+2026-06-22 15:51:32 INFO crypto_research.ml_cpcv: [ml] OOS weekday Ср: n=4239 base_up=0.4937 pred_up=0.4242 acc=0.5346 logloss=0.6930 auc=0.5364
+2026-06-22 15:51:32 INFO crypto_research.ml_cpcv: [ml] OOS weekday Чт: n=4242 base_up=0.4658 pred_up=0.3371 acc=0.5436 logloss=0.6955 auc=0.5135
+2026-06-22 15:51:32 INFO crypto_research.ml_cpcv: [ml] OOS weekday Пт: n=4246 base_up=0.5523 pred_up=0.8867 acc=0.5247 logloss=0.6938 auc=0.4639
+2026-06-22 15:51:32 INFO crypto_research.ml_cpcv: [ml] OOS weekday Сб: n=4236 base_up=0.5205 pred_up=0.7247 acc=0.4969 logloss=0.6972 auc=0.4780
+2026-06-22 15:51:32 INFO crypto_research.ml_cpcv: [ml] OOS weekday Вс: n=4264 base_up=0.4723 pred_up=0.2805 acc=0.5511 logloss=0.6880 auc=0.5559
+2026-06-22 15:51:33 INFO crypto_research.ml_oos_paths: [ml] OOS plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20220101_20240401_oos_prob.png (weekdays=7 calendar_days=772 rows=29730)
+2026-06-22 15:51:34 INFO crypto_research.ml_oos_paths: [ml] OOS calibration plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20220101_20240401_oos_calibration.png (brier=0.2506 ece=0.0163 rows=29730)
+2026-06-22 15:51:34 INFO crypto_research.ml_learning_curve: [ml] early stopping (holdout): fit_rows=29730 eval_rows=36047 best_iteration=38 eval_logloss=0.6915
+2026-06-22 15:51:34 INFO crypto_research.ml_learning_curve: [ml] learning curve saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20220101_20260531_learning_curve.png (best_iter=38)
+2026-06-22 15:51:34 INFO crypto_research.ml_learning_curve: [ml] learning curve log saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/direction_dow_ema_streak_vol_49pairs_20220101_20260531_learning_curve.log (88 iterations)
+2026-06-22 15:51:34 INFO crypto_research.ml_plot_registry: [ml] plot: oos_prob
+2026-06-22 15:51:35 INFO crypto_research.ml_oos_paths: [ml] OOS plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20240401_20260531_oos_prob.png (weekdays=7 calendar_days=737 rows=36047)
+2026-06-22 15:51:35 INFO crypto_research.ml_plot_registry: [ml] plot: oos_calibration
+2026-06-22 15:51:36 INFO crypto_research.ml_oos_paths: [ml] OOS calibration plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20240401_20260531_oos_calibration.png (brier=0.2492 ece=0.0243 rows=36047)
+2026-06-22 15:51:36 INFO crypto_research.ml_plot_registry: [ml] plot: weekday_pair_summary
+2026-06-22 15:51:37 INFO crypto_research.ml_oos_paths: [ml] Weekday×pair summary plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20240401_20260531_weekday_pair_summary.png (pairs=49 rows=36047)
+2026-06-22 15:51:39 INFO crypto_research.ml_oos_paths: [ml] Weekday×pair summary plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20220101_20240401_weekday_pair_summary.png (pairs=49 rows=29730)
+2026-06-22 15:51:39 INFO crypto_research.ml_plot_registry: [ml] plot: roc_auc
+2026-06-22 15:51:39 INFO crypto_research.ml_oos_paths: [ml] ROC AUC comparison plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20220101_20260531_roc_auc.png
+2026-06-22 15:51:39 INFO crypto_research.ml_plot_registry: [ml] plot: learning_curve
+2026-06-22 15:51:39 INFO crypto_research.ml_plot_registry: [ml] plot: correlation_matrix_heatmap
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr pair_id vs weekday_enc: 0.0001
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr pair_id vs ema_dev_pair_norm: 0.0144
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr pair_id vs streak_pair_norm: -0.0029
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr pair_id vs vol_log_rel_pair: -0.0075
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr weekday_enc vs ema_dev_pair_norm: 0.0188
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr weekday_enc vs streak_pair_norm: 0.0359
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr weekday_enc vs vol_log_rel_pair: -0.0730
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr ema_dev_pair_norm vs streak_pair_norm: 0.5277
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr ema_dev_pair_norm vs vol_log_rel_pair: 0.2183
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] feature corr streak_pair_norm vs vol_log_rel_pair: 0.0510
+2026-06-22 15:51:39 INFO crypto_research.ml_feature_diagnostic_plots: [ml] correlation matrix heatmap saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20240401_20260531_correlation_matrix.png
+2026-06-22 15:51:39 INFO crypto_research.ml_plot_registry: [ml] plot: shape_summary_plot
+2026-06-22 15:51:39 INFO crypto_research.ml_shap_plots: [ml] SHAP subsample: 3000 / 36047 rows
+2026-06-22 15:51:40 INFO crypto_research.ml_shap_plots: [ml] SHAP summary plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20240401_20260531_shape_summary.png
+2026-06-22 15:51:40 INFO crypto_research.ml_plot_registry: [ml] plot: feature_prob_dependence
+2026-06-22 15:51:41 INFO crypto_research.ml_feature_dependence_plot: [ml] feature P(up) dependence plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20240401_20260531_feature_prob_dependence.png (features=['weekday_enc', 'ema_dev_pair_norm', 'streak_pair_norm', 'vol_log_rel_pair'])
+2026-06-22 15:51:41 INFO crypto_research.ml_plot_registry: [ml] plot: prob_return_dependence
+2026-06-22 15:51:41 INFO crypto_research.ml_prob_return_dependence_plot: [ml] P(up) vs return plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20240401_20260531_prob_return_dependence.png (train=29730 test=36047 t_long=0.5200531098301793 t_short=0.4696684316679973 edge=0.25% smooth=gauss σ=4)
+2026-06-22 15:51:41 INFO crypto_research.ml_plot_registry: [ml] plot: p_up_density_split
+2026-06-22 15:51:41 INFO crypto_research.ml_p_up_density_split_plot: [ml] P(up) density split plot saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/plots/direction_dow_ema_streak_vol_49pairs_20220101_20240401_p_up_density_split.png (method=valley threshold=0.48828125 otsu=0.48828125 valley=0.48828125)
+2026-06-22 15:51:45 INFO crypto_research.ml_research: [ml] auto compare_prob_cdf: ['dow_ema_streak', 'dow_ema_streak_vol']
+2026-06-22 15:51:45 WARNING crypto_research.ml_research: [ml] compare_prob_cdf skipped: model bundle не найден: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak/ml/models/direction_dow_ema_streak_49pairs_20220101_20240401_model_bundle.pkl
+2026-06-22 15:51:45 INFO crypto_research.ml_research: [ml] train/test metrics saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/metrics/direction_dow_ema_streak_vol_49pairs_20220101_20260531_train_test.json
+2026-06-22 15:51:45 INFO crypto_research.ml_research: [ml] metrics summary saved: /home_admin/crypto_bot/crypto_research/research_outputs/combined/dow_ema_streak_vol/ml/metrics/direction_dow_ema_streak_vol_49pairs_20220101_20260531_metrics_summary.json

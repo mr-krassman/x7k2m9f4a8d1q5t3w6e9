@@ -6,6 +6,7 @@ from crypto_research.utils.ml.registry import (
     ML_STUDY_EMA_SPREADS,
     ML_STUDY_PRICE_SEQUENCES,
     ML_STUDY_RSI_SPREADS,
+    ML_STUDY_VOLUME_SPREADS,
     is_ml_study_id,
 )
 from crypto_research.utils.pipeline.paths import study_backtest_dir, study_backtest_plots_dir
@@ -16,6 +17,7 @@ _ML_BACKTEST_OUTPUT_STUDY: dict[str, str] = {
     ML_STUDY_EMA_SPREADS: "ema_spreads",
     ML_STUDY_RSI_SPREADS: "rsi_spreads",
     ML_STUDY_PRICE_SEQUENCES: "price_sequences",
+    ML_STUDY_VOLUME_SPREADS: "volume_spreads",
 }
 
 

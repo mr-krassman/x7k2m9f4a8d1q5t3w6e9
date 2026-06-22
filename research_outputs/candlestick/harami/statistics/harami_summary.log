@@ -1,0 +1,97 @@
+=== Отчёт: сводка Harami — подтверждение сигналов ===
+
+Bullish Harami: день t−1 медвежий, день t — тело внутри тела t−1, тело t < тело t−1; сигнал long на следующий день (t+1). Bearish Harami: день t−1 бычий, день t — тело внутри тела t−1; сигнал short на t+1.
+
+Три блока (как day_of_week / ema / rsi):
+  1. Универсальность среди пар — train/val когорты на одном периоде
+  2. Устойчивость во времени — один пул пар, два периода
+  3. Полный пул — все пары, весь период, итог = пересечение статусов 1 и 2
+
+=== Универсальность среди пар ===
+
+Период (UTC): 2022-01-01 .. 2026-05-31
+Train: 24 пар (первая свеча ≤ 2022-01-01)
+Val: 25 пар (пул ≤ 2023-01-01, вне train-cohort)
+Пары train и val не пересекаются.
+
+Train: aaveusdt, adausdt, algousdt, aliceusdt, atomusdt, avaxusdt, bchusdt, bnbusdt, btcusdt, crvusdt, dogeusdt
+      dotusdt, dydxusdt, enjusdt, ethusdt, filusdt, galausdt, linkusdt, ltcusdt, nearusdt, solusdt, uniusdt
+      xrpusdt, zecusdt
+
+Val: 1000luncusdt, apeusdt, api3usdt, aptusdt, axsusdt, chzusdt, dashusdt, egldusdt, etcusdt, gmtusdt, hbarusdt
+      icpusdt, injusdt, ldousdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, storjusdt, stxusdt, trxusdt
+      xlmusdt, xmrusdt, zenusdt
+
+=== Сводная таблица: универсальность среди пар ===
+
+harami. Δ — отклонение доли колонки от BASE (п.п.), как в блоке Δ spread.
+Материальность на train: |Δ| ≥ 1.5 п.п.
+p-value (train) — permutation по Δ каждой train-пары (sign-flip), H₀: mean=0.
+Поправка Бонферрони: α=0.05, порог «значим» p < 0.0125 (0.05/4).
+Подтверждение на val: val-пары с тем же знаком Δ, что pooled train; ✅ ≥ 60%, иначе ❌.
+
+Сигнал                          | Δ train, п.п. | Δ val, п.п. | Δ (val−train) | p-value (train) | Подтверждение на val | Статус   
+----------------------------------------------------------------------------------------------------------------------------------
+b0 Bullish Harami × Цена росла  | -0.99 п.п.    | -0.32 п.п.  | +0.68 п.п.    | 0.0193          | 11/25 (44%) ❌        | не значим
+b0 Bullish Harami × Цена падала | +0.90 п.п.    | +0.31 п.п.  | -0.59 п.п.    | 0.0301          | 12/25 (48%) ❌        | не значим
+b1 Bearish Harami × Цена росла  | +1.03 п.п.    | +0.31 п.п.  | -0.72 п.п.    | 0.0158          | 11/25 (44%) ❌        | не значим
+b1 Bearish Harami × Цена падала | -0.94 п.п.    | -0.31 п.п.  | +0.63 п.п.    | 0.0273          | 12/25 (48%) ❌        | не значим
+
+=== Устойчивость во времени ===
+
+Пул: 49 пар (первая свеча ≤ 2023-01-01)
+Train-период (UTC): 2022-01-01 .. 2024-04-01
+Val-период (UTC): 2024-04-01 .. 2026-05-31
+Одни и те же пары в обоих периодах.
+
+Пары: 1000luncusdt, aaveusdt, adausdt, algousdt, aliceusdt, apeusdt, api3usdt, aptusdt, atomusdt, avaxusdt, axsusdt
+      bchusdt, bnbusdt, btcusdt, chzusdt, crvusdt, dashusdt, dogeusdt, dotusdt, dydxusdt, egldusdt, enjusdt
+      etcusdt, ethusdt, filusdt, galausdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, linkusdt, ltcusdt
+      nearusdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, solusdt, storjusdt, stxusdt, trxusdt, uniusdt
+      xlmusdt, xmrusdt, xrpusdt, zecusdt, zenusdt
+
+=== Сводная таблица: устойчивость во времени ===
+
+harami. Δ — отклонение доли колонки от BASE (п.п.), как в блоке Δ spread.
+Материальность на train: |Δ| ≥ 1.5 п.п.
+p-value (train) — permutation по Δ каждой train-пары (sign-flip), H₀: mean=0.
+Поправка Бонферрони: α=0.05, порог «значим» p < 0.0125 (0.05/4).
+Подтверждение на val: пары с тем же знаком Δ во 2-м периоде, что в train-периоде; ✅ ≥ 60%, иначе ❌.
+
+Сигнал                          | Δ train, п.п. | Δ val, п.п. | Δ (val−train) | p-value (train) | Подтверждение на val | Статус   
+----------------------------------------------------------------------------------------------------------------------------------
+b0 Bullish Harami × Цена росла  | -2.18 п.п.    | +0.66 п.п.  | +2.83 п.п.    | 0.0004          | 18/49 (37%) ❌        | не значим
+b0 Bullish Harami × Цена падала | +2.02 п.п.    | -0.59 п.п.  | -2.60 п.п.    | 0.0013          | 21/49 (43%) ❌        | не значим
+b1 Bearish Harami × Цена росла  | +2.32 п.п.    | -0.64 п.п.  | -2.96 п.п.    | 0.0004          | 18/49 (37%) ❌        | не значим
+b1 Bearish Harami × Цена падала | -2.15 п.п.    | +0.57 п.п.  | +2.72 п.п.    | 0.0008          | 21/49 (43%) ❌        | не значим
+
+=== Полный пул (все пары, весь период) ===
+
+Пар: 49 (первая свеча ≤ 2023-01-01)
+Период (UTC): 2022-01-01 .. 2026-05-31
+
+Пары: 1000luncusdt, aaveusdt, adausdt, algousdt, aliceusdt, apeusdt, api3usdt, aptusdt, atomusdt, avaxusdt, axsusdt
+      bchusdt, bnbusdt, btcusdt, chzusdt, crvusdt, dashusdt, dogeusdt, dotusdt, dydxusdt, egldusdt, enjusdt
+      etcusdt, ethusdt, filusdt, galausdt, gmtusdt, hbarusdt, icpusdt, injusdt, ldousdt, linkusdt, ltcusdt
+      nearusdt, ontusdt, opusdt, paxgusdt, sandusdt, shib1000usdt, solusdt, storjusdt, stxusdt, trxusdt, uniusdt
+      xlmusdt, xmrusdt, xrpusdt, zecusdt, zenusdt
+
+=== Сводная таблица: полный пул (все пары, весь период) ===
+
+harami. Δ — pooled отклонение доли колонки от BASE на полном периоде.
+Статус: пересечение статусов из «универсальность среди пар» и «устойчивость во времени».
+
+Сигнал                          | Δ, п.п.    | Статус   
+--------------------------------------------------------
+b0 Bullish Harami × Цена росла  | -0.69 п.п. | не значим
+b0 Bullish Harami × Цена падала | +0.65 п.п. | не значим
+b1 Bearish Harami × Цена росла  | +0.71 п.п. | не значим
+b1 Bearish Harami × Цена падала | -0.66 п.п. | не значим
+
+=== Аудит сигналов (OHLC t−1, t, t+1) ===
+Полный лог событий: /home_admin/crypto_bot/crypto_research/research_outputs/candlestick/harami/statistics/harami_signals_audit.log
+
+=== Графики ===
+Проверка 1 — Δ train vs val: /home_admin/crypto_bot/crypto_research/research_outputs/candlestick/harami/statistics/plots/harami_summary_check_pair_universality_delta.png
+Проверка 2 — Δ train vs val: /home_admin/crypto_bot/crypto_research/research_outputs/candlestick/harami/statistics/plots/harami_summary_check_temporal_stability_delta.png
+

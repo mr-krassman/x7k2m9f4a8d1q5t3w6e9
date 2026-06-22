@@ -47,6 +47,9 @@ from crypto_research.utils.backtest.strategies.price_sequences import (
     build_pair_returns as build_ps_pair_returns,
 )
 from crypto_research.utils.backtest.strategies.rsi_spreads import build_pair_returns as build_rsi_pair_returns
+from crypto_research.utils.backtest.strategies.volume_spreads import (
+    build_pair_returns as build_vol_pair_returns,
+)
 from crypto_research.utils.pipeline.logger import get_logger
 
 log = get_logger("strategy_combined_algo")
@@ -71,10 +74,13 @@ class CombinedAlgoBacktestContext:
     ema_selected_pairs: list[str] | None = None
     rsi_selected_pairs: list[str] | None = None
     ps_pairs_by_segment: dict[str, list[str]] | None = None
+    vol_selected_pairs: list[str] | None = None
     frozen_thresholds: pl.DataFrame | None = None
     frozen_edges: np.ndarray | None = None
+    frozen_volume_thresholds: pl.DataFrame | None = None
     ema_period: int = 9
     rsi_period: int = 9
+    vol_period: int = 50
     daily_benchmark_49: pl.DataFrame | None = None
     n_benchmark_pairs: int = 49
     strategy_name: str = "dow_ema_sp"
@@ -230,6 +236,20 @@ def _build_study_returns(daily: pl.DataFrame, ctx: CombinedAlgoBacktestContext) 
                     daily,
                     ctx.fee,
                     pairs_by_segment=ctx.ps_pairs_by_segment,
+                    from_date=ctx.from_date,
+                    to_date=ctx.to_date,
+                )
+            )
+        elif study == "volume_spreads":
+            if ctx.frozen_volume_thresholds is None:
+                raise RuntimeError("frozen_volume_thresholds не заданы для volume_spreads")
+            out.append(
+                build_vol_pair_returns(
+                    daily,
+                    ctx.fee,
+                    period=ctx.vol_period,
+                    frozen_thresholds=ctx.frozen_volume_thresholds,
+                    pair_filter=ctx.vol_selected_pairs,
                     from_date=ctx.from_date,
                     to_date=ctx.to_date,
                 )

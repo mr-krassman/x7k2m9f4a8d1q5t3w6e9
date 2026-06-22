@@ -1,0 +1,189 @@
+{
+  "prob_return_thresholds": {
+    "t_long": 0.5,
+    "t_short": 0.5,
+    "edge_pct": 0.25,
+    "smooth": "gauss σ=4",
+    "n_train_rows": 29957,
+    "source": "train prob_return_dependence"
+  },
+  "p_up_split_threshold": {
+    "threshold": 0.5,
+    "method": "default_0_5",
+    "otsu": 0.4961,
+    "valley": null,
+    "n_train_rows": 29957,
+    "source": "train P(up) density"
+  },
+  "train_cpcv_pooled": {
+    "accuracy": 0.5073,
+    "log_loss": 0.6932,
+    "roc_auc": 0.5122
+  },
+  "train_fit": {
+    "accuracy": 0.5292,
+    "log_loss": 0.6918,
+    "roc_auc": 0.5426
+  },
+  "holdout_test": {
+    "accuracy": 0.502,
+    "log_loss": 0.6932,
+    "roc_auc": 0.5078
+  },
+  "holdout_test_by_weekday": {
+    "Пн": {
+      "accuracy": 0.5088,
+      "log_loss": 0.6926,
+      "roc_auc": 0.5194
+    },
+    "Вт": {
+      "accuracy": 0.5089,
+      "log_loss": 0.6932,
+      "roc_auc": 0.5203
+    },
+    "Ср": {
+      "accuracy": 0.4956,
+      "log_loss": 0.6935,
+      "roc_auc": 0.4933
+    },
+    "Чт": {
+      "accuracy": 0.4603,
+      "log_loss": 0.6946,
+      "roc_auc": 0.4971
+    },
+    "Пт": {
+      "accuracy": 0.5306,
+      "log_loss": 0.6925,
+      "roc_auc": 0.5142
+    },
+    "Сб": {
+      "accuracy": 0.4989,
+      "log_loss": 0.6937,
+      "roc_auc": 0.4857
+    },
+    "Вс": {
+      "accuracy": 0.5112,
+      "log_loss": 0.6922,
+      "roc_auc": 0.5061
+    }
+  },
+  "train_fit_signal": {
+    "t_long": 0.5,
+    "t_short": 0.5,
+    "long_rate": 0.6079,
+    "flat_rate": 0.0,
+    "short_rate": 0.3921,
+    "long_hit_rate": 0.525,
+    "short_hit_rate": 0.5357,
+    "signal_accuracy": 0.5292,
+    "n_long": 18212,
+    "n_short": 11745,
+    "n_flat": 0
+  },
+  "holdout_test_signal": {
+    "t_long": 0.5,
+    "t_short": 0.5,
+    "long_rate": 0.619,
+    "flat_rate": 0.0,
+    "short_rate": 0.381,
+    "long_hit_rate": 0.4854,
+    "short_hit_rate": 0.5291,
+    "signal_accuracy": 0.502,
+    "n_long": 22355,
+    "n_short": 13758,
+    "n_flat": 0
+  },
+  "holdout_test_by_weekday_signal": {
+    "Пн": {
+      "t_long": 0.5,
+      "t_short": 0.5,
+      "long_rate": 0.5065,
+      "flat_rate": 0.0,
+      "short_rate": 0.4935,
+      "long_hit_rate": 0.5276,
+      "short_hit_rate": 0.4896,
+      "signal_accuracy": 0.5088,
+      "n_long": 2606,
+      "n_short": 2539,
+      "n_flat": 0
+    },
+    "Вт": {
+      "t_long": 0.5,
+      "t_short": 0.5,
+      "long_rate": 0.702,
+      "flat_rate": 0.0,
+      "short_rate": 0.298,
+      "long_hit_rate": 0.4863,
+      "short_hit_rate": 0.562,
+      "signal_accuracy": 0.5089,
+      "n_long": 3646,
+      "n_short": 1548,
+      "n_flat": 0
+    },
+    "Ср": {
+      "t_long": 0.5,
+      "t_short": 0.5,
+      "long_rate": 0.6754,
+      "flat_rate": 0.0,
+      "short_rate": 0.3246,
+      "long_hit_rate": 0.494,
+      "short_hit_rate": 0.4988,
+      "signal_accuracy": 0.4956,
+      "n_long": 3508,
+      "n_short": 1686,
+      "n_flat": 0
+    },
+    "Чт": {
+      "t_long": 0.5,
+      "t_short": 0.5,
+      "long_rate": 0.6744,
+      "flat_rate": 0.0,
+      "short_rate": 0.3256,
+      "long_hit_rate": 0.4014,
+      "short_hit_rate": 0.5821,
+      "signal_accuracy": 0.4603,
+      "n_long": 3470,
+      "n_short": 1675,
+      "n_flat": 0
+    },
+    "Пт": {
+      "t_long": 0.5,
+      "t_short": 0.5,
+      "long_rate": 0.6655,
+      "flat_rate": 0.0,
+      "short_rate": 0.3345,
+      "long_hit_rate": 0.5575,
+      "short_hit_rate": 0.477,
+      "signal_accuracy": 0.5306,
+      "n_long": 3424,
+      "n_short": 1721,
+      "n_flat": 0
+    },
+    "Сб": {
+      "t_long": 0.5,
+      "t_short": 0.5,
+      "long_rate": 0.6706,
+      "flat_rate": 0.0,
+      "short_rate": 0.3294,
+      "long_hit_rate": 0.509,
+      "short_hit_rate": 0.4785,
+      "signal_accuracy": 0.4989,
+      "n_long": 3450,
+      "n_short": 1695,
+      "n_flat": 0
+    },
+    "Вс": {
+      "t_long": 0.5,
+      "t_short": 0.5,
+      "long_rate": 0.4375,
+      "flat_rate": 0.0,
+      "short_rate": 0.5625,
+      "long_hit_rate": 0.4052,
+      "short_hit_rate": 0.5936,
+      "signal_accuracy": 0.5112,
+      "n_long": 2251,
+      "n_short": 2894,
+      "n_flat": 0
+    }
+  }
+}

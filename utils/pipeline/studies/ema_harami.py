@@ -1,0 +1,39 @@
+"""Исследование EMA(9) + Harami (пересечение бакетов dev к EMA и свечных паттернов)."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from crypto_research.utils.pipeline.ema_harami_train_val_summary import run_summary_report
+from crypto_research.utils.pipeline.report_context import ReportContext
+from crypto_research.utils.pipeline.studies.base import StudyHandler
+from crypto_research.utils.pipeline.study_dataset import StudyDataset, SummaryDatasets
+
+
+class EmaHaramiStudy(StudyHandler):
+    supports_summary = True
+
+    def validate_args(self, parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+        if not args.summary:
+            parser.error("ema_harami: используйте --summary")
+        if args.select_pairs_by_train:
+            parser.error("--select-pairs-by-train только для day_of_week")
+
+    def run(self, ctx: ReportContext, dataset: StudyDataset) -> Path:
+        del ctx, dataset
+        raise RuntimeError("ema_harami: только режим --summary")
+
+    def run_summary(self, ctx: ReportContext, summary: SummaryDatasets) -> Path:
+        return run_summary_report(
+            ctx,
+            summary.train_daily,
+            summary.val_daily,
+            summary.train_pairs,
+            summary.val_pairs,
+            summary.temporal_train,
+            summary.temporal_val,
+            summary.temporal_pairs,
+            summary.full_daily,
+            summary.full_pairs,
+        )

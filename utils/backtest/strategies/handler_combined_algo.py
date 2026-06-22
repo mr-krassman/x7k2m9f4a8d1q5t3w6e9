@@ -24,6 +24,10 @@ from crypto_research.utils.backtest.strategies.ema_spreads import (
     compute_frozen_thresholds,
 )
 from crypto_research.utils.backtest.strategies.rsi_spreads import compute_frozen_rsi_edges
+from crypto_research.utils.backtest.strategies.volume_spreads import (
+    WARMUP_CALENDAR_DAYS as VOL_WARMUP_CALENDAR_DAYS,
+    compute_frozen_volume_thresholds,
+)
 from crypto_research.utils.backtest.strategies.prepare import StrategyPrepareResult
 from crypto_research.utils.ema_spreads.constants import SELECTED_EMA_PERIOD
 from crypto_research.utils.ema_spreads.pair_selection import resolve_optimistic_ema_pairs
@@ -34,6 +38,8 @@ from crypto_research.utils.pipeline.paths import TEMPORAL_POOL_MAX_PAIR_START
 from crypto_research.utils.price_sequences.pair_selection import resolve_optimistic_price_sequences_pairs
 from crypto_research.utils.rsi.constants import SELECTED_RSI_PERIOD
 from crypto_research.utils.rsi.pair_selection import resolve_optimistic_rsi_pairs
+from crypto_research.utils.volume.constants import SELECTED_VOLUME_EMA_PERIOD
+from crypto_research.utils.volume.pair_selection import resolve_optimistic_volume_pairs
 
 
 class CombinedAlgoStrategyHandler(StrategyHandler):
@@ -110,8 +116,25 @@ class CombinedAlgoStrategyHandler(StrategyHandler):
             extras["ps_pairs_by_segment"] = optimistic.as_segment_dict()
             pair_sets.append(set(optimistic.union))
 
+        if "volume_spreads" in studies:
+            vol_selected = resolve_optimistic_volume_pairs(
+                ctx.data_dir,
+                period=SELECTED_VOLUME_EMA_PERIOD,
+                workers=ctx.workers,
+            )
+            extras["vol_selected_pairs"] = vol_selected
+            extras["frozen_volume_thresholds"] = compute_frozen_volume_thresholds(
+                train_daily,
+                SELECTED_VOLUME_EMA_PERIOD,
+            )
+            extras["vol_period"] = SELECTED_VOLUME_EMA_PERIOD
+            pair_sets.append(set(vol_selected))
+
         pair_filter = sorted(set().union(*pair_sets)) if pair_sets else []
-        load_from = ctx.from_date - timedelta(days=WARMUP_CALENDAR_DAYS)
+        warmup_days = WARMUP_CALENDAR_DAYS
+        if "volume_spreads" in studies:
+            warmup_days = max(warmup_days, VOL_WARMUP_CALENDAR_DAYS)
+        load_from = ctx.from_date - timedelta(days=warmup_days)
         return StrategyPrepareResult(
             pair_filter=pair_filter,
             max_pair_start=max_start,
@@ -140,10 +163,13 @@ class CombinedAlgoStrategyHandler(StrategyHandler):
             ema_selected_pairs=prepare.extras.get("ema_selected_pairs"),
             rsi_selected_pairs=prepare.extras.get("rsi_selected_pairs"),
             ps_pairs_by_segment=prepare.extras.get("ps_pairs_by_segment"),
+            vol_selected_pairs=prepare.extras.get("vol_selected_pairs"),
             frozen_thresholds=prepare.extras.get("frozen_thresholds"),
             frozen_edges=prepare.extras.get("frozen_edges"),
+            frozen_volume_thresholds=prepare.extras.get("frozen_volume_thresholds"),
             ema_period=prepare.extras.get("ema_period", SELECTED_EMA_PERIOD),
             rsi_period=prepare.extras.get("rsi_period", SELECTED_RSI_PERIOD),
+            vol_period=prepare.extras.get("vol_period", SELECTED_VOLUME_EMA_PERIOD),
             daily_benchmark_49=daily_benchmark_49,
             n_benchmark_pairs=n_benchmark_pairs,
             strategy_name=ctx.strategy,

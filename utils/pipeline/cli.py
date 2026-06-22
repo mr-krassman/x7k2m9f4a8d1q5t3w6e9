@@ -6,12 +6,19 @@ from crypto_research.utils.ema_spreads.constants import (
     DEFAULT_EMA_PERIODS,
     DEFAULT_SCREEN_EMA_PERIODS,
 )
+from crypto_research.utils.volume.constants import DEFAULT_SCREEN_VOLUME_EMA_PERIODS
+from crypto_research.utils.volatility.constants import (
+    DEFAULT_SCREEN_RANGE_SMA_PERIODS,
+    SELECTED_RANGE_SMA_PERIOD,
+)
 from crypto_research.utils.rsi.constants import DEFAULT_RSI_PERIODS, DEFAULT_SCREEN_RSI_PERIODS
 from crypto_research.utils.pipeline.study_ids import (
     ALL_STUDIES,
     STUDY_DAY_OF_WEEK,
     STUDY_EMA_PERIOD_SCREEN,
     STUDY_EMA_SPREADS,
+    STUDY_EMA_HARAMI,
+    STUDY_HARAMI,
 )
 
 
@@ -20,7 +27,11 @@ def parse_report_args() -> argparse.Namespace:
     parser.add_argument(
         "study",
         choices=list(ALL_STUDIES),
-        help="Исследование: day_of_week, ema_spreads, ema_period_screen, rsi_period_screen или rsi_spreads",
+        help=(
+            "Исследование: day_of_week, ema_spreads, ema_period_screen, rsi_period_screen, "
+            "rsi_spreads, volume_ema_period_screen, volume_spreads, volatility_period_screen, "
+            "volatility_spreads, harami, ema_harami, price_sequences"
+        ),
     )
     split_group = parser.add_mutually_exclusive_group()
     split_group.add_argument(
@@ -109,7 +120,10 @@ def parse_report_args() -> argparse.Namespace:
         help=(
             "Периоды EMA: ema_spreads "
             f"({ ' '.join(str(p) for p in DEFAULT_EMA_PERIODS) }); "
-            f"ema_period_screen ({' '.join(str(p) for p in DEFAULT_SCREEN_EMA_PERIODS)})"
+            f"ema_period_screen ({' '.join(str(p) for p in DEFAULT_SCREEN_EMA_PERIODS)}); "
+            f"volume_ema_period_screen ({' '.join(str(p) for p in DEFAULT_SCREEN_VOLUME_EMA_PERIODS)}); "
+            f"volatility_period_screen ({' '.join(str(p) for p in DEFAULT_SCREEN_RANGE_SMA_PERIODS)}); "
+            f"volatility_spreads (SMA {SELECTED_RANGE_SMA_PERIOD})"
         ),
     )
     parser.add_argument(

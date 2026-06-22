@@ -221,8 +221,8 @@ def _default_lgbm_params() -> dict:
         "num_leaves": 7,
         "max_depth": 5,
         "min_child_samples": 200,
-        "reg_alpha": 1.0,
-        "reg_lambda": 3.0,
+        "reg_alpha": 3.0,
+        "reg_lambda": 5.0,
         "subsample": 0.8,
         "colsample_bytree": 1.0,
         "random_state": 42,
@@ -332,6 +332,7 @@ def _oos_metrics_by_weekday(oos: pl.DataFrame) -> dict[str, dict[str, float]]:
         metrics = _fold_metrics(y_true[mask], y_prob[mask])
         metrics["base_rate_up"] = float(y_true[mask].mean())
         metrics["mean_p_up"] = float(y_prob[mask].mean())
+        metrics["median_p_up"] = float(np.median(y_prob[mask]))
         metrics["mean_p_down"] = float(1.0 - y_prob[mask].mean())
         metrics["weekday"] = float(wd)
         out[WEEKDAY_NAMES[wd]] = metrics

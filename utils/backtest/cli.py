@@ -14,10 +14,10 @@ from crypto_research.utils.pipeline.paths import DEFAULT_DATA_DIR
 
 def _strategy_help() -> str:
     return (
-        "rule-based: day_of_week | ema_spreads | rsi_spreads | price_sequences | "
-        "day_of_week ema_spreads [rsi_spreads [price_sequences]] --mode and|or; "
-        "ML: day_of_week_ml | ema_spreads_ml | rsi_spreads_ml | price_sequences_ml | "
-        "day_of_week_ml ema_spreads_ml [rsi_spreads_ml [price_sequences_ml]]"
+        "rule-based: day_of_week | ema_spreads | rsi_spreads | price_sequences | volume_spreads | "
+        "любое подмножество 2+ rule-based --mode and|or; "
+        "ML: day_of_week_ml | ema_spreads_ml | rsi_spreads_ml | price_sequences_ml | volume_spreads_ml | "
+        "любое подмножество 2+ ML (порядок не важен)"
     )
 
 
@@ -92,10 +92,16 @@ def parse_backtest_args() -> argparse.Namespace:
         help="Период RSI (только rsi_spreads; по умолчанию 9)",
     )
     parser.add_argument(
-        "--ml-policy-path",
+        "--vol-period",
+        type=int,
+        default=None,
+        help="Период EMA(volume) (только volume_spreads; по умолчанию 50)",
+    )
+    parser.add_argument(
+        "--ml-metrics-path",
         type=Path,
         default=None,
-        help="Путь к frozen policy JSON (только ML-стратегии).",
+        help="Путь к train_test metrics JSON (только ML; пороги prob_return_thresholds).",
     )
     parser.add_argument(
         "--ml-model-path",
@@ -133,10 +139,12 @@ def parse_backtest_args() -> argparse.Namespace:
         parser.error("--ema-period применим только к ema_spreads")
     if args.rsi_period is not None and args.strategy not in ("rsi_spreads",) and args.algo_spec is None:
         parser.error("--rsi-period применим только к rsi_spreads")
+    if args.vol_period is not None and args.strategy not in ("volume_spreads",) and args.algo_spec is None:
+        parser.error("--vol-period применим только к volume_spreads")
     if args.ml_spec is None and args.algo_spec is None and (
-        args.ml_policy_path is not None or args.ml_model_path is not None
+        args.ml_metrics_path is not None or args.ml_model_path is not None
     ):
-        parser.error("--ml-policy-path/--ml-model-path применимы только к ML-стратегиям")
+        parser.error("--ml-metrics-path/--ml-model-path применимы только к ML-стратегиям")
     if args.ml_spec is not None and normalize_scenario(args.scenario) != SCENARIO_MAXIMAL:
         parser.error("--scenario не применим к ML-стратегиям: период holdout test задаётся по умолчанию")
     if args.ema_period is None and args.strategy == "ema_spreads":
@@ -147,5 +155,9 @@ def parse_backtest_args() -> argparse.Namespace:
         from crypto_research.utils.rsi.constants import SELECTED_RSI_PERIOD
 
         args.rsi_period = SELECTED_RSI_PERIOD
+    if args.vol_period is None and args.strategy == "volume_spreads":
+        from crypto_research.utils.volume.constants import SELECTED_VOLUME_EMA_PERIOD
+
+        args.vol_period = SELECTED_VOLUME_EMA_PERIOD
     handler.validate_args(parser, args)
     return args
